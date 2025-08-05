@@ -201,6 +201,15 @@ class RealEstate_Sync_Cron_Manager {
     }
     
     /**
+     * Check if import is scheduled
+     * 
+     * @return bool
+     */
+    public function is_scheduled() {
+        return wp_next_scheduled(self::DAILY_IMPORT_HOOK) !== false;
+    }
+    
+    /**
      * Manually trigger import
      */
     public function trigger_manual_import() {

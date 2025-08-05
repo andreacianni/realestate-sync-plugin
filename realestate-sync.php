@@ -193,7 +193,7 @@ class RealEstate_Sync {
         
         // Log activation
         if (class_exists('RealEstate_Sync_Logger')) {
-            $logger = new RealEstate_Sync_Logger();
+            $logger = RealEstate_Sync_Logger::get_instance();
             $logger->log('Plugin activated successfully', 'info');
         }
         
@@ -246,7 +246,22 @@ class RealEstate_Sync {
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
+        $result = dbDelta($sql);
+        
+        // Log database creation with detailed info
+        if (class_exists('RealEstate_Sync_Logger')) {
+            $logger = RealEstate_Sync_Logger::get_instance();
+            $logger->log("Database table creation attempted: $table_name", 'info');
+            $logger->log("dbDelta result: " . print_r($result, true), 'debug');
+            
+            // Check if table actually exists
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+            $logger->log("Table exists after creation: " . ($table_exists ? 'YES' : 'NO'), 'info');
+            
+            if (!$table_exists) {
+                $logger->log("WARNING: Table creation may have failed. Manual verification required.", 'warning');
+            }
+        }
     }
     
     /**
