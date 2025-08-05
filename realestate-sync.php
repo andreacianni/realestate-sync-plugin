@@ -132,7 +132,7 @@ class RealEstate_Sync {
      */
     public function init_plugin() {
         // Initialize core instances
-        $this->instances['logger'] = new RealEstate_Sync_Logger();
+        $this->instances['logger'] = RealEstate_Sync_Logger::get_instance();
         $this->instances['xml_parser'] = new RealEstate_Sync_XML_Parser();
         $this->instances['property_mapper'] = new RealEstate_Sync_Property_Mapper();
         $this->instances['wp_importer'] = new RealEstate_Sync_WP_Importer();
