@@ -292,6 +292,9 @@ $import_in_progress = get_transient('realestate_sync_import_in_progress');
             <button type="button" class="rs-button-secondary" id="system-check">
                 <span class="dashicons dashicons-admin-tools"></span> Verifica Sistema
             </button>
+            <button type="button" class="rs-button-secondary" id="force-database-creation">
+                <span class="dashicons dashicons-database"></span> Crea Tabella Database
+            </button>
         </div>
         
         <!-- Log Viewer (Hidden by default) -->
@@ -348,6 +351,7 @@ jQuery(document).ready(function($) {
             $('#download-logs').on('click', this.downloadLogs);
             $('#clear-logs').on('click', this.clearLogs);
             $('#system-check').on('click', this.systemCheck);
+            $('#force-database-creation').on('click', this.forceDatabaseCreation);
         },
         
         startManualImport: function(e) {
@@ -616,6 +620,43 @@ jQuery(document).ready(function($) {
                 },
                 error: function() {
                     $('#system-check-results').html('<p style="color: #d63638;">Errore di comunicazione con il server</p>');
+                }
+            });
+        },
+        
+        forceDatabaseCreation: function(e) {
+            e.preventDefault();
+            
+            if (!confirm('Sei sicuro di voler forzare la creazione della tabella database?')) {
+                return;
+            }
+            
+            dashboard.showAlert('Creazione tabella database in corso...', 'warning');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'realestate_sync_force_database_creation',
+                    nonce: realestateSync.nonce
+                },
+                beforeSend: function() {
+                    $('#force-database-creation').prop('disabled', true).html('<span class="rs-spinner"></span>Creando tabella...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.showAlert('Tabella database creata: ' + response.data.table_name, 'success');
+                        console.log('Database creation result:', response.data);
+                    } else {
+                        dashboard.showAlert('Errore creazione tabella: ' + response.data.message, 'error');
+                        console.error('Database creation error:', response.data);
+                    }
+                },
+                error: function() {
+                    dashboard.showAlert('Errore di comunicazione con il server', 'error');
+                },
+                complete: function() {
+                    $('#force-database-creation').prop('disabled', false).html('<span class="dashicons dashicons-database"></span> Crea Tabella Database');
                 }
             });
         },

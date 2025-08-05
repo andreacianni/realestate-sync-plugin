@@ -43,6 +43,7 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_clear_logs', array($this, 'handle_clear_logs'));
         add_action('wp_ajax_realestate_sync_system_check', array($this, 'handle_system_check'));
         add_action('wp_ajax_realestate_sync_toggle_automation', array($this, 'handle_toggle_automation'));
+        add_action('wp_ajax_realestate_sync_force_database_creation', array($this, 'handle_force_database_creation'));
     }
     
     /**
@@ -349,6 +350,74 @@ class RealEstate_Sync_Admin {
             wp_send_json_success($message);
         } else {
             wp_send_json_error($message);
+        }
+    }
+    
+    /**
+     * Handle force database creation AJAX
+     */
+    public function handle_force_database_creation() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        // Force table creation with detailed logging
+        $charset_collate = $wpdb->get_charset_collate();
+        $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+        
+        $sql = "CREATE TABLE $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            property_id varchar(50) NOT NULL,
+            property_hash varchar(32) NOT NULL,
+            wp_post_id bigint(20) DEFAULT NULL,
+            last_import datetime DEFAULT NULL,
+            import_count int(11) DEFAULT 0,
+            status varchar(20) DEFAULT 'active',
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY property_id (property_id),
+            KEY property_hash (property_hash),
+            KEY wp_post_id (wp_post_id),
+            KEY status (status)
+        ) $charset_collate;";
+        
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        $result = dbDelta($sql);
+        
+        // Log the attempt
+        $this->logger->log("FORCE: Database table creation attempted: $table_name", 'info');
+        $this->logger->log("FORCE: dbDelta result: " . print_r($result, true), 'debug');
+        
+        // Check if table actually exists
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+        $this->logger->log("FORCE: Table exists after creation: " . ($table_exists ? 'YES' : 'NO'), 'info');
+        
+        if ($table_exists) {
+            // Get table structure to verify
+            $table_structure = $wpdb->get_results("DESCRIBE $table_name", ARRAY_A);
+            $this->logger->log("FORCE: Table structure: " . print_r($table_structure, true), 'debug');
+            
+            wp_send_json_success(array(
+                'message' => 'Tabella database creata con successo!',
+                'table_name' => $table_name,
+                'exists' => true,
+                'structure' => $table_structure
+            ));
+        } else {
+            $error = $wpdb->last_error ? $wpdb->last_error : 'Errore sconosciuto';
+            $this->logger->log("FORCE: Table creation failed. MySQL Error: $error", 'error');
+            
+            wp_send_json_error(array(
+                'message' => 'Errore nella creazione tabella: ' . $error,
+                'table_name' => $table_name,
+                'exists' => false,
+                'mysql_error' => $error
+            ));
         }
     }
 }
