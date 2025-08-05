@@ -26,6 +26,13 @@ if (!defined('ABSPATH')) {
 class RealEstate_Sync_Logger {
     
     /**
+     * Singleton instance
+     *
+     * @var RealEstate_Sync_Logger
+     */
+    private static $instance = null;
+    
+    /**
      * Log directory path
      *
      * @var string
@@ -66,11 +73,37 @@ class RealEstate_Sync_Logger {
     private $max_files = 10;
     
     /**
-     * Constructor
+     * Private constructor (Singleton pattern)
      */
-    public function __construct() {
+    private function __construct() {
         $this->setup_log_directory();
         $this->setup_log_file();
+    }
+    
+    /**
+     * Get singleton instance
+     *
+     * @return RealEstate_Sync_Logger
+     */
+    public static function get_instance() {
+        if (self::$instance === null) {
+            self::$instance = new self();
+        }
+        return self::$instance;
+    }
+    
+    /**
+     * Prevent cloning of singleton
+     */
+    private function __clone() {
+        // Prevent cloning
+    }
+    
+    /**
+     * Prevent unserialization of singleton
+     */
+    public function __wakeup() {
+        throw new Exception("Cannot unserialize singleton");
     }
     
     /**
