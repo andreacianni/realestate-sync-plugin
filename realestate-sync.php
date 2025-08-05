@@ -110,6 +110,7 @@ class RealEstate_Sync {
     private function load_dependencies() {
         // Core classes
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-logger.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-xml-downloader.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-xml-parser.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-mapper.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wp-importer.php';
@@ -233,7 +234,7 @@ class RealEstate_Sync {
             property_id varchar(50) NOT NULL,
             property_hash varchar(32) NOT NULL,
             wp_post_id bigint(20) DEFAULT NULL,
-            last_import datetime DEFAULT NULL,
+            last_import_date datetime DEFAULT NULL,
             import_count int(11) DEFAULT 0,
             status varchar(20) DEFAULT 'active',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
