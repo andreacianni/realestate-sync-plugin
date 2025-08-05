@@ -16,12 +16,12 @@ if (!defined('ABSPATH')) {
 
 // Get current settings
 $current_settings = get_option('realestate_sync_settings', array());
-$default_settings = include plugin_dir_path(__FILE__) . '../../../config/default-settings.php';
+$default_settings = include plugin_dir_path(__FILE__) . '../../config/default-settings.php';
 $settings = wp_parse_args($current_settings, $default_settings);
 
 // Get system status
 $tracking_manager = new RealEstate_Sync_Tracking_Manager();
-$last_import = $tracking_manager->get_last_import_data();
+$last_import = null; // TODO: Implementare get_last_import_data() method
 $import_stats = $tracking_manager->get_import_statistics();
 $next_scheduled = wp_next_scheduled('realestate_sync_daily_import');
 $cron_manager = new RealEstate_Sync_Cron_Manager();
