@@ -80,9 +80,9 @@ class RealEstate_Sync {
      * Initialize WordPress hooks
      */
     private function init_hooks() {
-        // Plugin lifecycle hooks
-        register_activation_hook(__FILE__, [$this, 'activate']);
-        register_deactivation_hook(__FILE__, [$this, 'deactivate']);
+        // Plugin lifecycle hooks (static callbacks)
+        register_activation_hook(__FILE__, [__CLASS__, 'plugin_activate']);
+        register_deactivation_hook(__FILE__, [__CLASS__, 'plugin_deactivate']);
         
         // Core WordPress hooks
         add_action('plugins_loaded', [$this, 'init_plugin']);
@@ -158,6 +158,24 @@ class RealEstate_Sync {
             false,
             dirname(REALESTATE_SYNC_PLUGIN_BASENAME) . '/languages/'
         );
+    }
+    
+    /**
+     * Static plugin activation callback
+     */
+    public static function plugin_activate() {
+        // Create instance to run activation
+        $instance = self::get_instance();
+        $instance->activate();
+    }
+    
+    /**
+     * Static plugin deactivation callback
+     */
+    public static function plugin_deactivate() {
+        // Create instance to run deactivation
+        $instance = self::get_instance();
+        $instance->deactivate();
     }
     
     /**

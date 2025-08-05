@@ -32,8 +32,7 @@ class RealEstate_Sync_Admin {
     public function __construct() {
         $this->logger = RealEstate_Sync_Logger::get_instance();
         
-        // Admin hooks
-        add_action('admin_menu', array($this, 'add_admin_menu'));
+        // Admin hooks - No menu registration (handled by main class)
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_action('wp_ajax_realestate_sync_manual_import', array($this, 'handle_manual_import'));
         add_action('wp_ajax_realestate_sync_test_connection', array($this, 'handle_test_connection'));
