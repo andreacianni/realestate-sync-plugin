@@ -257,6 +257,56 @@
     cursor: not-allowed;
 }
 
+/* Edit Mode Styles */
+.rs-field-container {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rs-field-readonly {
+    background-color: #f6f7f7;
+    color: #646970;
+    cursor: default;
+}
+
+.rs-field-readonly:focus {
+    border-color: #8c8f94;
+    box-shadow: none;
+}
+
+.rs-edit-btn,
+.rs-confirm-btn {
+    background: #f6f7f7;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    padding: 6px 8px;
+    cursor: pointer;
+    color: #2c3338;
+    font-size: 14px;
+    min-width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.rs-edit-btn:hover {
+    background: #e0e0e0;
+    border-color: #999;
+}
+
+.rs-confirm-btn {
+    background: #d1e7dd;
+    border-color: #badbcc;
+    color: #0f5132;
+}
+
+.rs-confirm-btn:hover {
+    background: #c3e6cb;
+    border-color: #a3cfb7;
+}
+
 @media (max-width: 768px) {
     .rs-dashboard-grid {
         grid-template-columns: 1fr;
@@ -275,5 +325,17 @@
     
     .rs-input {
         max-width: none;
+    }
+    
+    .rs-field-container {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 5px;
+    }
+    
+    .rs-edit-btn,
+    .rs-confirm-btn {
+        align-self: flex-end;
+        width: 40px;
     }
 }

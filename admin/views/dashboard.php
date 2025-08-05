@@ -152,28 +152,45 @@ $import_in_progress = get_transient('realestate_sync_import_in_progress');
             </div>
             
             <!-- Quick Settings -->
-            <form id="rs-quick-settings">
+            <form id="rs-quick-settings" method="post">
+                <?php wp_nonce_field('realestate_sync_nonce'); ?>
                 <table class="rs-form-table">
                     <tr>
                         <th>URL XML:</th>
                         <td>
-                            <input type="url" id="xml_url" name="xml_url" class="rs-input" 
-                                   value="<?php echo esc_attr($settings['xml_url']); ?>" 
-                                   placeholder="https://www.gestionaleimmobiliare.it/export/xml/...">
+                            <div class="rs-field-container">
+                                <input type="url" id="xml_url" name="xml_url" class="rs-input rs-field-readonly" 
+                                       value="<?php echo esc_attr($settings['xml_url']); ?>" 
+                                       placeholder="https://www.gestionaleimmobiliare.it/export/xml/..." readonly>
+                                <button type="button" class="rs-edit-btn" data-field="xml_url" title="Modifica URL">
+                                    <span class="dashicons dashicons-edit"></span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr>
                         <th>Username:</th>
                         <td>
-                            <input type="text" id="username" name="username" class="rs-input" 
-                                   value="<?php echo esc_attr($settings['username']); ?>">
+                            <div class="rs-field-container">
+                                <input type="text" id="username" name="username" class="rs-input rs-field-readonly" 
+                                       value="<?php echo esc_attr($settings['username']); ?>" readonly>
+                                <button type="button" class="rs-edit-btn" data-field="username" title="Modifica Username">
+                                    <span class="dashicons dashicons-edit"></span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr>
                         <th>Password:</th>
                         <td>
-                            <input type="password" id="password" name="password" class="rs-input" 
-                                   value="<?php echo esc_attr($settings['password']); ?>">
+                            <div class="rs-field-container">
+                                <input type="password" id="password" name="password" class="rs-input rs-field-readonly" 
+                                       value="<?php echo !empty($settings['password']) ? '••••••••••••' : ''; ?>" 
+                                       data-original="<?php echo esc_attr($settings['password']); ?>" readonly>
+                                <button type="button" class="rs-edit-btn" data-field="password" title="Modifica Password">
+                                    <span class="dashicons dashicons-edit"></span>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr>
@@ -309,6 +326,7 @@ jQuery(document).ready(function($) {
         init: function() {
             this.bindEvents();
             this.checkImportProgress();
+            this.initializeEditMode();
         },
         
         bindEvents: function() {
@@ -321,6 +339,9 @@ jQuery(document).ready(function($) {
             $('#rs-quick-settings').on('submit', this.saveSettings);
             $('#toggle-advanced').on('click', this.toggleAdvanced);
             $('#toggle-automation').on('click', this.toggleAutomation);
+            
+            // Edit mode
+            $('.rs-edit-btn').on('click', this.toggleEditMode);
             
             // Logs
             $('#view-logs').on('click', this.viewLogs);
@@ -422,6 +443,7 @@ jQuery(document).ready(function($) {
                 success: function(response) {
                     if (response.success) {
                         dashboard.showAlert('Configurazione salvata con successo!', 'success');
+                        dashboard.setReadOnlyMode();
                     } else {
                         dashboard.showAlert('Errore nel salvataggio: ' + response.data, 'error');
                     }
@@ -433,6 +455,62 @@ jQuery(document).ready(function($) {
                     $('#rs-quick-settings button[type="submit"]').prop('disabled', false).html('<span class="dashicons dashicons-yes"></span> Salva Configurazione');
                 }
             });
+        },
+        
+        toggleEditMode: function(e) {
+            e.preventDefault();
+            
+            var fieldName = $(this).data('field');
+            var input = $('#' + fieldName);
+            var button = $(this);
+            
+            if (input.prop('readonly')) {
+                // Switch to edit mode
+                input.removeClass('rs-field-readonly').prop('readonly', false).focus();
+                
+                // For password field, show original value
+                if (fieldName === 'password') {
+                    var originalValue = input.data('original');
+                    input.val(originalValue);
+                }
+                
+                button.html('<span class="dashicons dashicons-yes"></span>').attr('title', 'Conferma');
+                button.removeClass('rs-edit-btn').addClass('rs-confirm-btn');
+            } else {
+                // Switch back to readonly mode
+                dashboard.setFieldReadOnly(fieldName);
+            }
+        },
+        
+        setReadOnlyMode: function() {
+            $('.rs-field-readonly').prop('readonly', true);
+            $('.rs-confirm-btn').each(function() {
+                var fieldName = $(this).data('field');
+                dashboard.setFieldReadOnly(fieldName);
+            });
+        },
+        
+        setFieldReadOnly: function(fieldName) {
+            var input = $('#' + fieldName);
+            var button = $('[data-field="' + fieldName + '"]');
+            
+            input.addClass('rs-field-readonly').prop('readonly', true);
+            
+            // For password field, show dots
+            if (fieldName === 'password' && input.val()) {
+                input.val('••••••••••••');
+            }
+            
+            button.html('<span class="dashicons dashicons-edit"></span>').attr('title', 'Modifica ' + fieldName);
+            button.removeClass('rs-confirm-btn').addClass('rs-edit-btn');
+        },
+        
+        initializeEditMode: function() {
+            // Set readonly mode on page load if settings exist
+            var hasSettings = $('#xml_url').val() || $('#username').val() || $('#password').data('original');
+            if (hasSettings) {
+                this.setReadOnlyMode();
+            }
         },
         
         toggleAdvanced: function(e) {

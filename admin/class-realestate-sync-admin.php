@@ -192,14 +192,20 @@ class RealEstate_Sync_Admin {
             'username' => sanitize_text_field($_POST['username']),
             'password' => sanitize_text_field($_POST['password']),
             'notification_email' => sanitize_email($_POST['notification_email']),
-            'enabled_provinces' => array_map('sanitize_text_field', $_POST['enabled_provinces']),
-            'chunk_size' => intval($_POST['chunk_size']),
-            'sleep_seconds' => intval($_POST['sleep_seconds'])
+            'enabled_provinces' => isset($_POST['enabled_provinces']) ? array_map('sanitize_text_field', $_POST['enabled_provinces']) : array(),
+            'chunk_size' => isset($_POST['chunk_size']) ? intval($_POST['chunk_size']) : 50,
+            'sleep_seconds' => isset($_POST['sleep_seconds']) ? intval($_POST['sleep_seconds']) : 2
         );
         
-        update_option('realestate_sync_settings', $settings);
+        $result = update_option('realestate_sync_settings', $settings);
         
-        wp_send_json_success('Impostazioni salvate con successo');
+        if ($result !== false) {
+            $this->logger->log('Settings saved successfully', 'info');
+            wp_send_json_success('Impostazioni salvate con successo');
+        } else {
+            $this->logger->log('Failed to save settings', 'error');
+            wp_send_json_error('Errore nel salvataggio delle impostazioni');
+        }
     }
     
     /**
