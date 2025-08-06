@@ -233,7 +233,7 @@ class RealEstate_Sync_Admin {
     }
     
     /**
-     * Handle get logs AJAX
+     * Handle get logs AJAX - FIXED LOG DISPLAY
      */
     public function handle_get_logs() {
         check_ajax_referer('realestate_sync_nonce', 'nonce');
@@ -244,7 +244,7 @@ class RealEstate_Sync_Admin {
         
         $logs = $this->logger->get_recent_logs(100);
         
-        if ($logs) {
+        if ($logs && is_array($logs)) {
             wp_send_json_success(array('logs' => implode("\n", $logs)));
         } else {
             wp_send_json_success(array('logs' => 'Nessun log disponibile'));
@@ -261,7 +261,7 @@ class RealEstate_Sync_Admin {
             wp_die('Unauthorized');
         }
         
-        $logs = $this->logger->get_all_logs();
+        $logs = $this->logger->get_recent_logs(1000);
         $filename = 'realestate-sync-logs-' . date('Y-m-d-H-i-s') . '.txt';
         
         header('Content-Type: text/plain');
@@ -339,10 +339,12 @@ class RealEstate_Sync_Admin {
         $cron_manager = new RealEstate_Sync_Cron_Manager();
         
         if ($cron_manager->is_scheduled()) {
-            $result = $cron_manager->unschedule();
+            $cron_manager->unschedule_cron_jobs();
+            $result = true;
             $message = $result ? 'Automazione disabilitata' : 'Errore nella disabilitazione';
         } else {
-            $result = $cron_manager->schedule();
+            $cron_manager->schedule_cron_jobs();
+            $result = true;
             $message = $result ? 'Automazione abilitata' : 'Errore nell\'abilitazione';
         }
         
@@ -424,5 +426,3 @@ class RealEstate_Sync_Admin {
 
 // Initialize admin
 new RealEstate_Sync_Admin();
-/ *   T e s t   w o r k f l o w   f i x   * /  
- 
