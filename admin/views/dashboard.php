@@ -129,7 +129,7 @@ $import_in_progress = get_transient('realestate_sync_import_in_progress');
                         <span class="dashicons dashicons-download"></span> Scarica e Importa Ora
                     </button>
                     
-                    <button type="button" class="rs-button-secondary" id="test-connection">
+                    <button type="button" class="rs-button-secondary" id="rs-test-connection">
                         <span class="dashicons dashicons-networking"></span> Test Connessione
                     </button>
                 <?php endif; ?>
@@ -335,7 +335,7 @@ jQuery(document).ready(function($) {
         bindEvents: function() {
             // Manual import
             $('#start-manual-import').on('click', this.startManualImport);
-            $('#test-connection').on('click', this.testConnection);
+            $('#rs-test-connection').on('click', this.testConnection);
             $('#refresh-progress').on('click', this.checkImportProgress);
             
             // Settings
@@ -413,7 +413,7 @@ jQuery(document).ready(function($) {
                     password: password
                 },
                 beforeSend: function() {
-                    $('#test-connection').prop('disabled', true).html('<span class="rs-spinner"></span>Testing...');
+                    $('#rs-test-connection').prop('disabled', true).html('<span class="rs-spinner"></span>Testing...');
                 },
                 success: function(response) {
                     if (response.success) {
@@ -426,7 +426,7 @@ jQuery(document).ready(function($) {
                     dashboard.showAlert('Errore durante il test di connessione', 'error');
                 },
                 complete: function() {
-                    $('#test-connection').prop('disabled', false).html('<span class="dashicons dashicons-networking"></span> Test Connessione');
+                    $('#rs-test-connection').prop('disabled', false).html('<span class="dashicons dashicons-networking"></span> Test Connessione');
                 }
             });
         },
