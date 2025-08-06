@@ -380,6 +380,10 @@ class RealEstate_Sync_Admin {
         $charset_collate = $wpdb->get_charset_collate();
         $table_name = $wpdb->prefix . 'realestate_sync_tracking';
         
+        // Check current table structure for debugging
+        $existing_structure = $wpdb->get_results("DESCRIBE $table_name", ARRAY_A);
+        $this->logger->log("FORCE: Current table structure before changes: " . print_r($existing_structure, true), 'debug');
+        
         // First, drop existing table if it exists
         $wpdb->query("DROP TABLE IF EXISTS $table_name");
         $this->logger->log("FORCE: Dropped existing table $table_name", 'info');
