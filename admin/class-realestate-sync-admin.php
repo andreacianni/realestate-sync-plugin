@@ -245,7 +245,16 @@ class RealEstate_Sync_Admin {
         $logs = $this->logger->get_recent_logs(100);
         
         if ($logs && is_array($logs)) {
-            wp_send_json_success(array('logs' => implode("\n", $logs)));
+            // Format logs correctly for display
+            $formatted_logs = array();
+            foreach ($logs as $log) {
+                if (is_array($log)) {
+                    $formatted_logs[] = '[' . $log['timestamp'] . '] [' . strtoupper($log['level']) . '] ' . $log['message'];
+                } else {
+                    $formatted_logs[] = $log;
+                }
+            }
+            wp_send_json_success(array('logs' => implode("\n", $formatted_logs)));
         } else {
             wp_send_json_success(array('logs' => 'Nessun log disponibile'));
         }
@@ -367,16 +376,21 @@ class RealEstate_Sync_Admin {
         
         global $wpdb;
         
-        // Force table creation with detailed logging
+        // FORCE DROP AND RECREATE with correct schema
         $charset_collate = $wpdb->get_charset_collate();
         $table_name = $wpdb->prefix . 'realestate_sync_tracking';
         
+        // First, drop existing table if it exists
+        $wpdb->query("DROP TABLE IF EXISTS $table_name");
+        $this->logger->log("FORCE: Dropped existing table $table_name", 'info');
+        
+        // Create table with CORRECT schema (last_import_date, not last_import)
         $sql = "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             property_id varchar(50) NOT NULL,
             property_hash varchar(32) NOT NULL,
             wp_post_id bigint(20) DEFAULT NULL,
-            last_import datetime DEFAULT NULL,
+            last_import_date datetime DEFAULT NULL,
             import_count int(11) DEFAULT 0,
             status varchar(20) DEFAULT 'active',
             created_at datetime DEFAULT CURRENT_TIMESTAMP,
@@ -385,7 +399,8 @@ class RealEstate_Sync_Admin {
             UNIQUE KEY property_id (property_id),
             KEY property_hash (property_hash),
             KEY wp_post_id (wp_post_id),
-            KEY status (status)
+            KEY status (status),
+            KEY last_import_date (last_import_date)
         ) $charset_collate;";
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
