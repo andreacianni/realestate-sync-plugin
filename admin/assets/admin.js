@@ -112,10 +112,14 @@ jQuery(document).ready(function($) {
                 type: 'POST',
                 data: data,
                 success: function(response) {
-                    if (response.success) {
-                        $status.html('<div class="rs-alert rs-alert-success">Connessione riuscita! Dimensione file: ' + response.data.content_length_formatted + '</div>');
+                    console.log('Test connection response:', response); // DEBUG
+                    
+                    if (response && response.success && response.data) {
+                        $status.html('<div class="rs-alert rs-alert-success">Connessione riuscita! Dimensione file: ' + (response.data.content_length_formatted || 'Unknown') + '</div>');
+                    } else if (response && response.data) {
+                        $status.html('<div class="rs-alert rs-alert-error">Test fallito: HTTP ' + (response.data.http_code || 'Unknown') + ' - ' + (response.data.error || 'Errore sconosciuto') + '</div>');
                     } else {
-                        $status.html('<div class="rs-alert rs-alert-error">Connessione fallita: HTTP ' + response.data.http_code + '</div>');
+                        $status.html('<div class="rs-alert rs-alert-error">Test fallito: Risposta non valida</div>');
                     }
                 },
                 error: function() {
