@@ -417,9 +417,23 @@ jQuery(document).ready(function($) {
                 },
                 success: function(response) {
                     if (response.success) {
-                        dashboard.showAlert('Connessione riuscita! ' + response.data.message, 'success');
+                        dashboard.showAlert('Connessione riuscita! Server raggiungibile.', 'success');
                     } else {
-                        dashboard.showAlert('Test fallito: ' + response.data.message, 'error');
+                        var errorMsg = 'Test fallito';
+                        if (response.data) {
+                            if (response.data.message) {
+                                errorMsg += ': ' + response.data.message;
+                            } else if (response.data.http_code) {
+                                if (response.data.http_code === 401) {
+                                    errorMsg += ': HTTP 401 - Credenziali non autorizzate. Verifica username/password in GestionaleImmobiliare.it';
+                                } else {
+                                    errorMsg += ': HTTP ' + response.data.http_code;
+                                }
+                            } else {
+                                errorMsg += ': Errore sconosciuto';
+                            }
+                        }
+                        dashboard.showAlert(errorMsg, 'error');
                     }
                 },
                 error: function() {
