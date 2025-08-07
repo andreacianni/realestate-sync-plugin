@@ -118,6 +118,9 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-cron-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-tracking-manager.php';
         
+        // GitHub updater class
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php';
+        
         // Admin classes
         if (is_admin()) {
             require_once REALESTATE_SYNC_PLUGIN_DIR . 'admin/class-realestate-sync-admin.php';
@@ -140,6 +143,11 @@ class RealEstate_Sync {
         $this->instances['import_engine'] = new RealEstate_Sync_Import_Engine();
         $this->instances['cron_manager'] = new RealEstate_Sync_Cron_Manager();
         $this->instances['tracking_manager'] = new RealEstate_Sync_Tracking_Manager();
+        
+        // Initialize GitHub updater
+        if (is_admin()) {
+            $this->instances['github_updater'] = new RealEstate_Sync_GitHub_Updater(REALESTATE_SYNC_PLUGIN_FILE);
+        }
         
         // Initialize admin interface
         if (is_admin()) {
