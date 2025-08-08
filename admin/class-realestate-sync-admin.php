@@ -118,11 +118,14 @@ class RealEstate_Sync_Admin {
         }
         
         try {
-            $settings = get_option('realestate_sync_settings', array());
+            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
+            $settings = array(
+                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/',
+                'username' => 'trentinoimmobiliare_it',
+                'password' => 'dget6g52'
+            );
             
-            if (empty($settings['xml_url']) || empty($settings['username']) || empty($settings['password'])) {
-                throw new Exception('Configurazione mancante. Verifica le impostazioni.');
-            }
+            $this->logger->log('HARDCODE: Using hardcoded credentials for testing', 'info');
             
             // Download XML
             $downloader = new RealEstate_Sync_XML_Downloader();
@@ -164,9 +167,12 @@ class RealEstate_Sync_Admin {
             wp_die('Unauthorized');
         }
         
-        $url = sanitize_url($_POST['url']);
-        $username = sanitize_text_field($_POST['username']);
-        $password = sanitize_text_field($_POST['password']);
+        // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
+        $url = 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/';
+        $username = 'trentinoimmobiliare_it';
+        $password = 'dget6g52';
+        
+        $this->logger->log('HARDCODE: Using hardcoded credentials for connection test', 'info');
         
         $downloader = new RealEstate_Sync_XML_Downloader();
         $result = $downloader->test_connection($url, $username, $password);
