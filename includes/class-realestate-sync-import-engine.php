@@ -431,7 +431,35 @@ class RealEstate_Sync_Import_Engine {
      * Utility methods
      */
     private function is_property_in_enabled_provinces($property_data) {
-        return true; // Simplified for now
+        // Check se campo comune_istat è presente
+        if (!isset($property_data['comune_istat']) || empty($property_data['comune_istat'])) {
+            $this->logger->log("Property {$property_data['id']}: comune_istat field missing - excluding", 'debug');
+            return false;
+        }
+        
+        $comune_istat = $property_data['comune_istat'];
+        
+        // Filtro per TN e BZ basato su comune_istat
+        // TN (Trento): comune_istat inizia con "022"
+        // BZ (Bolzano): comune_istat inizia con "021"
+        $is_trento = (substr($comune_istat, 0, 3) === '022');
+        $is_bolzano = (substr($comune_istat, 0, 3) === '021');
+        
+        if ($is_trento || $is_bolzano) {
+            $provincia = $is_trento ? 'TN' : 'BZ';
+            $this->logger->log("Property {$property_data['id']}: ACCEPTED - provincia $provincia (comune_istat: $comune_istat)", 'debug');
+            
+            // Update statistics
+            if (!isset($this->stats['provinces_found'][$provincia])) {
+                $this->stats['provinces_found'][$provincia] = 0;
+            }
+            $this->stats['provinces_found'][$provincia]++;
+            
+            return true;
+        } else {
+            $this->logger->log("Property {$property_data['id']}: EXCLUDED - provincia not TN/BZ (comune_istat: $comune_istat)", 'debug');
+            return false;
+        }
     }
     
     private function update_property_statistics($property_data) {
