@@ -419,10 +419,40 @@ class RealEstate_Sync {
             wp_die('Unauthorized');
         }
         
-        // Run import
-        $result = $this->instances['import_engine']->run_import(true);
-        
-        wp_send_json($result);
+        try {
+            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS SETTINGS
+            $settings = array(
+                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                'username' => 'trentinoimmobiliare_it',
+                'password' => 'dget6g52',
+                'chunk_size' => 25,
+                'sleep_seconds' => 1
+            );
+            
+            $this->instances['logger']->log('HARDCODE: Using hardcoded credentials in main file', 'info');
+            
+            // Download XML file
+            $downloader = new RealEstate_Sync_XML_Downloader();
+            $xml_file = $downloader->download_xml($settings['xml_url'], $settings['username'], $settings['password']);
+            
+            if (!$xml_file) {
+                throw new Exception('Failed to download XML file');
+            }
+            
+            // Configure and run import
+            $this->instances['import_engine']->configure($settings);
+            $result = $this->instances['import_engine']->execute_chunked_import($xml_file);
+            
+            // Cleanup
+            if (file_exists($xml_file)) {
+                unlink($xml_file);
+            }
+            
+            wp_send_json_success($result);
+            
+        } catch (Exception $e) {
+            wp_send_json_error($e->getMessage());
+        }
     }
     
     /**
@@ -455,7 +485,41 @@ class RealEstate_Sync {
      * Run scheduled import
      */
     public function run_scheduled_import() {
-        $this->instances['import_engine']->run_import(false);
+        try {
+            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS SETTINGS
+            $settings = array(
+                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                'username' => 'trentinoimmobiliare_it',
+                'password' => 'dget6g52',
+                'chunk_size' => 25,
+                'sleep_seconds' => 1
+            );
+            
+            $this->instances['logger']->log('HARDCODE: Using hardcoded credentials for scheduled import', 'info');
+            
+            // Download XML
+            $downloader = new RealEstate_Sync_XML_Downloader();
+            $xml_file = $downloader->download_xml($settings['xml_url'], $settings['username'], $settings['password']);
+            
+            if (!$xml_file) {
+                $this->instances['logger']->log('Scheduled import failed: XML download failed', 'error');
+                return;
+            }
+            
+            // Execute import
+            $this->instances['import_engine']->configure($settings);
+            $result = $this->instances['import_engine']->execute_chunked_import($xml_file);
+            
+            // Cleanup
+            if (file_exists($xml_file)) {
+                unlink($xml_file);
+            }
+            
+            $this->instances['logger']->log('Scheduled import completed successfully', 'info');
+            
+        } catch (Exception $e) {
+            $this->instances['logger']->log('Scheduled import failed: ' . $e->getMessage(), 'error');
+        }
     }
     
     /**

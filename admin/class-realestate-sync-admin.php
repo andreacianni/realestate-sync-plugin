@@ -120,7 +120,7 @@ class RealEstate_Sync_Admin {
         try {
             // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
             $settings = array(
-                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/',
+                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
                 'username' => 'trentinoimmobiliare_it',
                 'password' => 'dget6g52'
             );
@@ -168,7 +168,7 @@ class RealEstate_Sync_Admin {
         }
         
         // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
-        $url = 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/';
+        $url = 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz';
         $username = 'trentinoimmobiliare_it';
         $password = 'dget6g52';
         
