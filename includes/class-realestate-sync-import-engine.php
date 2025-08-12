@@ -233,7 +233,7 @@ class RealEstate_Sync_Import_Engine {
             }
             
             // Province filtering
-            if (!$this->is_property_in_enabled_provinces($property_data)) {
+            if (!$this->property_mapper->is_property_in_enabled_provinces($property_data, $this->config['enabled_provinces'])) {
                 $this->stats['skipped_properties']++;
                 return;
             }
@@ -275,44 +275,57 @@ class RealEstate_Sync_Import_Engine {
     private function process_property_by_action($property_data, $change_status, $property_hash) {
         $property_id = intval($property_data['id']);
         
+        // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
+        $mapped_result = $this->property_mapper->map_properties([$property_data]);
+        
+        if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
+            $this->logger->log("Property mapping failed for ID $property_id", 'warning');
+            return;
+        }
+        
+        $mapped_data = $mapped_result['properties'][0];
+        
         if ($change_status['action'] === 'insert') {
-            // Nuova property
-            $mapped_result = $this->property_mapper->map_properties([$property_data]);
-            if ($mapped_result['success'] && !empty($mapped_result['properties'])) {
-                $mapped_data = $mapped_result['properties'][0];
-                $wp_post_id = $this->wp_importer->create_property($mapped_data);
+            // 🚀 NEW PROPERTY: Use WP Importer v3.0 with complete structure
+            $result = $this->wp_importer->process_property_v3($mapped_data);
+            
+            if ($result['success']) {
+                $this->tracking_manager->update_tracking_record(
+                    $property_id,
+                    $property_hash,
+                    $result['post_id'],
+                    $property_data,
+                    'active'
+                );
+                $this->stats['new_properties']++;
                 
-                if ($wp_post_id) {
-                    $this->tracking_manager->update_tracking_record(
-                        $property_id, 
-                        $property_hash, 
-                        $wp_post_id, 
-                        $property_data, 
-                        'active'
-                    );
-                    $this->stats['new_properties']++;
-                }
+                $this->logger->log("New property created v3.0: ID $property_id → Post {$result['post_id']}", 'info');
+            } else {
+                $this->logger->log("Failed to create property ID $property_id: {$result['error']}", 'error');
             }
             
         } elseif ($change_status['action'] === 'update') {
-            // Property esistente da aggiornare
-            $mapped_result = $this->property_mapper->map_properties([$property_data]);
-            if ($mapped_result['success'] && !empty($mapped_result['properties'])) {
-                $mapped_data = $mapped_result['properties'][0];
-                $wp_post_id = $change_status['wp_post_id'];
+            // 🔄 UPDATE PROPERTY: Use WP Importer v3.0 for updates
+            $result = $this->wp_importer->process_property_v3($mapped_data);
+            
+            if ($result['success']) {
+                $this->tracking_manager->update_tracking_record(
+                    $property_id,
+                    $property_hash,
+                    $result['post_id'],
+                    $property_data,
+                    'active'
+                );
                 
-                $success = $this->wp_importer->update_property($wp_post_id, $mapped_data);
-                
-                if ($success) {
-                    $this->tracking_manager->update_tracking_record(
-                        $property_id, 
-                        $property_hash, 
-                        $wp_post_id, 
-                        $property_data, 
-                        'active'
-                    );
+                if ($result['action'] === 'updated') {
                     $this->stats['updated_properties']++;
+                    $this->logger->log("Property updated v3.0: ID $property_id → Post {$result['post_id']}", 'info');
+                } else {
+                    $this->stats['skipped_properties']++;
+                    $this->logger->log("Property unchanged v3.0: ID $property_id → Post {$result['post_id']}", 'debug');
                 }
+            } else {
+                $this->logger->log("Failed to update property ID $property_id: {$result['error']}", 'error');
             }
         }
         
@@ -430,9 +443,6 @@ class RealEstate_Sync_Import_Engine {
     /**
      * Utility methods
      */
-    private function is_property_in_enabled_provinces($property_data) {
-        return true; // Simplified for now
-    }
     
     private function update_property_statistics($property_data) {
         // Implementation here

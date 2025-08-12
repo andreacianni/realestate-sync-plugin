@@ -50,6 +50,11 @@ class RealEstate_Sync_WP_Importer {
     private $property_mapper;
     
     /**
+     * Image importer instance
+     */
+    private $image_importer;
+    
+    /**
      * Current import session ID
      */
     private $session_id;
@@ -68,6 +73,10 @@ class RealEstate_Sync_WP_Importer {
     public function __construct($logger = null, $property_mapper = null) {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
         $this->property_mapper = $property_mapper;
+        
+        // 🖼️ INITIALIZE IMAGE IMPORTER v1.0
+        $this->image_importer = new RealEstate_Sync_Image_Importer($this->logger);
+        
         $this->init_importer();
     }
     
@@ -421,6 +430,387 @@ class RealEstate_Sync_WP_Importer {
     }
     
     /**
+     * ENHANCED v3.0 METHODS
+     */
+    
+    /**
+     * Process property with v3.0 structure including gallery and catasto
+     *
+     * @param array $mapped_property Complete mapped property from v3.0
+     * @return array Processing result
+     */
+    public function process_property_v3($mapped_property) {
+        $import_id = $mapped_property['source_data']['id'] ?? 'unknown';
+        
+        try {
+            // Check for existing property
+            $existing_post_id = $this->find_existing_property($import_id);
+            
+            if ($existing_post_id) {
+                $result = $this->update_existing_property_v3($existing_post_id, $mapped_property, $import_id);
+                $this->stats['updated_properties']++;
+            } else {
+                $result = $this->create_new_property_v3($mapped_property, $import_id);
+                $this->stats['imported_properties']++;
+            }
+            
+            if ($result['success']) {
+                // Process v3.0 specific features
+                $this->process_gallery_v3($result['post_id'], $mapped_property['gallery'] ?? []);
+                $this->process_catasto_v3($result['post_id'], $mapped_property['catasto'] ?? []);
+            }
+            
+            return $result;
+            
+        } catch (Exception $e) {
+            $this->stats['failed_properties']++;
+            $this->stats['errors'][] = [
+                'import_id' => $import_id,
+                'error' => $e->getMessage(),
+                'timestamp' => current_time('mysql')
+            ];
+            
+            $this->logger->log('Property processing failed v3.0', 'error', [
+                'import_id' => $import_id,
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'error' => $e->getMessage()
+            ];
+        }
+    }
+    
+    /**
+     * Create new property with v3.0 enhanced features
+     */
+    private function create_new_property_v3($mapped_property, $import_id) {
+        $this->logger->log('Creating new property v3.0', 'debug', [
+            'import_id' => $import_id,
+            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
+        ]);
+        
+        // Insert post
+        $post_id = wp_insert_post($mapped_property['post_data'], true);
+        
+        if (is_wp_error($post_id)) {
+            return [
+                'success' => false,
+                'error' => 'Post creation failed: ' . $post_id->get_error_message()
+            ];
+        }
+        
+        // Assign all property data
+        $this->assign_meta_fields($post_id, $mapped_property['meta_fields'] ?? []);
+        $this->assign_taxonomies($post_id, $mapped_property['taxonomies'] ?? []);
+        $this->assign_property_features_v3($post_id, $mapped_property['features'] ?? []);
+        
+        // Set import metadata
+        update_post_meta($post_id, 'property_import_id', $import_id);
+        update_post_meta($post_id, 'property_import_hash', $mapped_property['content_hash'] ?? '');
+        update_post_meta($post_id, 'property_last_sync', current_time('mysql'));
+        update_post_meta($post_id, 'property_import_version', '3.0');
+        
+        $this->logger->log('Property created successfully v3.0', 'info', [
+            'import_id' => $import_id,
+            'post_id' => $post_id,
+            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
+        ]);
+        
+        return [
+            'success' => true,
+            'action' => 'created',
+            'post_id' => $post_id,
+            'message' => 'Property created successfully'
+        ];
+    }
+    
+    /**
+     * Update existing property with v3.0 enhanced features
+     */
+    private function update_existing_property_v3($post_id, $mapped_property, $import_id) {
+        // Check if content has changed
+        if (isset($mapped_property['content_hash'])) {
+            $existing_hash = get_post_meta($post_id, 'property_import_hash', true);
+            if ($existing_hash === $mapped_property['content_hash']) {
+                $this->logger->log('Property content unchanged - skipping update v3.0', 'debug', [
+                    'import_id' => $import_id,
+                    'post_id' => $post_id
+                ]);
+                
+                update_post_meta($post_id, 'property_last_sync', current_time('mysql'));
+                
+                return [
+                    'success' => true,
+                    'action' => 'skipped',
+                    'post_id' => $post_id,
+                    'message' => 'No changes detected'
+                ];
+            }
+        }
+        
+        $this->logger->log('Updating existing property v3.0', 'debug', [
+            'import_id' => $import_id,
+            'post_id' => $post_id,
+            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
+        ]);
+        
+        // Update post data
+        $post_data = $mapped_property['post_data'];
+        $post_data['ID'] = $post_id;
+        
+        $result = wp_update_post($post_data, true);
+        
+        if (is_wp_error($result)) {
+            return [
+                'success' => false,
+                'error' => 'Post update failed: ' . $result->get_error_message()
+            ];
+        }
+        
+        // Update all property data
+        $this->assign_meta_fields($post_id, $mapped_property['meta_fields'] ?? []);
+        $this->assign_taxonomies($post_id, $mapped_property['taxonomies'] ?? []);
+        $this->assign_property_features_v3($post_id, $mapped_property['features'] ?? []);
+        
+        // Update import metadata
+        update_post_meta($post_id, 'property_import_hash', $mapped_property['content_hash'] ?? '');
+        update_post_meta($post_id, 'property_last_sync', current_time('mysql'));
+        update_post_meta($post_id, 'property_import_version', '3.0');
+        
+        $this->logger->log('Property updated successfully v3.0', 'info', [
+            'import_id' => $import_id,
+            'post_id' => $post_id,
+            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
+        ]);
+        
+        return [
+            'success' => true,
+            'action' => 'updated',
+            'post_id' => $post_id,
+            'message' => 'Property updated successfully'
+        ];
+    }
+    
+    /**
+     * Assign property features with v3.0 enhanced feature creation
+     */
+    private function assign_property_features_v3($post_id, $features) {
+        if (empty($features)) {
+            return;
+        }
+        
+        $feature_term_ids = [];
+        
+        foreach ($features as $feature_slug) {
+            // Check if feature exists by slug
+            $term = get_term_by('slug', $feature_slug, 'property_features');
+            
+            if (!$term && $this->config['create_missing_terms']) {
+                // Create human-readable name from slug
+                $feature_name = $this->humanize_feature_name($feature_slug);
+                
+                $result = wp_insert_term($feature_name, 'property_features', [
+                    'slug' => $feature_slug
+                ]);
+                
+                if (!is_wp_error($result)) {
+                    $term_id = $result['term_id'];
+                    $this->stats['created_terms']++;
+                    
+                    $this->logger->log('Feature created v3.0', 'debug', [
+                        'feature_name' => $feature_name,
+                        'feature_slug' => $feature_slug,
+                        'term_id' => $term_id
+                    ]);
+                } else {
+                    $this->logger->log('Failed to create feature v3.0', 'warning', [
+                        'feature_slug' => $feature_slug,
+                        'error' => $result->get_error_message()
+                    ]);
+                    continue;
+                }
+            } elseif ($term) {
+                $term_id = $term->term_id;
+            } else {
+                continue;
+            }
+            
+            $feature_term_ids[] = $term_id;
+        }
+        
+        if (!empty($feature_term_ids)) {
+            wp_set_object_terms($post_id, $feature_term_ids, 'property_features');
+            $this->stats['assigned_features'] += count($feature_term_ids);
+        }
+    }
+    
+    /**
+     * Process gallery v3.0 - ENHANCED with Image Importer v1.0
+     */
+    private function process_gallery_v3($post_id, $gallery) {
+        if (empty($gallery)) {
+            return;
+        }
+        
+        $this->logger->log('Processing gallery v3.0 with Image Importer', 'info', [
+            'post_id' => $post_id,
+            'image_count' => count($gallery)
+        ]);
+        
+        // 🖼️ ENHANCED: Use Image Importer v1.0 for complete image processing
+        $image_result = $this->image_importer->process_property_images($post_id, $gallery);
+        
+        if ($image_result['success']) {
+            $stats = $image_result['stats'];
+            
+            $this->logger->log('Gallery processed with Image Importer v1.0', 'info', [
+                'post_id' => $post_id,
+                'downloaded' => $stats['downloaded_images'],
+                'skipped' => $stats['skipped_images'],
+                'failed' => $stats['failed_images'],
+                'featured_set' => $stats['featured_images_set'] > 0
+            ]);
+            
+            // Update stats in main importer
+            $this->stats['gallery_images_downloaded'] = ($this->stats['gallery_images_downloaded'] ?? 0) + $stats['downloaded_images'];
+            $this->stats['gallery_images_failed'] = ($this->stats['gallery_images_failed'] ?? 0) + $stats['failed_images'];
+            
+        } else {
+            $this->logger->log('Gallery processing failed with Image Importer', 'error', [
+                'post_id' => $post_id,
+                'error' => $image_result['error']
+            ]);
+            
+            // 🔄 FALLBACK: Store URLs as before (for manual processing later)
+            $this->process_gallery_v3_fallback($post_id, $gallery);
+        }
+    }
+    
+    /**
+     * Fallback gallery processing - store URLs only
+     */
+    private function process_gallery_v3_fallback($post_id, $gallery) {
+        $gallery_ids = [];
+        $featured_image_id = null;
+        
+        foreach ($gallery as $image) {
+            if (empty($image['url'])) {
+                continue;
+            }
+            
+            $gallery_ids[] = $image['url'];
+            
+            if ($image['is_featured'] ?? false) {
+                $featured_image_id = $image['url'];
+            }
+        }
+        
+        if (!empty($gallery_ids)) {
+            // Store gallery URLs for future image import
+            update_post_meta($post_id, 'wpestate_property_gallery_urls', implode(',', $gallery_ids));
+            
+            if ($featured_image_id) {
+                update_post_meta($post_id, 'property_featured_image_url', $featured_image_id);
+            }
+            
+            $this->logger->log('Gallery URLs stored as fallback', 'debug', [
+                'post_id' => $post_id,
+                'gallery_count' => count($gallery_ids),
+                'has_featured' => !empty($featured_image_id)
+            ]);
+        }
+    }
+    
+    /**
+     * Process catasto data v3.0
+     */
+    private function process_catasto_v3($post_id, $catasto) {
+        if (empty($catasto)) {
+            return;
+        }
+        
+        foreach ($catasto as $key => $value) {
+            if ($value !== null && $value !== '') {
+                update_post_meta($post_id, $key, $value);
+            }
+        }
+        
+        $this->logger->log('Catasto processed v3.0', 'debug', [
+            'post_id' => $post_id,
+            'catasto_fields' => count($catasto)
+        ]);
+    }
+    
+    /**
+     * Find existing property by import ID
+     */
+    private function find_existing_property($import_id) {
+        $posts = get_posts([
+            'post_type' => $this->post_type,
+            'meta_query' => [
+                [
+                    'key' => 'property_import_id',
+                    'value' => $import_id,
+                    'compare' => '='
+                ]
+            ],
+            'posts_per_page' => 1,
+            'fields' => 'ids'
+        ]);
+        
+        return !empty($posts) ? $posts[0] : null;
+    }
+    
+    /**
+     * Convert feature slug to human-readable name
+     */
+    private function humanize_feature_name($slug) {
+        // Feature name mapping
+        $feature_names = [
+            'ascensore' => 'Ascensore',
+            'aria-condizionata' => 'Aria condizionata',
+            'giardino' => 'Giardino',
+            'piscina' => 'Piscina',
+            'box-o-garage' => 'Box o garage',
+            'vista-panoramica' => 'Vista panoramica',
+            'riscaldamento-autonomo-centralizzato' => 'Riscaldamento autonomo',
+            'vicinanza-ai-trasporti-pubblici' => 'Vicinanza ai trasporti pubblici',
+            'prossimita-a-sentieri-escursionistici' => 'Sentieri escursionistici',
+            'vicinanza-a-parchi-naturali' => 'Parchi naturali',
+            'arredato' => 'Arredato',
+            'non-arredato' => 'Non arredato',
+            'riscaldamento-a-pavimento' => 'Riscaldamento a pavimento',
+            'allarme' => 'Allarme',
+            'camino' => 'Camino',
+            'domotica' => 'Domotica',
+            'porta-blindata' => 'Porta blindata',
+            'cantina' => 'Cantina',
+            'terrazza' => 'Terrazza',
+            'balcone' => 'Balcone',
+            'lavanderia' => 'Lavanderia',
+            'mansarda' => 'Mansarda',
+            'taverna' => 'Taverna',
+            'soffitta' => 'Soffitta',
+            'porticato' => 'Porticato',
+            'soppalco' => 'Soppalco',
+            'aree-esterne' => 'Aree esterne',
+            'accesso-disabili' => 'Accesso disabili',
+            'area-fitness' => 'Area fitness',
+            'vasca-idromassaggio' => 'Vasca idromassaggio',
+            'portineria' => 'Portineria',
+            'tapparelle-motorizzate' => 'Tapparelle motorizzate',
+            'zanzariere' => 'Zanzariere',
+            'tende-da-sole' => 'Tende da sole',
+            'negozi-e-servizi' => 'Negozi e servizi',
+            'accesso-alle-piste-da-sci' => 'Accesso alle piste da sci'
+        ];
+        
+        return $feature_names[$slug] ?? ucwords(str_replace('-', ' ', $slug));
+    }
+    
+    /**
      * Get import statistics
      *
      * @return array Statistics
@@ -436,5 +826,32 @@ class RealEstate_Sync_WP_Importer {
      */
     public function get_config() {
         return $this->config;
+    }
+    
+    /**
+     * Get version and capabilities
+     */
+    public function get_version_info() {
+        return [
+            'version' => '3.0.0',
+            'capabilities' => [
+                'basic_import' => true,
+                'enhanced_mapping' => true,
+                'gallery_support' => true,
+                'catasto_support' => true,
+                'feature_creation' => true,
+                'change_detection' => true,
+                'target_page_compliance' => true
+            ],
+            'supported_post_type' => $this->post_type,
+            'supported_taxonomies' => [
+                'property_action_category',
+                'property_category', 
+                'property_city',
+                'property_area',
+                'property_county_state',
+                'property_features'
+            ]
+        ];
     }
 }

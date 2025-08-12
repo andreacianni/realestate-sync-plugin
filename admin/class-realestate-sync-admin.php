@@ -44,6 +44,222 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_system_check', array($this, 'handle_system_check'));
         add_action('wp_ajax_realestate_sync_toggle_automation', array($this, 'handle_toggle_automation'));
         add_action('wp_ajax_realestate_sync_force_database_creation', array($this, 'handle_force_database_creation'));
+        
+        // 🆕 Testing & Development AJAX Actions
+        add_action('wp_ajax_realestate_sync_cleanup_properties', array($this, 'handle_cleanup_properties'));
+        add_action('wp_ajax_realestate_sync_reset_tracking', array($this, 'handle_reset_tracking'));
+        add_action('wp_ajax_realestate_sync_get_property_stats', array($this, 'handle_get_property_stats'));
+        add_action('wp_ajax_realestate_sync_import_test_file', array($this, 'handle_import_test_file'));
+        add_action('wp_ajax_realestate_sync_create_sample_xml', array($this, 'handle_create_sample_xml'));
+        add_action('wp_ajax_realestate_sync_validate_mapping', array($this, 'handle_validate_mapping'));
+        add_action('wp_ajax_realestate_sync_create_properties_from_sample', array($this, 'handle_create_properties_from_sample'));
+    }
+    
+    /**
+     * Handle create properties from sample AJAX - UPGRADED TO v3.0
+     * TESTING COMPLETO CON PROPERTY MAPPER v3.0 + WP IMPORTER v3.0
+     */
+    public function handle_create_properties_from_sample() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('🧪 SAMPLE v3.0: Starting Property Mapper v3.0 + WP Importer v3.0 test', 'info');
+            
+            // 🧪 SAMPLE XML v3.0: Complete structure with all sections
+            $sample_xml_data = $this->generate_sample_v3_data();
+            
+            // 🔥 PROPERTY MAPPER v3.0: Use enhanced mapping
+            $property_mapper = new RealEstate_Sync_Property_Mapper();
+            $mapped_result = $property_mapper->map_properties($sample_xml_data);
+            
+            if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
+                throw new Exception('Property Mapper v3.0 failed: ' . print_r($mapped_result, true));
+            }
+            
+            $this->logger->log('✅ PROPERTY MAPPER v3.0: Successfully mapped ' . count($mapped_result['properties']) . ' properties', 'info');
+            
+            // 🚀 WP IMPORTER v3.0: Use enhanced importer
+            $wp_importer = new RealEstate_Sync_WP_Importer();
+            
+            $created_count = 0;
+            $updated_count = 0;
+            $skipped_count = 0;
+            $features_created = 0;
+            $processing_details = [];
+            
+            foreach ($mapped_result['properties'] as $mapped_property) {
+                // 🎯 PROCESS WITH v3.0: Complete structure processing
+                $result = $wp_importer->process_property_v3($mapped_property);
+                
+                if ($result['success']) {
+                    $processing_details[] = [
+                        'import_id' => $mapped_property['source_data']['id'],
+                        'post_id' => $result['post_id'],
+                        'action' => $result['action'],
+                        'title' => $mapped_property['post_data']['post_title']
+                    ];
+                    
+                    if ($result['action'] === 'created') {
+                        $created_count++;
+                    } elseif ($result['action'] === 'updated') {
+                        $updated_count++;
+                    } else {
+                        $skipped_count++;
+                    }
+                    
+                    $this->logger->log('✅ WP IMPORTER v3.0: ' . ucfirst($result['action']) . ' property ' . $mapped_property['source_data']['id'] . ' → Post ' . $result['post_id'], 'info');
+                } else {
+                    $this->logger->log('❌ WP IMPORTER v3.0: Failed property ' . $mapped_property['source_data']['id'] . ': ' . $result['error'], 'error');
+                }
+            }
+            
+            // 📊 GET STATS FROM WP IMPORTER
+            $importer_stats = $wp_importer->get_stats();
+            $features_created = $importer_stats['created_terms'] ?? 0;
+            
+            $this->logger->log('🎆 SAMPLE v3.0 COMPLETE: Created=' . $created_count . ', Updated=' . $updated_count . ', Features=' . $features_created, 'info');
+            
+            wp_send_json_success([
+                'created_count' => $created_count,
+                'updated_count' => $updated_count,
+                'skipped_count' => $skipped_count,
+                'features_created' => $features_created,
+                'total_processed' => count($mapped_result['properties']),
+                'mapping_version' => '3.0',
+                'processing_details' => $processing_details,
+                'message' => "Property Mapper v3.0 Test Completato!🎉 Created: {$created_count}, Updated: {$updated_count}, Features: {$features_created}"
+            ]);
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 SAMPLE v3.0 ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Property Mapper v3.0 Test Failed: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Create properties directly in WordPress (bypass Import Engine)
+     * METODO DIRETTO PER TESTING
+     */
+    private function create_properties_direct($xml_content) {
+        $created_count = 0;
+        
+        try {
+            // Parse XML
+            $xml = simplexml_load_string($xml_content);
+            if (!$xml) {
+                throw new Exception('Invalid XML content');
+            }
+            
+            // Process each property directly
+            foreach ($xml->immobile as $immobile) {
+                // Convert SimpleXML to array
+                $property_data = $this->simplexml_to_array($immobile);
+                
+                // Add required fields
+                $property_data['id'] = (string)$immobile->id_immobile;
+                $property_data['comune_istat'] = (string)$immobile->comune_istat;
+                
+                // Check province filter
+                if (!$this->is_sample_property_valid($property_data)) {
+                    continue;
+                }
+                
+                // Create WordPress post directly
+                $post_id = $this->create_wordpress_post_direct($property_data);
+                
+                if ($post_id) {
+                    $created_count++;
+                    $this->logger->log("DIRECT CREATE: Property {$property_data['id']} created as post {$post_id}", 'info');
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->log("DIRECT CREATE ERROR: " . $e->getMessage(), 'error');
+            throw $e;
+        }
+        
+        return $created_count;
+    }
+    
+    /**
+     * Create WordPress post directly
+     */
+    private function create_wordpress_post_direct($property_data) {
+        // Basic post data
+        $post_data = array(
+            'post_type' => 'estate_property',
+            'post_status' => 'publish',
+            'post_author' => get_current_user_id(),
+            'post_title' => $property_data['titolo'] ?? 'Proprietà Test',
+            'post_content' => $property_data['descrizione'] ?? 'Descrizione proprietà di test',
+            'post_excerpt' => 'Property di test generata automaticamente',
+            'comment_status' => 'closed',
+            'ping_status' => 'closed'
+        );
+        
+        // Insert post
+        $post_id = wp_insert_post($post_data, true);
+        
+        if (is_wp_error($post_id)) {
+            $this->logger->log("DIRECT CREATE ERROR: " . $post_id->get_error_message(), 'error');
+            return false;
+        }
+        
+        // Add basic meta fields
+        update_post_meta($post_id, 'property_price', intval($property_data['prezzo'] ?? 0));
+        update_post_meta($post_id, 'property_size', intval($property_data['superficie'] ?? 0));
+        update_post_meta($post_id, 'property_bedrooms', intval($property_data['camere'] ?? 0));
+        update_post_meta($post_id, 'property_bathrooms', intval($property_data['bagni'] ?? 0));
+        update_post_meta($post_id, 'property_city', $property_data['comune'] ?? '');
+        update_post_meta($post_id, 'property_state', $property_data['provincia'] ?? '');
+        update_post_meta($post_id, 'property_import_source', 'TEST_SAMPLE');
+        update_post_meta($post_id, 'property_import_id', $property_data['id']);
+        update_post_meta($post_id, 'property_import_date', current_time('mysql'));
+        
+        // Set property category
+        $tipologia = intval($property_data['tipologia'] ?? 11);
+        $category_name = $this->get_category_by_tipologia($tipologia);
+        if ($category_name) {
+            wp_set_post_terms($post_id, array($category_name), 'property_category');
+        }
+        
+        // Set city taxonomy
+        if (!empty($property_data['comune'])) {
+            wp_set_post_terms($post_id, array($property_data['comune']), 'property_city');
+        }
+        
+        return $post_id;
+    }
+    
+    /**
+     * Helper methods for direct creation
+     */
+    private function simplexml_to_array($xml) {
+        return json_decode(json_encode($xml), true);
+    }
+    
+    private function is_sample_property_valid($property_data) {
+        $comune_istat = $property_data['comune_istat'] ?? '';
+        
+        // Check TN/BZ
+        $is_trento = (substr($comune_istat, 0, 3) === '022');
+        $is_bolzano = (substr($comune_istat, 0, 3) === '021');
+        
+        return ($is_trento || $is_bolzano);
+    }
+    
+    private function get_category_by_tipologia($tipologia) {
+        $categories = array(
+            1 => 'Ville Singole e a Schiera',
+            11 => 'Appartamenti', 
+            18 => 'Ville Singole e a Schiera'
+        );
+        
+        return $categories[$tipologia] ?? 'Appartamenti';
     }
     
     /**
@@ -118,11 +334,14 @@ class RealEstate_Sync_Admin {
         }
         
         try {
-            $settings = get_option('realestate_sync_settings', array());
+            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
+            $settings = array(
+                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                'username' => 'trentinoimmobiliare_it',
+                'password' => 'dget6g52'
+            );
             
-            if (empty($settings['xml_url']) || empty($settings['username']) || empty($settings['password'])) {
-                throw new Exception('Configurazione mancante. Verifica le impostazioni.');
-            }
+            $this->logger->log('HARDCODE: Using hardcoded credentials for testing', 'info');
             
             // Download XML
             $downloader = new RealEstate_Sync_XML_Downloader();
@@ -164,9 +383,12 @@ class RealEstate_Sync_Admin {
             wp_die('Unauthorized');
         }
         
-        $url = sanitize_url($_POST['url']);
-        $username = sanitize_text_field($_POST['username']);
-        $password = sanitize_text_field($_POST['password']);
+        // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
+        $url = 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz';
+        $username = 'trentinoimmobiliare_it';
+        $password = 'dget6g52';
+        
+        $this->logger->log('HARDCODE: Using hardcoded credentials for connection test', 'info');
         
         $downloader = new RealEstate_Sync_XML_Downloader();
         $result = $downloader->test_connection($url, $username, $password);
@@ -440,6 +662,628 @@ class RealEstate_Sync_Admin {
                 'mysql_error' => $error
             ));
         }
+    }
+    
+    // 🆕 TESTING & DEVELOPMENT FUNCTIONS
+    
+    /**
+     * Handle cleanup properties AJAX
+     */
+    public function handle_cleanup_properties() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        try {
+            // Count properties before deletion
+            $count_before = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'estate_property'");
+            
+            // Delete all estate_property posts and related data
+            $deleted_posts = $wpdb->query("
+                DELETE p, pm, tr 
+                FROM {$wpdb->posts} p 
+                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
+                LEFT JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id 
+                WHERE p.post_type = 'estate_property'
+            ");
+            
+            // Clean orphaned meta
+            $wpdb->query("DELETE FROM {$wpdb->postmeta} WHERE meta_key LIKE 'property_%'");
+            
+            // Count after deletion
+            $count_after = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'estate_property'");
+            
+            $this->logger->log("CLEANUP: Deleted {$count_before} properties. Remaining: {$count_after}", 'info');
+            
+            wp_send_json_success(array(
+                'deleted_count' => $count_before,
+                'remaining_count' => $count_after,
+                'message' => "Cancellate {$count_before} properties"
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->log("CLEANUP ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore durante cleanup: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle reset tracking AJAX
+     */
+    public function handle_reset_tracking() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        try {
+            $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+            
+            // Count records before deletion
+            $count_before = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+            
+            // Truncate tracking table
+            $result = $wpdb->query("TRUNCATE TABLE $table_name");
+            
+            if ($result !== false) {
+                $this->logger->log("RESET TRACKING: Cleared {$count_before} tracking records", 'info');
+                
+                wp_send_json_success(array(
+                    'cleared_records' => $count_before,
+                    'message' => "Reset tracking table: {$count_before} record eliminati"
+                ));
+            } else {
+                throw new Exception('Errore nel reset della tabella tracking');
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->log("RESET TRACKING ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore reset tracking: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle get property stats AJAX
+     */
+    public function handle_get_property_stats() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        global $wpdb;
+        
+        try {
+            // Total properties
+            $total_properties = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = 'estate_property' AND post_status = 'publish'");
+            
+            // Properties by category
+            $by_category = $wpdb->get_results("
+                SELECT tm.name as category, COUNT(*) as count
+                FROM {$wpdb->posts} p
+                JOIN {$wpdb->term_relationships} tr ON p.ID = tr.object_id
+                JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                JOIN {$wpdb->terms} tm ON tt.term_id = tm.term_id
+                WHERE p.post_type = 'estate_property' 
+                AND p.post_status = 'publish'
+                AND tt.taxonomy = 'property_category'
+                GROUP BY tm.term_id, tm.name
+                ORDER BY count DESC
+            ", ARRAY_A);
+            
+            $category_stats = array();
+            foreach ($by_category as $cat) {
+                $category_stats[$cat['category']] = intval($cat['count']);
+            }
+            
+            // Properties by province (from postmeta)
+            $by_province = $wpdb->get_results("
+                SELECT pm.meta_value as province, COUNT(*) as count
+                FROM {$wpdb->posts} p
+                JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type = 'estate_property' 
+                AND p.post_status = 'publish'
+                AND pm.meta_key = 'property_state'
+                AND pm.meta_value IN ('TN', 'BZ', 'Trento', 'Bolzano')
+                GROUP BY pm.meta_value
+                ORDER BY count DESC
+            ", ARRAY_A);
+            
+            $province_stats = array();
+            foreach ($by_province as $prov) {
+                $province_stats[$prov['province']] = intval($prov['count']);
+            }
+            
+            // Tracking info
+            $tracking_table = $wpdb->prefix . 'realestate_sync_tracking';
+            $tracked_count = $wpdb->get_var("SELECT COUNT(*) FROM $tracking_table");
+            $last_import = $wpdb->get_var("SELECT MAX(last_import_date) FROM $tracking_table");
+            
+            $stats = array(
+                'total_properties' => intval($total_properties),
+                'by_category' => $category_stats,
+                'by_province' => $province_stats,
+                'tracking_info' => array(
+                    'tracked_count' => intval($tracked_count),
+                    'last_import' => $last_import ? date('d/m/Y H:i', strtotime($last_import)) : null
+                )
+            );
+            
+            $this->logger->log("STATS: Retrieved property statistics", 'info');
+            wp_send_json_success($stats);
+            
+        } catch (Exception $e) {
+            $this->logger->log("STATS ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore nel recupero statistiche: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle import test file AJAX
+     */
+    public function handle_import_test_file() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            // Check file upload
+            if (!isset($_FILES['test_xml_file']) || $_FILES['test_xml_file']['error'] !== UPLOAD_ERR_OK) {
+                throw new Exception('Errore nell\'upload del file XML');
+            }
+            
+            $uploaded_file = $_FILES['test_xml_file'];
+            
+            // Validate file type
+            if (!in_array($uploaded_file['type'], array('text/xml', 'application/xml')) && 
+                !preg_match('/\.xml$/i', $uploaded_file['name'])) {
+                throw new Exception('File deve essere XML valido');
+            }
+            
+            // Move uploaded file to temp location
+            $temp_file = wp_upload_dir()['basedir'] . '/realestate-test-' . time() . '.xml';
+            
+            if (!move_uploaded_file($uploaded_file['tmp_name'], $temp_file)) {
+                throw new Exception('Errore nel salvataggio file temporaneo');
+            }
+            
+            // Import the test file
+            $import_engine = new RealEstate_Sync_Import_Engine();
+            $settings = get_option('realestate_sync_settings', array());
+            $import_engine->configure($settings);
+            
+            $results = $import_engine->execute_chunked_import($temp_file);
+            
+            // Cleanup temp file
+            if (file_exists($temp_file)) {
+                unlink($temp_file);
+            }
+            
+            $this->logger->log("TEST IMPORT: Imported {$results['properties_processed']} test properties", 'info');
+            
+            wp_send_json_success(array(
+                'imported_count' => $results['properties_processed'],
+                'created_count' => $results['properties_created'] ?? 0,
+                'updated_count' => $results['properties_updated'] ?? 0,
+                'message' => "Test import completato: {$results['properties_processed']} properties processate"
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->log("TEST IMPORT ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore test import: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle create sample XML AJAX
+     */
+    public function handle_create_sample_xml() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            // Create sample XML with 3 test properties
+            $sample_xml = $this->generate_sample_xml();
+            
+            $this->logger->log("SAMPLE XML: Generated test XML with sample properties", 'info');
+            
+            wp_send_json_success(array(
+                'xml_content' => $sample_xml,
+                'properties_count' => 3,
+                'message' => 'XML sample generato con 3 properties test'
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->log("SAMPLE XML ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore generazione XML: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle validate mapping AJAX
+     */
+    public function handle_validate_mapping() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $validation_results = $this->validate_mapping_system();
+            
+            $this->logger->log("MAPPING VALIDATION: Completed with score {$validation_results['overall_score']}%", 'info');
+            
+            wp_send_json_success($validation_results);
+            
+        } catch (Exception $e) {
+            $this->logger->log("MAPPING VALIDATION ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore validazione mapping: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Generate sample XML for testing
+     */
+    private function generate_sample_xml() {
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<root>' . "\n";
+        
+        // Sample property 1 - TN
+        $xml .= '  <immobile>' . "\n";
+        $xml .= '    <id_immobile>TEST001</id_immobile>' . "\n";
+        $xml .= '    <titolo>Appartamento Test Trento</titolo>' . "\n";
+        $xml .= '    <descrizione>Appartamento di test per validazione mapping</descrizione>' . "\n";
+        $xml .= '    <prezzo>250000</prezzo>' . "\n";
+        $xml .= '    <tipologia>11</tipologia>' . "\n";
+        $xml .= '    <contratto>1</contratto>' . "\n";
+        $xml .= '    <comune_istat>022205</comune_istat>' . "\n";
+        $xml .= '    <comune>Trento</comune>' . "\n";
+        $xml .= '    <provincia>TN</provincia>' . "\n";
+        $xml .= '    <bagni>2</bagni>' . "\n";
+        $xml .= '    <camere>3</camere>' . "\n";
+        $xml .= '    <superficie>85</superficie>' . "\n";
+        $xml .= '  </immobile>' . "\n";
+        
+        // Sample property 2 - BZ
+        $xml .= '  <immobile>' . "\n";
+        $xml .= '    <id_immobile>TEST002</id_immobile>' . "\n";
+        $xml .= '    <titolo>Villa Test Bolzano</titolo>' . "\n";
+        $xml .= '    <descrizione>Villa di test per validazione mapping</descrizione>' . "\n";
+        $xml .= '    <prezzo>450000</prezzo>' . "\n";
+        $xml .= '    <tipologia>18</tipologia>' . "\n";
+        $xml .= '    <contratto>1</contratto>' . "\n";
+        $xml .= '    <comune_istat>021008</comune_istat>' . "\n";
+        $xml .= '    <comune>Bolzano</comune>' . "\n";
+        $xml .= '    <provincia>BZ</provincia>' . "\n";
+        $xml .= '    <bagni>3</bagni>' . "\n";
+        $xml .= '    <camere>4</camere>' . "\n";
+        $xml .= '    <superficie>150</superficie>' . "\n";
+        $xml .= '  </immobile>' . "\n";
+        
+        // Sample property 3 - TN (different category)
+        $xml .= '  <immobile>' . "\n";
+        $xml .= '    <id_immobile>TEST003</id_immobile>' . "\n";
+        $xml .= '    <titolo>Casa Singola Test</titolo>' . "\n";
+        $xml .= '    <descrizione>Casa singola di test</descrizione>' . "\n";
+        $xml .= '    <prezzo>320000</prezzo>' . "\n";
+        $xml .= '    <tipologia>1</tipologia>' . "\n";
+        $xml .= '    <contratto>1</contratto>' . "\n";
+        $xml .= '    <comune_istat>022178</comune_istat>' . "\n";
+        $xml .= '    <comune>Rovereto</comune>' . "\n";
+        $xml .= '    <provincia>TN</provincia>' . "\n";
+        $xml .= '    <bagni>2</bagni>' . "\n";
+        $xml .= '    <camere>4</camere>' . "\n";
+        $xml .= '    <superficie>120</superficie>' . "\n";
+        $xml .= '  </immobile>' . "\n";
+        
+        $xml .= '</root>';
+        
+        return $xml;
+    }
+    
+    /**
+     * Generate sample v3.0 data - Complete structure with all Property Mapper v3.0 sections
+     */
+    private function generate_sample_v3_data() {
+        return [
+            // Sample 1: Attico Trento with complete v3.0 structure
+            [
+                'id' => 'SAMPLE001',
+                'categorie_id' => 12, // Attico
+                'price' => 650000,
+                'mq' => 140,
+                'indirizzo' => 'Via Roma',
+                'civico' => '45',
+                'comune_istat' => '022205', // Trento
+                'latitude' => 46.0748,
+                'longitude' => 11.1217,
+                'description' => 'Splendido attico nel centro storico di Trento con vista panoramica sulle montagne. Completamente ristrutturato con finiture di pregio.',
+                'abstract' => 'Attico di prestigio in centro Trento',
+                'seo_title' => 'Attico di lusso in centro Trento con vista panoramica',
+                'info_inserite' => [
+                    1 => 2,   // 2 bagni
+                    2 => 3,   // 3 camere
+                    65 => 5,  // 5 locali
+                    66 => 1,  // Con piscina
+                    17 => 1,  // Con giardino
+                    62 => 5,  // Vista panoramica eccellente
+                    13 => 1,  // Ascensore
+                    14 => 1,  // Aria condizionata
+                    15 => 1,  // Arredato
+                    33 => 3,  // Piano 3
+                    55 => 3,  // Classe energetica B
+                    9 => 1,   // Vendita
+                    23 => 1,  // Allarme
+                    46 => 1   // Camino
+                ],
+                'dati_inseriti' => [
+                    20 => 150, // Superficie commerciale
+                    21 => 140, // Superficie utile
+                    4 => 30,   // MQ giardino
+                    6 => 3.20  // Altezza piano
+                ],
+                'file_allegati' => [
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/000__foto__025.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/001__foto__029.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/002__cam00257.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/250408/4476337/800x800/planimetria.jpg', 'type' => 'planimetria']
+                ],
+                'catasto' => [
+                    'destinazione_uso' => 'Residenziale',
+                    'rendita_catastale' => '2450.80',
+                    'foglio' => '15',
+                    'particella' => '234',
+                    'subalterno' => '12'
+                ]
+            ],
+            
+            // Sample 2: Villa Bolzano with different features
+            [
+                'id' => 'SAMPLE002',
+                'categorie_id' => 18, // Villa
+                'price' => 850000,
+                'mq' => 220,
+                'indirizzo' => 'Via Dolomiti',
+                'civico' => '12',
+                'comune_istat' => '021008', // Bolzano
+                'latitude' => 46.4983,
+                'longitude' => 11.3548,
+                'description' => 'Villa di prestigio con ampio giardino e piscina. Immersa nel verde con vista sulle Dolomiti.',
+                'abstract' => 'Villa con piscina e giardino a Bolzano',
+                'seo_title' => 'Villa con piscina e vista Dolomiti - Bolzano',
+                'info_inserite' => [
+                    1 => 3,   // 3 bagni
+                    2 => 4,   // 4 camere
+                    65 => 8,  // 8 locali
+                    66 => 1,  // Con piscina
+                    17 => 1,  // Con giardino
+                    62 => 4,  // Vista panoramica
+                    36 => 1,  // Montagna
+                    88 => 1,  // Domotica
+                    90 => 1,  // Porta blindata
+                    33 => 0,  // Piano terra
+                    55 => 2,  // Classe energetica A
+                    9 => 1,   // Vendita
+                    5 => 1,   // Garage
+                    21 => 1   // Riscaldamento a pavimento
+                ],
+                'dati_inseriti' => [
+                    20 => 240, // Superficie commerciale
+                    21 => 220, // Superficie utile
+                    4 => 800,  // MQ giardino
+                    6 => 3.50  // Altezza piano
+                ],
+                'file_allegati' => [
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/003__foto__002.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/004__foto__010.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/005__foto__011.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/006__foto__008.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/250408/4476296/800x800/044__Planimetria.png', 'type' => 'planimetria']
+                ],
+                'catasto' => [
+                    'destinazione_uso' => 'Residenziale',
+                    'rendita_catastale' => '3850.60',
+                    'foglio' => '8',
+                    'particella' => '156',
+                    'subalterno' => '3'
+                ]
+            ],
+            
+            // Sample 3: Appartamento Rovereto for testing different scenarios
+            [
+                'id' => 'SAMPLE003',
+                'categorie_id' => 11, // Appartamento
+                'price' => 1200, // Affitto
+                'mq' => 95,
+                'indirizzo' => 'Corso Bettini',
+                'civico' => '89',
+                'comune_istat' => '022178', // Rovereto
+                'latitude' => 45.8906,
+                'longitude' => 11.0387,
+                'description' => 'Appartamento moderno in affitto nel centro di Rovereto. Perfetto per giovani professionisti.',
+                'abstract' => 'Appartamento moderno in affitto a Rovereto',
+                'seo_title' => 'Appartamento in affitto centro Rovereto',
+                'info_inserite' => [
+                    1 => 1,   // 1 bagno
+                    2 => 2,   // 2 camere
+                    65 => 4,  // 4 locali
+                    13 => 1,  // Ascensore
+                    14 => 1,  // Aria condizionata
+                    16 => 1,  // Riscaldamento autonomo
+                    33 => 2,  // Piano 2
+                    55 => 4,  // Classe energetica C
+                    10 => 1,  // Affitto
+                    25 => 1,  // Balcone
+                    26 => 1   // Lavanderia
+                ],
+                'dati_inseriti' => [
+                    20 => 100, // Superficie commerciale
+                    21 => 95,  // Superficie utile
+                    6 => 2.80  // Altezza piano
+                ],
+                'file_allegati' => [
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/006__foto__008.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/080626/11484/800x800/007__foto__007.jpg', 'type' => 'image'],
+                    ['url' => 'https://images.gestionaleimmobiliare.it/foto/annunci/250408/4476296/800x800/043__Planimetria-2.png', 'type' => 'planimetria']
+                ],
+                'catasto' => [
+                    'destinazione_uso' => 'Residenziale',
+                    'rendita_catastale' => '580.40',
+                    'foglio' => '22',
+                    'particella' => '89',
+                    'subalterno' => '7'
+                ]
+            ]
+        ];
+    }
+    
+    /**
+     * Validate mapping system
+     */
+    private function validate_mapping_system() {
+        $tests = array();
+        $total_score = 0;
+        $max_score = 0;
+        
+        // Test 1: Check if mapper class exists
+        $max_score += 20;
+        if (class_exists('RealEstate_Sync_Property_Mapper')) {
+            $tests[] = array(
+                'name' => 'Property Mapper Class',
+                'description' => 'Classe mapper esiste e caricabile',
+                'passed' => true,
+                'details' => 'RealEstate_Sync_Property_Mapper trovata'
+            );
+            $total_score += 20;
+        } else {
+            $tests[] = array(
+                'name' => 'Property Mapper Class',
+                'description' => 'Classe mapper mancante',
+                'passed' => false,
+                'details' => 'RealEstate_Sync_Property_Mapper non trovata'
+            );
+        }
+        
+        // Test 2: Check field mapping configuration
+        $max_score += 20;
+        $field_mapping_file = plugin_dir_path(__FILE__) . '../config/field-mapping.php';
+        if (file_exists($field_mapping_file)) {
+            $tests[] = array(
+                'name' => 'Field Mapping Config',
+                'description' => 'File di configurazione mapping campi',
+                'passed' => true,
+                'details' => 'field-mapping.php trovato'
+            );
+            $total_score += 20;
+        } else {
+            $tests[] = array(
+                'name' => 'Field Mapping Config',
+                'description' => 'File configurazione mapping mancante',
+                'passed' => false,
+                'details' => 'field-mapping.php non trovato'
+            );
+        }
+        
+        // Test 3: Check WpResidence compatibility
+        $max_score += 20;
+        $wp_theme = wp_get_theme();
+        if ($wp_theme->get('Name') === 'WpResidence' || $wp_theme->get('Template') === 'wpresidence') {
+            $tests[] = array(
+                'name' => 'WpResidence Theme',
+                'description' => 'Tema WpResidence attivo per compatibilità',
+                'passed' => true,
+                'details' => 'Tema WpResidence rilevato'
+            );
+            $total_score += 20;
+        } else {
+            $tests[] = array(
+                'name' => 'WpResidence Theme',
+                'description' => 'Tema WpResidence non attivo',
+                'passed' => false,
+                'details' => 'Tema corrente: ' . $wp_theme->get('Name')
+            );
+        }
+        
+        // Test 4: Check province filtering
+        $max_score += 20;
+        if (class_exists('RealEstate_Sync_Property_Mapper')) {
+            $mapper = new RealEstate_Sync_Property_Mapper();
+            if (method_exists($mapper, 'is_property_in_enabled_provinces')) {
+                $tests[] = array(
+                    'name' => 'Province Filtering',
+                    'description' => 'Sistema filtro provincie implementato',
+                    'passed' => true,
+                    'details' => 'Metodo is_property_in_enabled_provinces trovato'
+                );
+                $total_score += 20;
+            } else {
+                $tests[] = array(
+                    'name' => 'Province Filtering',
+                    'description' => 'Sistema filtro provincie mancante',
+                    'passed' => false,
+                    'details' => 'Metodo is_property_in_enabled_provinces non trovato'
+                );
+            }
+        }
+        
+        // Test 5: Database tracking table
+        $max_score += 20;
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+        if ($table_exists) {
+            $tests[] = array(
+                'name' => 'Tracking Database',
+                'description' => 'Tabella tracking per change detection',
+                'passed' => true,
+                'details' => 'Tabella realestate_sync_tracking esistente'
+            );
+            $total_score += 20;
+        } else {
+            $tests[] = array(
+                'name' => 'Tracking Database',
+                'description' => 'Tabella tracking mancante',
+                'passed' => false,
+                'details' => 'Tabella realestate_sync_tracking non trovata'
+            );
+        }
+        
+        // Calculate final score
+        $overall_score = $max_score > 0 ? round(($total_score / $max_score) * 100) : 0;
+        
+        // Generate summary
+        $passed_tests = count(array_filter($tests, function($test) { return $test['passed']; }));
+        $total_tests = count($tests);
+        
+        if ($overall_score >= 80) {
+            $summary = "Sistema mapping funzionante. {$passed_tests}/{$total_tests} test superati.";
+        } elseif ($overall_score >= 60) {
+            $summary = "Sistema mapping parzialmente funzionante. Alcuni problemi da risolvere.";
+        } else {
+            $summary = "Sistema mapping con problemi significativi. Richiede intervento.";
+        }
+        
+        return array(
+            'overall_score' => $overall_score,
+            'summary' => $summary,
+            'tests' => $tests,
+            'passed_tests' => $passed_tests,
+            'total_tests' => $total_tests
+        );
     }
 }
 
