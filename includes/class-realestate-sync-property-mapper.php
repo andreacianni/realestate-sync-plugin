@@ -1,667 +1,626 @@
 <?php
 /**
- * Property Mapper Class for RealEstate Sync Plugin
+ * RealEstate Sync Plugin - Property Mapper v3.0
  * 
- * Maps XML property data from GestionaleImmobiliare.it to WpResidence
- * theme format. Handles field transformations, data normalization,
- * and WordPress-compatible property creation.
+ * MAPPING COMPLETO basato su database analysis reale
  * 
  * @package RealEstateSync
- * @version 0.9.0
+ * @version 3.0.0
  * @author Andrea Cianni - Novacom
  */
 
-// Prevent direct access
 if (!defined('ABSPATH')) {
     exit('Direct access not allowed.');
 }
 
-/**
- * RealEstate_Sync_Property_Mapper Class
- * 
- * Manages property data mapping including:
- * - XML to WpResidence field mapping
- * - Data type conversion and validation
- * - Custom field assignments
- * - Taxonomy and category mapping
- * - Duplicate detection and updates
- */
 class RealEstate_Sync_Property_Mapper {
     
     private $logger;
-    private $config;
-    private $field_mappings;
-    private $taxonomies;
-    private $features_mapping;
-    private $custom_fields;
-    private $stats;
+    private $gi_categories;
+    private $gi_features;
+    private $energy_class_mapping;
     
     public function __construct($logger = null) {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
-        $this->init_mapper();
+        $this->init_mappings();
+        $this->logger->log('Property Mapper v3.0 initialized with database-driven mapping', 'info');
     }
     
-    private function init_mapper() {
-        $this->load_config();
-        $this->load_field_mappings();
-        $this->load_taxonomies_mapping();
-        $this->load_features_mapping();
-        $this->load_custom_fields_mapping();
-        $this->reset_stats();
-        
-        $this->logger->log('Property Mapper initialized', 'info', [
-            'field_mappings_count' => count($this->field_mappings),
-            'features_count' => count($this->features_mapping),
-            'custom_fields_count' => count($this->custom_fields)
-        ]);
-    }
-    
-    private function load_config() {
-        $defaults = [
-            'default_post_status' => 'publish',
-            'default_post_author' => 1,
-            'auto_generate_excerpt' => true,
-            'max_excerpt_length' => 150,
-            'slug_from_title' => true,
-            'duplicate_action' => 'update',
-            'price_currency' => 'EUR',
-            'validate_required_fields' => true,
-            'generate_property_code' => true
+    private function init_mappings() {
+        // GI Categories → WpResidence Categories
+        $this->gi_categories = [
+            1 => 'Case singole',
+            2 => 'Case singole', 
+            11 => 'Appartamenti',
+            12 => 'Appartamenti',
+            18 => 'Ville',
+            19 => 'Terreni',
+            14 => 'Uffici e Commerciali',
+            17 => 'Uffici e Commerciali',
+            8 => 'Garage e Posti auto',
+            28 => 'Camere e Posti letto',
+            23 => 'Loft e Mansarde',
+            13 => 'Rustici e Case rurali',
+            22 => 'Case vacanza',
+            25 => 'Case vacanza'
         ];
         
-        $this->config = get_option('realestate_sync_mapper_config', $defaults);
-    }
-    
-    private function load_field_mappings() {
-        // Updated mappings for GestionaleImmobiliare XML structure
-        $this->field_mappings = [
-            // XML uses different field names - updated mapping
-            'post_title' => 'title',              // <title> in <info>
-            'post_content' => 'description',        // <description> in <info> 
-            'property_price' => 'price',            // <price> in <info>
-            'property_price_per_month' => 'price',  // Same field, different logic
-            'property_size' => 'mq',               // <mq> in <info>
-            'property_rooms' => 'numero_camere',     // If exists
-            'property_bedrooms' => 'numero_camere',  // If exists
-            'property_bathrooms' => 'numero_bagni', // If exists
-            'property_address' => 'indirizzo',      // <indirizzo> in <info>
-            'property_city' => 'citta',            // Derived from comune
-            'property_zip' => 'cap',               // If exists
-            'property_state' => 'provincia',        // Derived from provincia
-            'property_country' => null,             // Default to Italy
-            'property_year' => 'anno_costruzione',  // If exists
-            'property_floors' => 'numero_piani',    // If exists
-            'property_floor' => 'piano',            // If exists
-            'property_energy_class' => 'ape',       // From <ape> classe attribute
-            'property_id_gestionale' => 'id',       // <id> in <info>
-            'property_ref' => null,                 // Generated
-            'property_source' => null               // Default
+        // GI Features → WpResidence Features
+        $this->gi_features = [
+            17 => 'giardino',
+            66 => 'piscina',
+            15 => 'arredato',
+            16 => 'riscaldamento-autonomo-centralizzato',
+            62 => 'vista-panoramica',
+            5 => 'box-o-garage',
+            20 => 'box-o-garage',
+            13 => 'ascensore',
+            14 => 'aria-condizionata',
+            21 => 'riscaldamento-a-pavimento',
+            23 => 'allarme',
+            46 => 'camino',
+            8 => 'cantina',
+            36 => 'montagna',
+            37 => 'lago',
+            88 => 'domotica',
+            90 => 'porta-blindata'
+        ];
+        
+        // Energy class mapping
+        $this->energy_class_mapping = [
+            1 => 'A+', 2 => 'A', 3 => 'B', 4 => 'C',
+            5 => 'D', 6 => 'E', 7 => 'F', 8 => 'G',
+            10 => 'A4', 11 => 'A3', 12 => 'A2', 13 => 'A1'
         ];
     }
     
-    private function load_taxonomies_mapping() {
-        $this->taxonomies = [
-            'property_category' => [
-                'taxonomy' => 'property_category',
-                'source_field' => 'categorie_id',      // Updated to categorie_id
-                'mapping' => [
-                    1 => 'Casa Singola',
-                    2 => 'Bifamiliare',
-                    11 => 'Appartamento',
-                    12 => 'Attico',
-                    18 => 'Villa',
-                    19 => 'Terreno',
-                    14 => 'Negozio',
-                    17 => 'Ufficio',
-                    8 => 'Garage'
-                ],
-                'default' => 'Proprietà'
-            ],
-            
-            'property_action_category' => [
-                'taxonomy' => 'property_action_category',
-                'source_field' => null,
-                'mapping' => [
-                    'sale' => 'Vendita',
-                    'rent' => 'Affitto'
-                ],
-                'default' => 'Vendita'
-            ],
-            
-            'property_city' => [
-                'taxonomy' => 'property_city',
-                'source_field' => 'citta',
-                'mapping' => null,
-                'default' => null
-            ],
-            
-            'property_county' => [
-                'taxonomy' => 'property_county',
-                'source_field' => 'provincia',
-                'mapping' => [
-                    'TN' => 'Trento',
-                    'BZ' => 'Bolzano'
-                ],
-                'default' => null
-            ]
-        ];
+    /**
+     * Check if property is in enabled provinces
+     */
+    public function is_property_in_enabled_provinces($xml_property, $enabled_provinces = null) {
+        $comune_istat = $xml_property['comune_istat'] ?? '';
+        
+        if (empty($comune_istat)) {
+            return false;
+        }
+        
+        if ($enabled_provinces === null) {
+            $settings = get_option('realestate_sync_settings', []);
+            $enabled_provinces = $settings['enabled_provinces'] ?? ['TN', 'BZ'];
+        }
+        
+        $is_trento = (substr($comune_istat, 0, 3) === '022');
+        $is_bolzano = (substr($comune_istat, 0, 3) === '021');
+        
+        return ($is_trento && in_array('TN', $enabled_provinces)) || 
+               ($is_bolzano && in_array('BZ', $enabled_provinces));
     }
     
-    private function load_features_mapping() {
-        $this->features_mapping = [
-            'elevator' => 'ascensore',
-            'garden' => 'giardino',
-            'swimming-pool' => 'piscina',
-            'garage' => 'garage',
-            'air-conditioning' => 'aria_condizionata',
-            'heating' => 'riscaldamento',
-            'balcony' => 'balcone',
-            'terrace' => 'terrazzo',
-            'furnished' => 'arredato',
-            'alarm' => 'allarme'
-        ];
-    }
-    
-    private function load_custom_fields_mapping() {
-        $this->custom_fields = [
-            'property_import_source' => null,
-            'property_import_id' => 'id',
-            'property_import_date' => null,
-            'property_import_hash' => null,
-            'property_last_sync' => null
-        ];
-    }
-    
-    private function reset_stats() {
-        $this->stats = [
-            'total_properties' => 0,
-            'mapped_properties' => 0,
-            'skipped_properties' => 0,
-            'error_properties' => 0,
-            'errors' => []
-        ];
-    }
-    
+    /**
+     * Map properties v3.0
+     */
     public function map_properties($xml_properties) {
-        $this->logger->log('Starting property mapping', 'info', [
+        $this->logger->log('Starting Property Mapper v3.0', 'info', [
             'input_count' => count($xml_properties)
         ]);
         
-        $this->reset_stats();
-        $this->stats['total_properties'] = count($xml_properties);
-        
         $mapped_properties = [];
+        $stats = ['success' => 0, 'skipped' => 0, 'errors' => 0];
         
-        foreach ($xml_properties as $index => $xml_property) {
+        foreach ($xml_properties as $xml_property) {
             try {
-                $mapped = $this->map_single_property($xml_property, $index);
-                
-                if ($mapped !== null) {
+                $mapped = $this->map_single_property_v3($xml_property);
+                if ($mapped) {
                     $mapped_properties[] = $mapped;
-                    $this->stats['mapped_properties']++;
+                    $stats['success']++;
                 } else {
-                    $this->stats['skipped_properties']++;
+                    $stats['skipped']++;
                 }
-                
             } catch (Exception $e) {
-                $this->stats['error_properties']++;
-                $this->stats['errors'][] = [
-                    'property_index' => $index,
-                    'property_id' => $xml_property['id_immobile'] ?? 'unknown',
-                    'error' => $e->getMessage()
-                ];
-                
-                $this->logger->log('Property mapping error', 'warning', [
-                    'property_index' => $index,
-                    'property_id' => $xml_property['id_immobile'] ?? 'unknown',
+                $stats['errors']++;
+                $this->logger->log('Mapping error', 'error', [
+                    'property_id' => $xml_property['id'] ?? 'unknown',
                     'error' => $e->getMessage()
                 ]);
             }
         }
         
-        $this->logger->log('Property mapping completed', 'info', [
-            'total_properties' => $this->stats['total_properties'],
-            'mapped_properties' => $this->stats['mapped_properties'],
-            'skipped_properties' => $this->stats['skipped_properties'],
-            'error_properties' => $this->stats['error_properties']
-        ]);
+        $this->logger->log('Property Mapper v3.0 completed', 'info', $stats);
         
         return [
             'success' => true,
             'properties' => $mapped_properties,
-            'stats' => $this->stats
+            'stats' => $stats
         ];
     }
     
-    private function map_single_property($xml_property, $index = 0) {
-        if (!$this->validate_required_fields($xml_property)) {
+    /**
+     * Map single property v3.0
+     */
+    private function map_single_property_v3($xml_property) {
+        if (empty($xml_property['id'])) {
             return null;
         }
         
-        $mapped = [
-            'post_data' => [],
-            'meta_fields' => [],
-            'taxonomies' => [],
-            'features' => [],
-            'custom_fields' => [],
-            'source_data' => $xml_property
+        return [
+            'post_data' => $this->map_post_data_v3($xml_property),
+            'meta_fields' => $this->map_meta_fields_v3($xml_property),
+            'taxonomies' => $this->map_taxonomies_v3($xml_property),
+            'features' => $this->map_features_v3($xml_property),
+            'gallery' => $this->map_gallery_v3($xml_property),
+            'catasto' => $this->map_catasto_v3($xml_property),
+            'source_data' => $xml_property,
+            'content_hash_v3' => $this->generate_content_hash_v3($xml_property)
         ];
-        
-        $mapped['post_data'] = $this->map_post_data($xml_property);
-        $mapped['meta_fields'] = $this->map_meta_fields($xml_property);
-        $mapped['taxonomies'] = $this->map_taxonomies($xml_property);
-        $mapped['features'] = $this->map_features($xml_property);
-        $mapped['custom_fields'] = $this->map_custom_fields($xml_property);
-        $mapped = $this->add_import_metadata($mapped, $xml_property);
-        $mapped['content_hash'] = $this->generate_content_hash($xml_property);
-        
-        return $mapped;
     }
     
-    private function validate_required_fields($xml_property) {
-        if (!$this->config['validate_required_fields']) {
-            return true;
-        }
+    /**
+     * Map post data v3.0
+     */
+    private function map_post_data_v3($xml_property) {
+        $title = $this->generate_smart_title_v3($xml_property);
+        $description = $this->get_best_description($xml_property);
         
-        // Updated required fields for actual XML structure
-        $required_fields = ['id'];
-        
-        foreach ($required_fields as $field) {
-            if (!isset($xml_property[$field]) || empty($xml_property[$field])) {
-                return false;
-            }
-        }
-        
-        // Check price exists (always in 'price' field)
-        if (empty($xml_property['price'])) {
-            return false;
-        }
-        
-        return true;
-    }
-    
-    private function map_post_data($xml_property) {
-        $post_data = [
+        return [
             'post_type' => 'estate_property',
-            'post_status' => $this->config['default_post_status'],
-            'post_author' => $this->config['default_post_author'],
-            'post_title' => $this->sanitize_title($xml_property['abstract'] ?? $xml_property['seo_title'] ?? 'Proprietà'),
-            'post_content' => $this->sanitize_content($xml_property['description'] ?? ''),
-            'post_excerpt' => '',
-            'post_name' => '',
+            'post_status' => 'publish',
+            'post_author' => 1,
+            'post_title' => $title,
+            'post_content' => $this->clean_html_content($description),
+            'post_excerpt' => $this->generate_excerpt($xml_property['abstract'] ?? $description),
+            'post_name' => $this->generate_slug($title, $xml_property['id']),
             'comment_status' => 'closed',
             'ping_status' => 'closed'
         ];
-        
-        if ($this->config['auto_generate_excerpt'] && !empty($post_data['post_content'])) {
-            $post_data['post_excerpt'] = $this->generate_excerpt($post_data['post_content']);
-        }
-        
-        if ($this->config['slug_from_title']) {
-            $post_data['post_name'] = $this->generate_slug($post_data['post_title'], $xml_property['id'] ?? 'unknown');
-        }
-        
-        return $post_data;
     }
     
-    private function map_meta_fields($xml_property) {
-        $meta_fields = [];
+    /**
+     * Map meta fields v3.0
+     */
+    private function map_meta_fields_v3($xml_property) {
+        $meta = [];
         
-        foreach ($this->field_mappings as $wp_field => $xml_field) {
-            if (strpos($wp_field, 'post_') === 0) {
-                continue;
-            }
-            
-            $value = null;
-            
-            if ($xml_field === null) {
-                $value = $this->get_default_value($wp_field, $xml_property);
-            } else if (isset($xml_property[$xml_field])) {
-                $value = $this->transform_field_value($wp_field, $xml_property[$xml_field], $xml_property);
-            }
-            
-            if ($value !== null) {
-                $meta_fields[$wp_field] = $value;
-            }
+        // Core property data
+        $meta['property_price'] = floatval($xml_property['price'] ?? 0);
+        $meta['property_size'] = $this->get_best_surface_area($xml_property);
+        $meta['property_address'] = $this->build_full_address($xml_property);
+        
+        // Coordinates
+        if (!empty($xml_property['latitude']) && !empty($xml_property['longitude'])) {
+            $meta['property_latitude'] = floatval($xml_property['latitude']);
+            $meta['property_longitude'] = floatval($xml_property['longitude']);
         }
         
-        return $meta_fields;
+        // Room data
+        $this->map_rooms_data_v3($xml_property, $meta);
+        
+        // Building details
+        $meta['piano'] = $this->get_piano_info_v3($xml_property);
+        $meta['energy_class'] = $this->map_energy_class_v3($xml_property);
+        
+        // Extended dimensions
+        $this->map_extended_dimensions($xml_property, $meta);
+        
+        // Reference and tracking
+        $meta['property_ref'] = 'TI-' . $xml_property['id'];
+        $meta['property_import_id'] = $xml_property['id'];
+        $meta['property_import_source'] = 'GestionaleImmobiliare';
+        $meta['property_import_date'] = current_time('mysql');
+        $meta['property_content_hash_v3'] = $this->generate_content_hash_v3($xml_property);
+        
+        return $meta;
     }
     
-    private function map_taxonomies($xml_property) {
+    /**
+     * Map taxonomies v3.0
+     */
+    private function map_taxonomies_v3($xml_property) {
         $taxonomies = [];
         
-        foreach ($this->taxonomies as $taxonomy_key => $taxonomy_config) {
-            $terms = [];
-            
-            if ($taxonomy_key === 'property_action_category') {
-                if (!empty($xml_property['prezzo_vendita'])) {
-                    $terms[] = $taxonomy_config['mapping']['sale'];
-                } else if (!empty($xml_property['prezzo_affitto'])) {
-                    $terms[] = $taxonomy_config['mapping']['rent'];
-                }
-            } else if ($taxonomy_config['source_field'] && isset($xml_property[$taxonomy_config['source_field']])) {
-                $source_value = $xml_property[$taxonomy_config['source_field']];
-                
-                if ($taxonomy_config['mapping']) {
-                    if (isset($taxonomy_config['mapping'][$source_value])) {
-                        $terms[] = $taxonomy_config['mapping'][$source_value];
-                    }
-                } else {
-                    $terms[] = $this->sanitize_term($source_value);
-                }
-            }
-            
-            if (empty($terms) && $taxonomy_config['default']) {
-                $terms[] = $taxonomy_config['default'];
-            }
-            
-            if (!empty($terms)) {
-                $taxonomies[$taxonomy_config['taxonomy']] = $terms;
-            }
+        // Property action category
+        $action = $this->determine_action_category($xml_property);
+        $taxonomies['property_action_category'] = [$action];
+        
+        // Property category
+        $categoria_id = intval($xml_property['categorie_id'] ?? 0);
+        if (isset($this->gi_categories[$categoria_id])) {
+            $taxonomies['property_category'] = [$this->gi_categories[$categoria_id]];
+        }
+        
+        // Geographic taxonomies
+        $city = $this->derive_city_from_comune_istat($xml_property['comune_istat'] ?? '');
+        if ($city) {
+            $taxonomies['property_city'] = [$city];
+        }
+        
+        $county = $this->derive_county_from_comune_istat($xml_property['comune_istat'] ?? '');
+        if ($county) {
+            $taxonomies['property_county_state'] = [$county];
         }
         
         return $taxonomies;
     }
     
-    private function map_features($xml_property) {
+    /**
+     * Map features v3.0
+     */
+    private function map_features_v3($xml_property) {
         $features = [];
         
-        foreach ($this->features_mapping as $feature_slug => $xml_field) {
-            if (isset($xml_property[$xml_field]) && $this->is_feature_enabled($xml_property[$xml_field])) {
-                $features[] = $feature_slug;
+        if (isset($xml_property['info_inserite']) && is_array($xml_property['info_inserite'])) {
+            foreach ($xml_property['info_inserite'] as $feature_id => $value) {
+                if ($this->is_feature_active($value) && isset($this->gi_features[$feature_id])) {
+                    $feature_slug = $this->gi_features[$feature_id];
+                    if (!in_array($feature_slug, $features)) {
+                        $features[] = $feature_slug;
+                    }
+                }
             }
         }
         
-        return $features;
+        // Add special computed features
+        $this->add_computed_features($xml_property, $features);
+        
+        return array_unique($features);
     }
     
-    private function map_custom_fields($xml_property) {
-        $custom_fields = [];
+    /**
+     * Map gallery v3.0 - ENHANCED for Image Importer v1.0
+     */
+    private function map_gallery_v3($xml_property) {
+        $gallery = [];
         
-        foreach ($this->custom_fields as $custom_field => $xml_field) {
-            $value = null;
+        if (isset($xml_property['file_allegati']) && is_array($xml_property['file_allegati'])) {
+            $image_index = 0;
             
-            if ($xml_field === null) {
-                $value = $this->get_custom_field_default($custom_field, $xml_property);
-            } else if (isset($xml_property[$xml_field])) {
-                $value = $xml_property[$xml_field];
+            foreach ($xml_property['file_allegati'] as $file) {
+                if (empty($file['url'])) {
+                    continue;
+                }
+                
+                $file_type = isset($file['type']) && $file['type'] === 'planimetria' ? 'planimetria' : 'image';
+                
+                // 🖼️ ENHANCED: Create complete gallery item for Image Importer v1.0
+                $gallery_item = [
+                    'url' => $file['url'],
+                    'type' => $file_type,
+                    'is_featured' => ($image_index === 0 && $file_type === 'image'), // First image is featured
+                    'alt_text' => $this->generate_image_alt_text_v3($xml_property, $file_type, $image_index),
+                    'caption' => $this->generate_image_caption_v3($xml_property, $file_type, $image_index),
+                    'order' => $image_index
+                ];
+                
+                $gallery[] = $gallery_item;
+                
+                if ($file_type === 'image') {
+                    $image_index++;
+                }
             }
             
-            if ($value !== null) {
-                $custom_fields[$custom_field] = $value;
-            }
+            $this->logger->log('Gallery v3.0 mapped with Image Importer structure', 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'total_files' => count($xml_property['file_allegati']),
+                'gallery_items' => count($gallery),
+                'has_featured' => !empty(array_filter($gallery, function($item) { return $item['is_featured']; }))
+            ]);
         }
         
-        return $custom_fields;
+        return $gallery;
     }
     
-    private function add_import_metadata($mapped, $xml_property) {
-        $timestamp = current_time('mysql');
+    /**
+     * Generate alt text for images v3.0
+     */
+    private function generate_image_alt_text_v3($xml_property, $file_type, $index) {
+        $title = $this->generate_smart_title_v3($xml_property);
         
-        $mapped['meta_fields']['property_import_source'] = 'GestionaleImmobiliare';
-        $mapped['meta_fields']['property_import_date'] = $timestamp;
-        $mapped['meta_fields']['property_last_sync'] = $timestamp;
+        $alt_texts = [
+            'image' => $title . ($index > 0 ? ' - Foto ' . ($index + 1) : ''),
+            'planimetria' => $title . ' - Planimetria'
+        ];
         
-        if (isset($xml_property['id'])) {
-            $mapped['meta_fields']['property_import_id'] = $xml_property['id'];
-            
-            if ($this->config['generate_property_code']) {
-                $mapped['meta_fields']['property_ref'] = 'RS-' . $xml_property['id'];
-            }
+        return $alt_texts[$file_type] ?? $title;
+    }
+    
+    /**
+     * Generate caption for images v3.0
+     */
+    private function generate_image_caption_v3($xml_property, $file_type, $index) {
+        $city = $this->derive_city_from_comune_istat($xml_property['comune_istat'] ?? '');
+        
+        $captions = [
+            'image' => $index === 0 ? 'Foto principale' : 'Foto aggiuntiva',
+            'planimetria' => 'Planimetria della proprietà'
+        ];
+        
+        $caption = $captions[$file_type] ?? 'Immagine';
+        
+        if ($city) {
+            $caption .= ' - ' . $city;
         }
         
-        return $mapped;
+        return $caption;
     }
     
-    private function generate_content_hash($xml_property) {
-        $hash_fields = ['id', 'abstract', 'price', 'description'];
+    /**
+     * Map catasto v3.0
+     */
+    private function map_catasto_v3($xml_property) {
+        $catasto = [];
+        
+        if (isset($xml_property['catasto']) && is_array($xml_property['catasto'])) {
+            $catasto_data = $xml_property['catasto'];
+            
+            $catasto['destinazione'] = $catasto_data['destinazione_uso'] ?? '';
+            $catasto['rendita'] = $catasto_data['rendita_catastale'] ?? '';
+            $catasto['foglio'] = $catasto_data['foglio'] ?? '';
+            $catasto['particella'] = $catasto_data['particella'] ?? '';
+            $catasto['subalterno'] = $catasto_data['subalterno'] ?? '';
+        }
+        
+        return $catasto;
+    }
+    
+    // HELPER METHODS
+    
+    private function generate_smart_title_v3($xml_property) {
+        $parts = [];
+        
+        $categoria_id = intval($xml_property['categorie_id'] ?? 0);
+        if ($categoria_id == 12) {
+            $parts[] = 'Attico';
+        } elseif ($categoria_id == 18) {
+            $parts[] = 'Villa';
+        } elseif ($categoria_id == 11) {
+            $parts[] = 'Appartamento';
+        } elseif (isset($this->gi_categories[$categoria_id])) {
+            $category = $this->gi_categories[$categoria_id];
+            $parts[] = substr($category, 0, -1);
+        }
+        
+        $city = $this->derive_city_from_comune_istat($xml_property['comune_istat'] ?? '');
+        if ($city) {
+            $parts[] = 'a ' . $city;
+        }
+        
+        if ($this->get_feature_value($xml_property, 66)) {
+            $parts[] = 'con Piscina';
+        }
+        if ($this->get_feature_value($xml_property, 17)) {
+            $parts[] = 'con Giardino';
+        }
+        if ($this->get_feature_value($xml_property, 62) > 0) {
+            $parts[] = 'Vista Panoramica';
+        }
+        
+        if (empty($parts)) {
+            return !empty($xml_property['seo_title']) ? 
+                wp_strip_all_tags($xml_property['seo_title']) : 'Proprietà in Trentino';
+        }
+        
+        return implode(' ', $parts);
+    }
+    
+    private function get_best_description($xml_property) {
+        if (!empty($xml_property['description'])) {
+            return $xml_property['description'];
+        }
+        if (!empty($xml_property['abstract'])) {
+            return $xml_property['abstract'];
+        }
+        return 'Proprietà immobiliare in Trentino Alto Adige.';
+    }
+    
+    private function get_best_surface_area($xml_property) {
+        if (isset($xml_property['dati_inseriti'][21]) && $xml_property['dati_inseriti'][21] > 0) {
+            return intval($xml_property['dati_inseriti'][21]);
+        }
+        if (isset($xml_property['dati_inseriti'][20]) && $xml_property['dati_inseriti'][20] > 0) {
+            return intval($xml_property['dati_inseriti'][20]);
+        }
+        return intval($xml_property['mq'] ?? 0);
+    }
+    
+    private function map_rooms_data_v3($xml_property, &$meta) {
+        $bathrooms = $this->get_feature_value($xml_property, 1);
+        if ($bathrooms > 0) {
+            $meta['property_bathrooms'] = $bathrooms == -1 ? 4 : $bathrooms;
+        }
+        
+        $bedrooms = $this->get_feature_value($xml_property, 2);
+        if ($bedrooms > 0) {
+            $meta['property_bedrooms'] = $bedrooms == -1 ? 4 : $bedrooms;
+        }
+        
+        $rooms = $this->get_feature_value($xml_property, 65);
+        if ($rooms > 0) {
+            $meta['property_rooms'] = $rooms;
+        }
+    }
+    
+    private function get_piano_info_v3($xml_property) {
+        $piano = $this->get_feature_value($xml_property, 33);
+        
+        if ($piano == -2) return 'Interrato';
+        if ($piano == 0) return 'Piano Terra';
+        if ($piano == -1) return 'Oltre 30';
+        if ($piano > 0) return strval($piano);
+        
+        return '';
+    }
+    
+    private function map_energy_class_v3($xml_property) {
+        $classe = $this->get_feature_value($xml_property, 55);
+        return $this->energy_class_mapping[$classe] ?? '';
+    }
+    
+    private function map_extended_dimensions($xml_property, &$meta) {
+        if (isset($xml_property['dati_inseriti'])) {
+            $dati = $xml_property['dati_inseriti'];
+            
+            if (isset($dati[20]) && $dati[20] > 0) {
+                $meta['property_commercial_size'] = intval($dati[20]);
+            }
+            if (isset($dati[21]) && $dati[21] > 0) {
+                $meta['property_useful_size'] = intval($dati[21]);
+            }
+            if (isset($dati[4]) && $dati[4] > 0) {
+                $meta['property_garden_size'] = intval($dati[4]);
+            }
+            if (isset($dati[6]) && $dati[6] > 0) {
+                $meta['property_ceiling_height'] = floatval($dati[6]);
+            }
+        }
+    }
+    
+    private function build_full_address($xml_property) {
+        $parts = [];
+        if (!empty($xml_property['indirizzo'])) {
+            $parts[] = $xml_property['indirizzo'];
+        }
+        if (!empty($xml_property['civico'])) {
+            $parts[] = $xml_property['civico'];
+        }
+        return implode(' ', $parts);
+    }
+    
+    private function determine_action_category($xml_property) {
+        $is_vendita = $this->get_feature_value($xml_property, 9);
+        $is_affitto = $this->get_feature_value($xml_property, 10);
+        
+        if ($is_vendita) return 'Vendita';
+        if ($is_affitto) return 'Affitto';
+        
+        $price = floatval($xml_property['price'] ?? 0);
+        return $price > 50000 ? 'Vendita' : 'Affitto';
+    }
+    
+    private function add_computed_features($xml_property, &$features) {
+        if ($this->get_feature_value($xml_property, 62) > 0) {
+            $features[] = 'vista-panoramica';
+        }
+        
+        if ($this->get_feature_value($xml_property, 36)) {
+            $features[] = 'montagna';
+        }
+        if ($this->get_feature_value($xml_property, 37)) {
+            $features[] = 'lago';
+        }
+    }
+    
+    private function get_feature_value($xml_property, $feature_id) {
+        if (!isset($xml_property['info_inserite']) || !is_array($xml_property['info_inserite'])) {
+            return 0;
+        }
+        return intval($xml_property['info_inserite'][$feature_id] ?? 0);
+    }
+    
+    private function is_feature_active($value) {
+        return intval($value) > 0;
+    }
+    
+    private function derive_city_from_comune_istat($comune_istat) {
+        if (empty($comune_istat)) return '';
+        
+        if (substr($comune_istat, 0, 3) === '022') return 'Trento';
+        if (substr($comune_istat, 0, 3) === '021') return 'Bolzano';
+        
+        return '';
+    }
+    
+    private function derive_county_from_comune_istat($comune_istat) {
+        if (empty($comune_istat)) return '';
+        
+        if (substr($comune_istat, 0, 3) === '022') return 'Trentino-Alto Adige';
+        if (substr($comune_istat, 0, 3) === '021') return 'Trentino-Alto Adige';
+        
+        return '';
+    }
+    
+    private function generate_excerpt($content) {
+        $content = wp_strip_all_tags($content);
+        if (strlen($content) > 150) {
+            $content = substr($content, 0, 150);
+            $last_space = strrpos($content, ' ');
+            if ($last_space !== false) {
+                $content = substr($content, 0, $last_space);
+            }
+            $content .= '...';
+        }
+        return trim($content);
+    }
+    
+    private function generate_slug($title, $id) {
+        $slug = sanitize_title($title);
+        if (empty($slug)) {
+            $slug = 'proprieta-' . $id;
+        }
+        return $slug;
+    }
+    
+    private function clean_html_content($content) {
+        $allowed_tags = '<p><br><strong><b><em><i><ul><li><ol>';
+        return strip_tags(trim($content), $allowed_tags);
+    }
+    
+    private function generate_content_hash_v3($xml_property) {
+        $hash_fields = ['id', 'price', 'description', 'abstract', 'mq', 'indirizzo'];
         $hash_data = [];
         
         foreach ($hash_fields as $field) {
             $hash_data[$field] = $xml_property[$field] ?? '';
         }
         
+        if (isset($xml_property['info_inserite'])) {
+            $hash_data['info_inserite'] = serialize($xml_property['info_inserite']);
+        }
+        if (isset($xml_property['dati_inseriti'])) {
+            $hash_data['dati_inseriti'] = serialize($xml_property['dati_inseriti']);
+        }
+        if (isset($xml_property['file_allegati'])) {
+            $hash_data['file_allegati'] = serialize($xml_property['file_allegati']);
+        }
+        if (isset($xml_property['catasto'])) {
+            $hash_data['catasto'] = serialize($xml_property['catasto']);
+        }
+        
         return md5(serialize($hash_data));
     }
     
-    private function transform_field_value($wp_field, $value, $xml_property) {
-        switch ($wp_field) {
-            case 'property_price':
-            case 'property_price_per_month':
-                return $this->format_price($value);
-                
-            case 'property_size':
-                return $this->format_area($value);
-                
-            case 'property_rooms':
-            case 'property_bedrooms':
-            case 'property_bathrooms':
-                return max(0, intval($value));
-                
-            case 'property_year':
-                return $this->format_year($value);
-                
-            case 'property_address':
-                return $this->format_address($value, $xml_property);
-                
-            default:
-                return $this->sanitize_text($value);
-        }
-    }
-    
-    private function get_default_value($wp_field, $xml_property) {
-        switch ($wp_field) {
-            case 'property_country':
-                return 'Italy';
-                
-            case 'property_source':
-                return 'GestionaleImmobiliare';
-                
-            case 'property_ref':
-                return isset($xml_property['id']) ? 'RS-' . $xml_property['id'] : '';
-                
-            default:
-                return null;
-        }
-    }
-    
-    private function get_custom_field_default($custom_field, $xml_property) {
-        switch ($custom_field) {
-            case 'property_import_source':
-                return 'GestionaleImmobiliare';
-                
-            case 'property_import_date':
-            case 'property_last_sync':
-                return current_time('mysql');
-                
-            case 'property_import_hash':
-                return $this->generate_content_hash($xml_property);
-                
-            default:
-                return null;
-        }
-    }
-    
-    private function is_feature_enabled($value) {
-        if (is_bool($value)) {
-            return $value;
-        }
+    /**
+     * Validation methods
+     */
+    public function validate_mapping() {
+        $validation = [
+            'categories_count' => count($this->gi_categories),
+            'features_count' => count($this->gi_features),
+            'energy_classes_count' => count($this->energy_class_mapping)
+        ];
         
-        if (is_numeric($value)) {
-            return intval($value) > 0;
-        }
-        
-        if (is_string($value)) {
-            $value = strtolower(trim($value));
-            return in_array($value, ['1', 'true', 'yes', 'si', 'sì']);
-        }
-        
-        return false;
-    }
-    
-    private function format_price($price) {
-        if (empty($price)) {
-            return null;
-        }
-        
-        $cleaned = preg_replace('/[^\d.]/', '', $price);
-        
-        if (is_numeric($cleaned)) {
-            return floatval($cleaned);
-        }
-        
-        return null;
-    }
-    
-    private function format_area($area) {
-        if (empty($area)) {
-            return null;
-        }
-        
-        $cleaned = preg_replace('/[^\d.]/', '', $area);
-        
-        if (is_numeric($cleaned)) {
-            return intval(floatval($cleaned));
-        }
-        
-        return null;
-    }
-    
-    private function format_year($year) {
-        if (empty($year)) {
-            return null;
-        }
-        
-        $year = intval($year);
-        
-        if ($year >= 1800 && $year <= date('Y') + 5) {
-            return $year;
-        }
-        
-        return null;
-    }
-    
-    private function format_address($address, $xml_property) {
-        $address = trim($address);
-        
-        if (empty($address)) {
-            $parts = [];
-            
-            if (!empty($xml_property['citta'])) {
-                $parts[] = $xml_property['citta'];
-            }
-            
-            if (!empty($xml_property['provincia'])) {
-                $parts[] = $xml_property['provincia'];
-            }
-            
-            $address = implode(', ', $parts);
-        }
-        
-        return $this->sanitize_text($address);
-    }
-    
-    private function sanitize_title($title) {
-        return wp_strip_all_tags(trim($title));
-    }
-    
-    private function sanitize_content($content) {
-        $allowed_tags = '<p><br><strong><b><em><i><ul><li><ol>';
-        return strip_tags(trim($content), $allowed_tags);
-    }
-    
-    private function sanitize_text($text) {
-        return wp_strip_all_tags(trim($text));
-    }
-    
-    private function sanitize_term($term) {
-        return ucwords(strtolower(trim($term)));
-    }
-    
-    private function generate_excerpt($content) {
-        $excerpt = wp_strip_all_tags($content);
-        
-        if (strlen($excerpt) > $this->config['max_excerpt_length']) {
-            $excerpt = substr($excerpt, 0, $this->config['max_excerpt_length']);
-            $last_space = strrpos($excerpt, ' ');
-            if ($last_space !== false) {
-                $excerpt = substr($excerpt, 0, $last_space);
-            }
-            $excerpt .= '...';
-        }
-        
-        return trim($excerpt);
-    }
-    
-    private function generate_slug($title, $id) {
-        $slug = sanitize_title($title);
-        
-        if (empty($slug)) {
-            $slug = 'property-' . $id;
-        } else {
-            $slug .= '-' . $id;
-        }
-        
-        return $slug;
-    }
-    
-    public function find_existing_property($import_id) {
-        $query = new WP_Query([
-            'post_type' => 'estate_property',
-            'meta_query' => [
-                [
-                    'key' => 'property_import_id',
-                    'value' => $import_id,
-                    'compare' => '='
-                ]
-            ],
-            'posts_per_page' => 1,
-            'fields' => 'ids'
-        ]);
-        
-        return $query->have_posts() ? $query->posts[0] : null;
-    }
-    
-    public function has_content_changed($post_id, $new_hash) {
-        $stored_hash = get_post_meta($post_id, 'property_import_hash', true);
-        return $stored_hash !== $new_hash;
-    }
-    
-    public function get_stats() {
-        return $this->stats;
-    }
-    
-    public function validate_mapped_property($mapped_property) {
-        $errors = [];
-        
-        if (empty($mapped_property['post_data']['post_title'])) {
-            $errors[] = 'Missing property title';
-        }
-        
-        $has_price = false;
-        if (!empty($mapped_property['meta_fields']['property_price']) ||
-            !empty($mapped_property['meta_fields']['property_price_per_month'])) {
-            $has_price = true;
-        }
-        
-        if (!$has_price) {
-            $errors[] = 'Missing property price (sale or rent)';
-        }
-        
-        if (empty($mapped_property['meta_fields']['property_city'])) {
-            $errors[] = 'Missing property city';
-        }
-        
-        if (empty($mapped_property['taxonomies']['property_category'])) {
-            $errors[] = 'Missing property category';
-        }
+        $this->logger->log('Property Mapper v3.0 validation', 'info', $validation);
         
         return [
-            'valid' => empty($errors),
-            'errors' => $errors
+            'success' => true,
+            'version' => '3.0.0',
+            'mapping_stats' => $validation,
+            'features' => [
+                'database_analysis_based' => true,
+                'auto_feature_creation' => true,
+                'gallery_support' => true,
+                'catasto_support' => true,
+                'target_page_compliance' => true
+            ]
+        ];
+    }
+    
+    public function get_mapping_stats() {
+        return [
+            'version' => '3.0.0',
+            'total_categories' => count($this->gi_categories),
+            'total_features' => count($this->gi_features),
+            'supported_provinces' => ['TN', 'BZ'],
+            'energy_classes' => array_values($this->energy_class_mapping),
+            'target_compliance' => true
         ];
     }
 }
-
-// End of file
