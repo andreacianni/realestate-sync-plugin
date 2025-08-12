@@ -53,6 +53,11 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_create_sample_xml', array($this, 'handle_create_sample_xml'));
         add_action('wp_ajax_realestate_sync_validate_mapping', array($this, 'handle_validate_mapping'));
         add_action('wp_ajax_realestate_sync_create_properties_from_sample', array($this, 'handle_create_properties_from_sample'));
+        
+        // 🔍 Gallery Investigation AJAX Actions
+        add_action('wp_ajax_realestate_sync_investigate_gallery_type', array($this, 'handle_investigate_gallery_type'));
+        add_action('wp_ajax_realestate_sync_test_gallery_fix', array($this, 'handle_test_gallery_fix'));
+        add_action('wp_ajax_realestate_sync_compare_properties', array($this, 'handle_compare_properties'));
     }
     
     /**
@@ -1284,6 +1289,347 @@ class RealEstate_Sync_Admin {
             'passed_tests' => $passed_tests,
             'total_tests' => $total_tests
         );
+    }
+    
+    /**
+     * 🔍 GALLERY INVESTIGATION METHODS
+     */
+    
+    /**
+     * Handle gallery type investigation AJAX
+     */
+    public function handle_investigate_gallery_type() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $investigation_result = $this->investigate_gallery_type_fields();
+            
+            $this->logger->log("🔍 GALLERY INVESTIGATION: Completed analysis", 'info');
+            
+            wp_send_json_success($investigation_result);
+            
+        } catch (Exception $e) {
+            $this->logger->log("🔍 GALLERY INVESTIGATION ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore investigazione gallery: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Investigate gallery type meta fields in existing properties
+     */
+    private function investigate_gallery_type_fields() {
+        global $wpdb;
+        
+        $results = array(
+            'properties_analyzed' => 0,
+            'gallery_related_fields' => array(),
+            'theme_options' => array(),
+            'suggestions' => array(),
+            'summary' => ''
+        );
+        
+        // 📈 STEP 1: Analyze existing properties meta fields
+        $properties = get_posts(array(
+            'post_type' => 'estate_property',
+            'posts_per_page' => 10,
+            'post_status' => 'publish',
+            'meta_query' => array(
+                array(
+                    'key' => 'wpestate_property_gallery',
+                    'value' => '',
+                    'compare' => '!='
+                )
+            )
+        ));
+        
+        $results['properties_analyzed'] = count($properties);
+        
+        $gallery_fields = array();
+        $type_fields = array();
+        
+        foreach ($properties as $property) {
+            $meta_fields = get_post_meta($property->ID);
+            
+            // Cerca campi relativi a gallery
+            foreach ($meta_fields as $key => $value) {
+                $value = is_array($value) ? $value[0] : $value;
+                
+                if (stripos($key, 'gallery') !== false) {
+                    $gallery_fields[$key][] = array(
+                        'post_id' => $property->ID,
+                        'value' => substr($value, 0, 100)
+                    );
+                }
+                
+                if (stripos($key, 'type') !== false || 
+                    stripos($key, 'slider') !== false ||
+                    stripos($key, 'style') !== false) {
+                    $type_fields[$key][] = array(
+                        'post_id' => $property->ID,
+                        'value' => substr($value, 0, 50)
+                    );
+                }
+            }
+        }
+        
+        $results['gallery_related_fields'] = array_merge($gallery_fields, $type_fields);
+        
+        // 🎨 STEP 2: Analyze WpResidence theme options
+        $theme_options = get_option('wpestate_options', array());
+        
+        $gallery_theme_options = array();
+        foreach ($theme_options as $key => $value) {
+            if (stripos($key, 'gallery') !== false || 
+                stripos($key, 'slider') !== false ||
+                stripos($key, 'image') !== false ||
+                stripos($key, 'photo') !== false) {
+                $gallery_theme_options[$key] = substr($value, 0, 100);
+            }
+        }
+        
+        $results['theme_options'] = $gallery_theme_options;
+        
+        // 💡 STEP 3: Generate suggestions based on findings
+        $suggestions = array();
+        
+        // Comuni meta fields da testare
+        $common_fields = array(
+            'property_gallery_type',
+            'wpestate_gallery_type', 
+            'gallery_slider_type',
+            'property_slider_type',
+            'estate_property_gallery_type',
+            'property_gallery_style',
+            'gallery_type'
+        );
+        
+        foreach ($common_fields as $field) {
+            if (!isset($gallery_fields[$field]) && !isset($type_fields[$field])) {
+                $suggestions[] = "Test meta field: {$field}";
+            }
+        }
+        
+        // Cerca nei theme options un possibile default
+        foreach ($theme_options as $key => $value) {
+            if (stripos($key, 'gallery') !== false && stripos($key, 'type') !== false) {
+                $suggestions[] = "Theme default gallery type potrebbe essere: {$key} = {$value}";
+            }
+        }
+        
+        $results['suggestions'] = $suggestions;
+        
+        // 📝 STEP 4: Generate summary
+        $gallery_count = count($gallery_fields);
+        $type_count = count($type_fields);
+        $theme_count = count($gallery_theme_options);
+        
+        $results['summary'] = "Analizzate {$results['properties_analyzed']} properties. "
+                            . "Trovati {$gallery_count} gallery fields, {$type_count} type fields, "
+                            . "{$theme_count} theme options. "
+                            . count($suggestions) . " suggerimenti generati.";
+        
+        return $results;
+    }
+    
+    /**
+     * Handle test gallery fix AJAX
+     */
+    public function handle_test_gallery_fix() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        $meta_field = sanitize_text_field($_POST['meta_field'] ?? '');
+        $meta_value = sanitize_text_field($_POST['meta_value'] ?? '');
+        
+        if (empty($meta_field) || empty($meta_value)) {
+            wp_send_json_error('Meta field e value richiesti');
+            return;
+        }
+        
+        try {
+            $test_result = $this->test_gallery_type_fix($meta_field, $meta_value);
+            
+            $this->logger->log("🧪 GALLERY FIX TEST: Tested {$meta_field} = {$meta_value}", 'info');
+            
+            wp_send_json_success($test_result);
+            
+        } catch (Exception $e) {
+            $this->logger->log("🧪 GALLERY FIX TEST ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore test gallery fix: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Test gallery type fix on a sample property
+     */
+    private function test_gallery_type_fix($meta_field, $meta_value) {
+        // Trova una property con gallery per test
+        $properties = get_posts(array(
+            'post_type' => 'estate_property',
+            'posts_per_page' => 1,
+            'post_status' => 'publish',
+            'meta_query' => array(
+                array(
+                    'key' => 'wpestate_property_gallery',
+                    'value' => '',
+                    'compare' => '!='
+                )
+            )
+        ));
+        
+        if (empty($properties)) {
+            throw new Exception('Nessuna property con gallery trovata per test');
+        }
+        
+        $test_property = $properties[0];
+        
+        // Backup del valore corrente
+        $current_value = get_post_meta($test_property->ID, $meta_field, true);
+        
+        // Imposta il nuovo valore
+        update_post_meta($test_property->ID, $meta_field, $meta_value);
+        
+        // Verifica che sia stato impostato
+        $new_value = get_post_meta($test_property->ID, $meta_field, true);
+        
+        $result = array(
+            'test_property_id' => $test_property->ID,
+            'test_property_title' => $test_property->post_title,
+            'meta_field' => $meta_field,
+            'old_value' => $current_value,
+            'new_value' => $new_value,
+            'success' => ($new_value === $meta_value),
+            'gallery_images' => get_post_meta($test_property->ID, 'wpestate_property_gallery', true),
+            'message' => "Test completato su property {$test_property->ID}. "
+                       . "Meta field '{$meta_field}' impostato da '{$current_value}' a '{$new_value}'."
+        );
+        
+        // Nota: Non facciamo rollback per permettere test frontend
+        
+        return $result;
+    }
+    
+    /**
+     * Handle compare properties AJAX - COMPARATIVE ANALYSIS
+     */
+    public function handle_compare_properties() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        $working_property_id = intval($_POST['working_property_id'] ?? 0);
+        $broken_property_id = intval($_POST['broken_property_id'] ?? 0);
+        
+        if (!$working_property_id || !$broken_property_id) {
+            wp_send_json_error('Property IDs richiesti per comparison');
+            return;
+        }
+        
+        try {
+            $comparison_result = $this->compare_property_meta_fields($working_property_id, $broken_property_id);
+            
+            $this->logger->log("🔍 PROPERTY COMPARISON: Compared {$working_property_id} vs {$broken_property_id}", 'info');
+            
+            wp_send_json_success($comparison_result);
+            
+        } catch (Exception $e) {
+            $this->logger->log("🔍 PROPERTY COMPARISON ERROR: " . $e->getMessage(), 'error');
+            wp_send_json_error('Errore comparison: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Compare meta fields between working and broken properties
+     */
+    private function compare_property_meta_fields($working_id, $broken_id) {
+        // Get both properties
+        $working_post = get_post($working_id);
+        $broken_post = get_post($broken_id);
+        
+        if (!$working_post || !$broken_post) {
+            throw new Exception('Una o entrambe le properties non trovate');
+        }
+        
+        // Get all meta fields
+        $working_meta = get_post_meta($working_id);
+        $broken_meta = get_post_meta($broken_id);
+        
+        $comparison = array(
+            'working_property' => array(
+                'id' => $working_id,
+                'title' => $working_post->post_title,
+                'status' => $working_post->post_status
+            ),
+            'broken_property' => array(
+                'id' => $broken_id,
+                'title' => $broken_post->post_title,
+                'status' => $broken_post->post_status
+            ),
+            'meta_differences' => array(),
+            'missing_in_broken' => array(),
+            'extra_in_broken' => array(),
+            'gallery_specific' => array(),
+            'summary' => ''
+        );
+        
+        // Find differences
+        $all_keys = array_unique(array_merge(array_keys($working_meta), array_keys($broken_meta)));
+        
+        foreach ($all_keys as $key) {
+            $working_value = isset($working_meta[$key]) ? $working_meta[$key][0] : null;
+            $broken_value = isset($broken_meta[$key]) ? $broken_meta[$key][0] : null;
+            
+            // Skip some WordPress internal fields
+            if (in_array($key, ['_edit_lock', '_edit_last', '_wp_old_date', '_wp_old_slug'])) {
+                continue;
+            }
+            
+            if ($working_value !== $broken_value) {
+                $comparison['meta_differences'][$key] = array(
+                    'working' => $working_value,
+                    'broken' => $broken_value
+                );
+                
+                // Check if gallery-related
+                if (stripos($key, 'gallery') !== false || 
+                    stripos($key, 'slider') !== false ||
+                    stripos($key, 'image') !== false ||
+                    stripos($key, 'photo') !== false) {
+                    $comparison['gallery_specific'][$key] = array(
+                        'working' => $working_value,
+                        'broken' => $broken_value
+                    );
+                }
+            }
+            
+            // Missing fields
+            if ($working_value !== null && $broken_value === null) {
+                $comparison['missing_in_broken'][$key] = $working_value;
+            }
+            
+            // Extra fields
+            if ($working_value === null && $broken_value !== null) {
+                $comparison['extra_in_broken'][$key] = $broken_value;
+            }
+        }
+        
+        // Generate summary
+        $diff_count = count($comparison['meta_differences']);
+        $missing_count = count($comparison['missing_in_broken']);
+        $gallery_count = count($comparison['gallery_specific']);
+        
+        $comparison['summary'] = "Trovate {$diff_count} differenze, {$missing_count} campi mancanti nella broken property, {$gallery_count} differenze gallery-specific.";
+        
+        return $comparison;
     }
 }
 

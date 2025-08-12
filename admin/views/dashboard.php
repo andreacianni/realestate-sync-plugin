@@ -304,9 +304,45 @@ RealEstate Sync Dashboard
                                 </div>
                                 </div>
                                 
-                                <!-- Test Import -->
-                                <div class="rs-testing-section">
-                                <h4><span class="dashicons dashicons-upload"></span> Test Import</h4>
+                                <!-- 🔍 Gallery Investigation Section -->
+                                <div class="rs-testing-section" style="border-left: 4px solid #2271b1;">
+                                <h4><span class="dashicons dashicons-format-gallery"></span> Gallery Investigation</h4>
+                <div class="rs-info-box" style="margin-bottom: 15px;">
+                <strong>🎯 OBIETTIVO:</strong> Trovare il setting globale WpResidence per gallery type e identificare meta field corretto.
+                </div>
+                
+                <div class="rs-button-group" style="display: flex; flex-direction: column; gap: 10px;">
+                <button type="button" class="rs-button-primary" id="investigate-gallery-type" style="background: #2271b1; border-color: #2271b1;">
+                <span class="dashicons dashicons-search"></span> Investigate Gallery Type
+                </button>
+                
+                <div id="gallery-test-section" class="rs-hidden" style="margin-top: 15px; padding: 15px; background: #f0f8ff; border-radius: 4px;">
+                <h5>Test Gallery Fix</h5>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="test-meta-field" placeholder="Meta field (es: property_gallery_type)" class="rs-input">
+                <input type="text" id="test-meta-value" placeholder="Valore (es: slider)" class="rs-input">
+                </div>
+                <button type="button" class="rs-button-secondary" id="test-gallery-fix">
+                <span class="dashicons dashicons-admin-tools"></span> Test Fix
+                </button>
+                </div>
+                
+                <div id="property-comparison-section" style="margin-top: 15px; padding: 15px; background: #fff3cd; border-radius: 4px;">
+                <h5>🔍 Property Comparison</h5>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <input type="number" id="working-property-id" placeholder="Working Property ID (5567)" class="rs-input" value="5567">
+                <input type="number" id="broken-property-id" placeholder="Broken Property ID" class="rs-input">
+                </div>
+                <button type="button" class="rs-button-primary" id="compare-properties" style="background: #f0ad4e; border-color: #f0ad4e; color: #000;">
+                <span class="dashicons dashicons-visibility"></span> Compare Properties
+                </button>
+                </div>
+                </div>
+                </div>
+                
+                <!-- Test Import -->
+                <div class="rs-testing-section">
+                <h4><span class="dashicons dashicons-upload"></span> Test Import</h4>
                                 <div class="rs-info-box" style="margin-bottom: 15px;">
                                 <strong>📁 File Test:</strong> Carica XML ridotto per testare mapping e change detection.
                                 </div>
@@ -376,6 +412,11 @@ RealEstate Sync Dashboard
                                             $('#create-sample-xml').on('click', this.createSampleXML);
                                             $('#validate-mapping').on('click', this.validateMapping);
                                             $('#create-properties-from-sample').on('click', this.createPropertiesFromSampleV3);
+                            
+                            // 🔍 Gallery Investigation
+                            $('#investigate-gallery-type').on('click', this.investigateGalleryType);
+                            $('#test-gallery-fix').on('click', this.testGalleryFix);
+                            $('#compare-properties').on('click', this.compareProperties);
                                         },
                                         
                                         cleanupProperties: function(e) {
@@ -747,6 +788,314 @@ RealEstate Sync Dashboard
                                             html += '</div>';
                                             
                                             $('#mapping-validation-content').html(html);
+                                        },
+                                        
+                                        // 🔍 GALLERY INVESTIGATION METHODS
+                                        
+                                        investigateGalleryType: function(e) {
+                                            e.preventDefault();
+                                            
+                                            testing.showAlert('🔍 Gallery Investigation avviata...', 'info');
+                                            
+                                            $.ajax({
+                                                url: realestateSync.ajax_url,
+                                                type: 'POST',
+                                                data: {
+                                                    action: 'realestate_sync_investigate_gallery_type',
+                                                    nonce: realestateSync.nonce
+                                                },
+                                                beforeSend: function() {
+                                                    $('#investigate-gallery-type').prop('disabled', true).html('<span class="rs-spinner"></span>Investigating...');
+                                                },
+                                                success: function(response) {
+                                                    if (response.success) {
+                                                        testing.displayGalleryInvestigation(response.data);
+                                                        $('#gallery-test-section').removeClass('rs-hidden');
+                                                        testing.showAlert('🔍 Investigation completata! Verifica risultati.', 'success');
+                                                    } else {
+                                                        testing.showAlert('Errore investigation: ' + response.data, 'error');
+                                                    }
+                                                },
+                                                error: function() {
+                                                    testing.showAlert('Errore di comunicazione con il server', 'error');
+                                                },
+                                                complete: function() {
+                                                    $('#investigate-gallery-type').prop('disabled', false).html('<span class="dashicons dashicons-search"></span> Investigate Gallery Type');
+                                                }
+                                            });
+                                        },
+                                        
+                                        testGalleryFix: function(e) {
+                                            e.preventDefault();
+                                            
+                                            var metaField = $('#test-meta-field').val().trim();
+                                            var metaValue = $('#test-meta-value').val().trim();
+                                            
+                                            if (!metaField || !metaValue) {
+                                                testing.showAlert('Inserisci sia meta field che valore per il test', 'error');
+                                                return;
+                                            }
+                                            
+                                            testing.showAlert('🧪 Testing gallery fix: ' + metaField + ' = ' + metaValue, 'info');
+                                            
+                                            $.ajax({
+                                                url: realestateSync.ajax_url,
+                                                type: 'POST',
+                                                data: {
+                                                    action: 'realestate_sync_test_gallery_fix',
+                                                    nonce: realestateSync.nonce,
+                                                    meta_field: metaField,
+                                                    meta_value: metaValue
+                                                },
+                                                beforeSend: function() {
+                                                    $('#test-gallery-fix').prop('disabled', true).html('<span class="rs-spinner"></span>Testing Fix...');
+                                                },
+                                                success: function(response) {
+                                                    if (response.success) {
+                                                        testing.displayGalleryTestResult(response.data);
+                                                        testing.showAlert('🧪 Test completato! Verifica property ' + response.data.test_property_id + ' sul frontend.', 'success');
+                                                    } else {
+                                                        testing.showAlert('Errore test: ' + response.data, 'error');
+                                                    }
+                                                },
+                                                error: function() {
+                                                    testing.showAlert('Errore di comunicazione con il server', 'error');
+                                                },
+                                                complete: function() {
+                                                    $('#test-gallery-fix').prop('disabled', false).html('<span class="dashicons dashicons-admin-tools"></span> Test Fix');
+                                                }
+                                            });
+                                        },
+                                        
+                                        displayGalleryInvestigation: function(investigation) {
+                                            console.log('🔍 Gallery Investigation Results:', investigation);
+                                            
+                                            var html = '<div class="rs-gallery-investigation" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 4px;">';
+                                            
+                                            // Summary
+                                            html += '<h4>🔍 Gallery Investigation Results</h4>';
+                                            html += '<p><strong>Summary:</strong> ' + investigation.summary + '</p>';
+                                            
+                                            // Gallery Related Fields
+                                            if (investigation.gallery_related_fields && Object.keys(investigation.gallery_related_fields).length > 0) {
+                                                html += '<h5>Gallery Related Meta Fields Found:</h5>';
+                                                html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
+                                                html += '<tr style="background: #f0f0f0;"><th style="padding: 8px; border: 1px solid #ccc;">Meta Field</th><th style="padding: 8px; border: 1px solid #ccc;">Sample Values</th></tr>';
+                                                
+                                                Object.keys(investigation.gallery_related_fields).forEach(function(field) {
+                                                    var samples = investigation.gallery_related_fields[field];
+                                                    var sampleValues = samples.slice(0, 3).map(function(sample) {
+                                                        return sample.value || 'empty';
+                                                    }).join(', ');
+                                                    
+                                                    html += '<tr>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; font-family: monospace;"><strong>' + field + '</strong></td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc;">' + sampleValues + '</td>';
+                                                    html += '</tr>';
+                                                });
+                                                
+                                                html += '</table>';
+                                            }
+                                            
+                                            // Theme Options
+                                            if (investigation.theme_options && Object.keys(investigation.theme_options).length > 0) {
+                                                html += '<h5>WpResidence Theme Options (Gallery Related):</h5>';
+                                                html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">';
+                                                html += '<tr style="background: #f0f0f0;"><th style="padding: 8px; border: 1px solid #ccc;">Option Key</th><th style="padding: 8px; border: 1px solid #ccc;">Value</th></tr>';
+                                                
+                                                Object.keys(investigation.theme_options).forEach(function(option) {
+                                                    html += '<tr>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; font-family: monospace;">' + option + '</td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc;">' + investigation.theme_options[option] + '</td>';
+                                                    html += '</tr>';
+                                                });
+                                                
+                                                html += '</table>';
+                                            }
+                                            
+                                            // Suggestions
+                                            if (investigation.suggestions && investigation.suggestions.length > 0) {
+                                                html += '<h5>💡 Suggestions for Testing:</h5>';
+                                                html += '<ul>';
+                                                investigation.suggestions.forEach(function(suggestion) {
+                                                    html += '<li style="margin-bottom: 5px;">' + suggestion + '</li>';
+                                                });
+                                                html += '</ul>';
+                                            }
+                                            
+                                            html += '</div>';
+                                            
+                                            // Insert or update investigation display
+                                            var existingDiv = $('#gallery-investigation-display');
+                                            if (existingDiv.length > 0) {
+                                                existingDiv.html(html);
+                                            } else {
+                                                $(html).insertAfter('#gallery-test-section');
+                                            }
+                                        },
+                                        
+                                        compareProperties: function(e) {
+                                            e.preventDefault();
+                                            
+                                            var workingId = $('#working-property-id').val().trim();
+                                            var brokenId = $('#broken-property-id').val().trim();
+                                            
+                                            if (!workingId || !brokenId) {
+                                                testing.showAlert('Inserisci entrambi gli ID delle properties per comparison', 'error');
+                                                return;
+                                            }
+                                            
+                                            testing.showAlert('🔍 Comparing properties: ' + workingId + ' vs ' + brokenId, 'info');
+                                            
+                                            $.ajax({
+                                                url: realestateSync.ajax_url,
+                                                type: 'POST',
+                                                data: {
+                                                    action: 'realestate_sync_compare_properties',
+                                                    nonce: realestateSync.nonce,
+                                                    working_property_id: workingId,
+                                                    broken_property_id: brokenId
+                                                },
+                                                beforeSend: function() {
+                                                    $('#compare-properties').prop('disabled', true).html('<span class="rs-spinner"></span>Comparing...');
+                                                },
+                                                success: function(response) {
+                                                    if (response.success) {
+                                                        testing.displayPropertyComparison(response.data);
+                                                        testing.showAlert('🔍 Comparison completata! Verifica differenze per identificare il fix.', 'success');
+                                                    } else {
+                                                        testing.showAlert('Errore comparison: ' + response.data, 'error');
+                                                    }
+                                                },
+                                                error: function() {
+                                                    testing.showAlert('Errore di comunicazione con il server', 'error');
+                                                },
+                                                complete: function() {
+                                                    $('#compare-properties').prop('disabled', false).html('<span class="dashicons dashicons-visibility"></span> Compare Properties');
+                                                }
+                                            });
+                                        },
+                                        
+                                        displayPropertyComparison: function(comparison) {
+                                            console.log('🔍 Property Comparison Results:', comparison);
+                                            
+                                            var html = '<div class="rs-property-comparison" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 4px; border-left: 4px solid #f0ad4e;">';
+                                            
+                                            // Summary
+                                            html += '<h4>🔍 Property Comparison Results</h4>';
+                                            html += '<p><strong>Working:</strong> ' + comparison.working_property.title + ' (ID: ' + comparison.working_property.id + ')</p>';
+                                            html += '<p><strong>Broken:</strong> ' + comparison.broken_property.title + ' (ID: ' + comparison.broken_property.id + ')</p>';
+                                            html += '<p><strong>Summary:</strong> ' + comparison.summary + '</p>';
+                                            
+                                            // Gallery-Specific Differences (PRIORITY)
+                                            if (comparison.gallery_specific && Object.keys(comparison.gallery_specific).length > 0) {
+                                                html += '<h5 style="color: #d63638;">🎯 Gallery-Specific Differences (HIGH PRIORITY):</h5>';
+                                                html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; background: #fff;">';
+                                                html += '<tr style="background: #f8d7da;"><th style="padding: 8px; border: 1px solid #ccc;">Meta Field</th><th style="padding: 8px; border: 1px solid #ccc;">Working Value</th><th style="padding: 8px; border: 1px solid #ccc;">Broken Value</th></tr>';
+                                                
+                                                Object.keys(comparison.gallery_specific).forEach(function(field) {
+                                                    var diff = comparison.gallery_specific[field];
+                                                    html += '<tr>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; font-family: monospace; font-weight: bold;">' + field + '</td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; background: #d1e7dd;">' + (diff.working || 'null') + '</td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; background: #f8d7da;">' + (diff.broken || 'null') + '</td>';
+                                                    html += '</tr>';
+                                                });
+                                                
+                                                html += '</table>';
+                                            }
+                                            
+                                            // Missing Fields in Broken
+                                            if (comparison.missing_in_broken && Object.keys(comparison.missing_in_broken).length > 0) {
+                                                html += '<h5 style="color: #d63638;">⚠️ Missing in Broken Property:</h5>';
+                                                html += '<table style="width: 100%; border-collapse: collapse; margin-bottom: 15px; background: #fff;">';
+                                                html += '<tr style="background: #fff3cd;"><th style="padding: 8px; border: 1px solid #ccc;">Meta Field</th><th style="padding: 8px; border: 1px solid #ccc;">Value in Working</th></tr>';
+                                                
+                                                Object.keys(comparison.missing_in_broken).forEach(function(field) {
+                                                    html += '<tr>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; font-family: monospace; font-weight: bold;">' + field + '</td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc;">' + comparison.missing_in_broken[field] + '</td>';
+                                                    html += '</tr>';
+                                                });
+                                                
+                                                html += '</table>';
+                                            }
+                                            
+                                            // All Differences (collapsed by default)
+                                            if (comparison.meta_differences && Object.keys(comparison.meta_differences).length > 0) {
+                                                html += '<details style="margin-top: 15px;">';
+                                                html += '<summary style="cursor: pointer; padding: 10px; background: #e7f3ff; border-radius: 4px;"><strong>All Meta Field Differences (' + Object.keys(comparison.meta_differences).length + ')</strong></summary>';
+                                                html += '<table style="width: 100%; border-collapse: collapse; margin-top: 10px; background: #fff;">';
+                                                html += '<tr style="background: #f0f0f0;"><th style="padding: 8px; border: 1px solid #ccc;">Meta Field</th><th style="padding: 8px; border: 1px solid #ccc;">Working Value</th><th style="padding: 8px; border: 1px solid #ccc;">Broken Value</th></tr>';
+                                                
+                                                Object.keys(comparison.meta_differences).forEach(function(field) {
+                                                    var diff = comparison.meta_differences[field];
+                                                    html += '<tr>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc; font-family: monospace;">' + field + '</td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc;">' + (diff.working || 'null') + '</td>';
+                                                    html += '<td style="padding: 8px; border: 1px solid #ccc;">' + (diff.broken || 'null') + '</td>';
+                                                    html += '</tr>';
+                                                });
+                                                
+                                                html += '</table>';
+                                                html += '</details>';
+                                            }
+                                            
+                                            // Action suggestions
+                                            if (comparison.gallery_specific && Object.keys(comparison.gallery_specific).length > 0) {
+                                                html += '<div style="margin-top: 15px; padding: 15px; background: #d1e7dd; border-radius: 4px; border-left: 4px solid #00a32a;">';
+                                                html += '<h5>🚀 Suggested Actions:</h5>';
+                                                html += '<ol>';
+                                                Object.keys(comparison.gallery_specific).forEach(function(field) {
+                                                    var diff = comparison.gallery_specific[field];
+                                                    html += '<li>Test meta field <code>' + field + '</code> with value <code>' + (diff.working || 'null') + '</code></li>';
+                                                });
+                                                html += '</ol>';
+                                                html += '</div>';
+                                            }
+                                            
+                                            html += '</div>';
+                                            
+                                            // Insert or update comparison display
+                                            var existingDiv = $('#property-comparison-display');
+                                            if (existingDiv.length > 0) {
+                                                existingDiv.html(html);
+                                            } else {
+                                                $(html).insertAfter('#property-comparison-section');
+                                            }
+                                        },
+                                        
+                                        displayGalleryTestResult: function(testResult) {
+                                            console.log('🧪 Gallery Test Result:', testResult);
+                                            
+                                            var html = '<div class="rs-gallery-test-result" style="margin-top: 15px; padding: 15px; background: #e7f3ff; border-radius: 4px; border-left: 4px solid #2271b1;">';
+                                            
+                                            html += '<h5>🧪 Gallery Test Result</h5>';
+                                            html += '<p><strong>Test Property:</strong> ' + testResult.test_property_title + ' (ID: ' + testResult.test_property_id + ')</p>';
+                                            html += '<p><strong>Meta Field:</strong> ' + testResult.meta_field + '</p>';
+                                            html += '<p><strong>Old Value:</strong> ' + (testResult.old_value || 'empty') + '</p>';
+                                            html += '<p><strong>New Value:</strong> ' + testResult.new_value + '</p>';
+                                            html += '<p><strong>Test Status:</strong> <span style="color: ' + (testResult.success ? '#00a32a' : '#d63638') + ';">' + (testResult.success ? '✓ SUCCESS' : '✗ FAILED') + '</span></p>';
+                                            
+                                            if (testResult.gallery_images) {
+                                                html += '<p><strong>Gallery Images:</strong> ' + testResult.gallery_images + '</p>';
+                                            }
+                                            
+                                            html += '<p style="background: #fff; padding: 10px; border-radius: 4px; font-style: italic;">\u{1F4DD} ' + testResult.message + '</p>';
+                                            
+                                            if (testResult.success) {
+                                                html += '<p style="background: #d1e7dd; padding: 10px; border-radius: 4px; color: #0f5132;">\u{1F680} <strong>NEXT STEP:</strong> Verifica la property sul frontend per vedere se le immagini appaiono correttamente con questo meta field.</p>';
+                                            }
+                                            
+                                            html += '</div>';
+                                            
+                                            // Insert or update test result display
+                                            var existingDiv = $('#gallery-test-result-display');
+                                            if (existingDiv.length > 0) {
+                                                existingDiv.html(html);
+                                            } else {
+                                                $(html).insertAfter('#gallery-test-section');
+                                            }
                                         }
                                     };
                                     
