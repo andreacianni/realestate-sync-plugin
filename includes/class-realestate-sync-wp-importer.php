@@ -673,6 +673,9 @@ class RealEstate_Sync_WP_Importer {
                 'featured_set' => $stats['featured_images_set'] > 0
             ]);
             
+            // 🔧 GALLERY FIX: Apply WpResidence compatibility fixes
+            $this->apply_wpresidence_gallery_fixes($post_id, $image_result);
+            
             // Update stats in main importer
             $this->stats['gallery_images_downloaded'] = ($this->stats['gallery_images_downloaded'] ?? 0) + $stats['downloaded_images'];
             $this->stats['gallery_images_failed'] = ($this->stats['gallery_images_failed'] ?? 0) + $stats['failed_images'];
@@ -853,5 +856,82 @@ class RealEstate_Sync_WP_Importer {
                 'property_features'
             ]
         ];
+    }
+    
+    /**
+     * 🔧 Apply WpResidence Gallery Fixes - CRITICAL COMPATIBILITY
+     * 
+     * Fixes the 3 critical issues found via Property Comparison:
+     * 1. Gallery format: Convert comma string to serialized array
+     * 2. Slider type: Set local_pgpr_slider_type = "global"
+     * 3. Image attach: Set image_to_attach with correct format
+     */
+    private function apply_wpresidence_gallery_fixes($post_id, $image_result) {
+        $this->logger->log('🔧 GALLERY FIX: Applying WpResidence compatibility fixes', 'info', [
+            'post_id' => $post_id
+        ]);
+        
+        // Get current gallery meta (comma string format)
+        $gallery_meta = get_post_meta($post_id, 'wpestate_property_gallery', true);
+        
+        if (!empty($gallery_meta) && is_string($gallery_meta)) {
+            // 🔧 FIX 1: Convert comma string to serialized array
+            $gallery_ids = array_filter(explode(',', $gallery_meta));
+            
+            if (!empty($gallery_ids)) {
+                // Create serialized array format: a:N:{i:0;s:4:"ID1";i:1;s:4:"ID2";...}
+                $serialized_array = array();
+                foreach ($gallery_ids as $index => $id) {
+                    $serialized_array[$index] = trim($id);
+                }
+                
+                // Update with serialized format
+                update_post_meta($post_id, 'wpestate_property_gallery', $serialized_array);
+                
+                $this->logger->log('🔧 FIX 1: Gallery format converted to serialized array', 'info', [
+                    'post_id' => $post_id,
+                    'from' => $gallery_meta,
+                    'to' => 'serialized_array[' . count($gallery_ids) . ']',
+                    'ids' => $gallery_ids
+                ]);
+                
+                // 🔧 FIX 3: Set image_to_attach with trailing comma
+                $image_to_attach = implode(',', $gallery_ids) . ',';
+                update_post_meta($post_id, 'image_to_attach', $image_to_attach);
+                
+                $this->logger->log('🔧 FIX 3: image_to_attach set with trailing comma', 'info', [
+                    'post_id' => $post_id,
+                    'image_to_attach' => $image_to_attach
+                ]);
+            }
+        }
+        
+        // 🔧 FIX 2: Set slider type to "global"
+        update_post_meta($post_id, 'local_pgpr_slider_type', 'global');
+        
+        $this->logger->log('🔧 FIX 2: local_pgpr_slider_type set to global', 'info', [
+            'post_id' => $post_id
+        ]);
+        
+        // 🔧 ADDITIONAL FIXES: Set other missing meta fields found in comparison
+        $additional_fixes = [
+            'property_theme_slider' => '0',
+            'page_header_image_full_screen' => 'no',
+            'page_header_image_back_type' => 'cover'
+        ];
+        
+        foreach ($additional_fixes as $meta_key => $meta_value) {
+            update_post_meta($post_id, $meta_key, $meta_value);
+        }
+        
+        $this->logger->log('🔧 GALLERY FIXES COMPLETE: All WpResidence compatibility fixes applied', 'info', [
+            'post_id' => $post_id,
+            'fixes_applied' => [
+                'gallery_format' => 'comma_string_to_serialized_array',
+                'slider_type' => 'global',
+                'image_to_attach' => 'with_trailing_comma',
+                'additional_meta' => count($additional_fixes)
+            ]
+        ]);
     }
 }
