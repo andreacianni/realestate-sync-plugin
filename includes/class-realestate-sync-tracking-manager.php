@@ -338,6 +338,26 @@ class RealEstate_Sync_Tracking_Manager {
     }
     
     /**
+     * Get property tracking record by XML property ID
+     * 
+     * @param int $property_id XML Property ID from GestionaleImmobiliare
+     * @return array|null Tracking record with wp_post_id or null if not found
+     */
+    public function get_property_tracking($property_id) {
+        $table_name = $this->wpdb->prefix . self::TABLE_NAME;
+        
+        $result = $this->wpdb->get_row(
+            $this->wpdb->prepare(
+                "SELECT property_id, wp_post_id, status, last_import_date FROM $table_name WHERE property_id = %d",
+                $property_id
+            ),
+            ARRAY_A
+        );
+        
+        return $result;
+    }
+    
+    /**
      * Pulisci tracking records vecchi (older than X days)
      * 
      * @param int $days Giorni di retention

@@ -3,7 +3,7 @@
  * Plugin Name: RealEstate Sync
  * Plugin URI: https://www.novacomitalia.com/plugins/realestate-sync
  * Description: Professional WordPress plugin for automated XML import of real estate properties from GestionaleImmobiliare.it. Features chunked processing, automated scheduling, and comprehensive admin interface.
- * Version: 0.9.0-beta
+ * Version: 1.3.0
  * Author: Andrea Cianni - Novacom
  * Author URI: https://www.novacomitalia.com
  * License: GPL v2 or later
@@ -27,7 +27,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('REALESTATE_SYNC_VERSION', '0.9.0-beta');
+define('REALESTATE_SYNC_VERSION', '1.3.0');
 define('REALESTATE_SYNC_PLUGIN_FILE', __FILE__);
 define('REALESTATE_SYNC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('REALESTATE_SYNC_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -99,6 +99,7 @@ class RealEstate_Sync {
         add_action('wp_ajax_realestate_sync_manual_import', [$this, 'handle_manual_import']);
         add_action('wp_ajax_realestate_sync_get_import_status', [$this, 'get_import_status']);
         add_action('wp_ajax_realestate_sync_clear_logs', [$this, 'clear_logs']);
+        add_action('wp_ajax_realestate_sync_test_sample_xml', [$this, 'handle_test_sample_xml']); // 🆕 NEW: Test with sample XML
         
         // Cron hooks
         add_action('realestate_sync_daily_import', [$this, 'run_scheduled_import']);
@@ -118,6 +119,12 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-import-engine.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-cron-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-tracking-manager.php';
+        
+        // 🆕 NEW: Agencies Import System v1.3.0
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-parser.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-importer.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-deduplicator.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-agent-linker.php';
         
         // GitHub updater class
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php';
@@ -488,6 +495,46 @@ class RealEstate_Sync {
         
         $result = $this->instances['logger']->clear_logs();
         wp_send_json(['success' => $result]);
+    }
+    
+    /**
+     * 🆕 Test with sample XML AJAX
+     */
+    public function handle_test_sample_xml() {
+        // Verify nonce and capabilities
+        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'realestate_sync_nonce') || 
+            !current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            // Use sample XML for testing
+            $sample_xml_path = 'C:\\Users\\Andrea\\OneDrive\\Lavori\\novacom\\Trentino-immobiliare\\lavoro\\sample-con-agenzie.xml';
+            
+            if (!file_exists($sample_xml_path)) {
+                throw new Exception('Sample XML file not found: ' . $sample_xml_path);
+            }
+            
+            $this->instances['logger']->log('🆕 TESTING: Using sample XML with agencies: ' . basename($sample_xml_path), 'info');
+            
+            // Configure for testing
+            $settings = array(
+                'chunk_size' => 10, // Smaller chunks for testing
+                'sleep_seconds' => 0 // No sleep for testing
+            );
+            
+            // Configure and run import with sample XML
+            $this->instances['import_engine']->configure($settings);
+            $result = $this->instances['import_engine']->execute_chunked_import($sample_xml_path);
+            
+            $this->instances['logger']->log('🆕 TESTING: Sample XML import completed', 'success');
+            
+            wp_send_json_success($result);
+            
+        } catch (Exception $e) {
+            $this->instances['logger']->log('🆕 TESTING: Sample XML import failed: ' . $e->getMessage(), 'error');
+            wp_send_json_error($e->getMessage());
+        }
     }
     
     /**

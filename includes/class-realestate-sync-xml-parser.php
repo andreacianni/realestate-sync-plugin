@@ -252,6 +252,26 @@ class RealEstate_Sync_XML_Parser {
             }
         }
         
+        // 🆕 Parse agency data da <agenzia>
+        $agency_nodes = $xpath->query('//agenzia');
+        if ($agency_nodes->length > 0) {
+            $agenzia = $agency_nodes->item(0);
+            $agency_data = array();
+            
+            foreach ($agenzia->childNodes as $child) {
+                if ($child->nodeType === XML_ELEMENT_NODE) {
+                    $agency_data[$child->nodeName] = trim($child->textContent);
+                }
+            }
+            
+            // Store agency ID for property-agent linking
+            if (isset($agency_data['id']) && !empty($agency_data['id'])) {
+                $property_data['agency_id'] = $agency_data['id'];
+            }
+            
+            $property_data['agency_data'] = $agency_data;
+        }
+        
         // Parse features da <info_inserite>
         $features = array();
         $feature_nodes = $xpath->query('//info_inserite/info');

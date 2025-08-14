@@ -55,6 +55,11 @@ class RealEstate_Sync_WP_Importer {
     private $image_importer;
     
     /**
+     * Media deduplicator instance
+     */
+    private $media_deduplicator;
+    
+    /**
      * Current import session ID
      */
     private $session_id;
@@ -76,6 +81,9 @@ class RealEstate_Sync_WP_Importer {
         
         // 🖼️ INITIALIZE IMAGE IMPORTER v1.0
         $this->image_importer = new RealEstate_Sync_Image_Importer($this->logger);
+        
+        // 🆕 INITIALIZE MEDIA DEDUPLICATOR
+        $this->media_deduplicator = new RealEstate_Sync_Media_Deduplicator();
         
         $this->init_importer();
     }
@@ -659,8 +667,8 @@ class RealEstate_Sync_WP_Importer {
             'image_count' => count($gallery)
         ]);
         
-        // 🖼️ ENHANCED: Use Image Importer v1.0 for complete image processing
-        $image_result = $this->image_importer->process_property_images($post_id, $gallery);
+        // 🆕 ENHANCED: Use Media Deduplicator for optimized image processing
+        $image_result = $this->process_gallery_with_deduplication($post_id, $gallery);
         
         if ($image_result['success']) {
             $stats = $image_result['stats'];
@@ -933,5 +941,94 @@ class RealEstate_Sync_WP_Importer {
                 'additional_meta' => count($additional_fixes)
             ]
         ]);
+    }
+    
+    /**
+     * 🆕 Process gallery with Media Deduplicator
+     * 
+     * @param int $post_id WordPress post ID
+     * @param array $gallery Gallery data from XML
+     * @return array Processing results
+     */
+    private function process_gallery_with_deduplication($post_id, $gallery) {
+        if (empty($gallery)) {
+            return ['success' => true, 'stats' => ['downloaded_images' => 0, 'skipped_images' => 0, 'failed_images' => 0, 'featured_images_set' => 0]];
+        }
+        
+        $this->logger->log('🆕 Processing gallery with Media Deduplicator', 'info', [
+            'post_id' => $post_id,
+            'image_count' => count($gallery)
+        ]);
+        
+        $stats = [
+            'downloaded_images' => 0,
+            'skipped_images' => 0,
+            'failed_images' => 0,
+            'featured_images_set' => 0,
+            'deduplication_saves' => 0
+        ];
+        
+        $gallery_ids = [];
+        $featured_image_id = null;
+        
+        foreach ($gallery as $index => $image) {
+            if (empty($image['url'])) {
+                $stats['failed_images']++;
+                continue;
+            }
+            
+            // Import with deduplication
+            $attachment_id = $this->media_deduplicator->import_media_without_duplication(
+                $image['url'],
+                $post_id,
+                'property_image'
+            );
+            
+            if ($attachment_id) {
+                $gallery_ids[] = $attachment_id;
+                $stats['downloaded_images']++;
+                
+                // Set as featured if specified
+                if (($image['is_featured'] ?? false) && !$featured_image_id) {
+                    $featured_image_id = $attachment_id;
+                }
+                
+                // Set first image as featured if no featured specified
+                if ($index === 0 && !$featured_image_id) {
+                    $featured_image_id = $attachment_id;
+                }
+            } else {
+                $stats['failed_images']++;
+            }
+        }
+        
+        // Set featured image
+        if ($featured_image_id) {
+            set_post_thumbnail($post_id, $featured_image_id);
+            $stats['featured_images_set'] = 1;
+        }
+        
+        // Set gallery for WpResidence
+        if (!empty($gallery_ids)) {
+            // Store as comma-separated string (will be fixed by gallery fixes)
+            update_post_meta($post_id, 'wpestate_property_gallery', implode(',', $gallery_ids));
+        }
+        
+        // Get deduplication statistics
+        $dedup_stats = $this->media_deduplicator->get_deduplication_stats();
+        $stats['deduplication_saves'] = $dedup_stats['duplicate_prevention_ratio'];
+        
+        $this->logger->log('🆕 Gallery processed with Media Deduplicator', 'info', [
+            'post_id' => $post_id,
+            'downloaded' => $stats['downloaded_images'],
+            'failed' => $stats['failed_images'],
+            'featured_set' => $stats['featured_images_set'] > 0,
+            'deduplication_ratio' => $stats['deduplication_saves'] . '%'
+        ]);
+        
+        return [
+            'success' => true,
+            'stats' => $stats
+        ];
     }
 }

@@ -25,6 +25,10 @@ class RealEstate_Sync_Import_Engine {
     private $streaming_parser;
     private $property_mapper;
     private $wp_importer;
+    private $agency_parser;
+    private $agency_importer;
+    private $media_deduplicator;
+    private $property_agent_linker;
     
     /**
      * Import configuration
@@ -50,6 +54,10 @@ class RealEstate_Sync_Import_Engine {
         $this->streaming_parser = new RealEstate_Sync_XML_Parser();
         $this->property_mapper = new RealEstate_Sync_Property_Mapper();
         $this->wp_importer = new RealEstate_Sync_WP_Importer();
+        $this->agency_parser = new RealEstate_Sync_Agency_Parser();
+        $this->agency_importer = new RealEstate_Sync_Agency_Importer();
+        $this->media_deduplicator = new RealEstate_Sync_Media_Deduplicator();
+        $this->property_agent_linker = new RealEstate_Sync_Property_Agent_Linker();
         
         $this->init_default_config();
         $this->init_session_data();
@@ -104,7 +112,15 @@ class RealEstate_Sync_Import_Engine {
             'duration' => 0,
             'memory_peak_mb' => 0,
             'provinces_found' => array(),
-            'categories_found' => array()
+            'categories_found' => array(),
+            // 🆕 Agency statistics
+            'total_agencies' => 0,
+            'new_agencies' => 0,
+            'updated_agencies' => 0,
+            'skipped_agencies' => 0,
+            'agencies_with_logo' => 0,
+            'property_agent_links' => 0,
+            'media_duplicates_prevented' => 0
         );
     }
     
@@ -145,8 +161,14 @@ class RealEstate_Sync_Import_Engine {
             // Setup callbacks per streaming parser
             $this->setup_parser_callbacks();
             
+            // 🆕 PHASE 1: Import agencies first
+            $agencies_results = $this->import_agencies_from_xml($xml_file_path);
+            
             // Execute streaming parse con chunked processing
             $parse_results = $this->streaming_parser->parse_xml_file($xml_file_path);
+            
+            // 🆕 PHASE 2: Link properties to agents
+            $linking_results = $this->link_properties_to_agents();
             
             // Post-import cleanup e statistics
             $this->post_import_cleanup();
@@ -297,6 +319,10 @@ class RealEstate_Sync_Import_Engine {
                     $property_data,
                     'active'
                 );
+                
+                // 🆕 Store agency data for later linking
+                $this->store_property_agency_data($property_data, $result['post_id']);
+                
                 $this->stats['new_properties']++;
                 
                 $this->logger->log("New property created v3.0: ID $property_id → Post {$result['post_id']}", 'info');
@@ -501,5 +527,131 @@ class RealEstate_Sync_Import_Engine {
             'tested_properties' => $test_limit,
             'success' => true
         );
+    }
+    
+    /**
+     * 🆕 Import agencies from XML file
+     * 
+     * @param string $xml_file_path Path to XML file
+     * @return array Import results
+     */
+    private function import_agencies_from_xml($xml_file_path) {
+        $this->logger->log('PHASE 1: Starting agencies import', 'info');
+        
+        try {
+            // Load XML data for agencies
+            $xml_data = simplexml_load_file($xml_file_path);
+            
+            if (!$xml_data) {
+                throw new Exception('Failed to load XML file for agencies import');
+            }
+            
+            // Extract agencies using parser
+            $agencies = $this->agency_parser->extract_agencies_from_xml($xml_data);
+            $this->stats['total_agencies'] = count($agencies);
+            
+            if (empty($agencies)) {
+                $this->logger->log('No agencies found in XML', 'warning');
+                return ['success' => true, 'agencies_imported' => 0];
+            }
+            
+            // Log agency statistics
+            $this->agency_parser->log_agency_statistics($agencies);
+            
+            // Import agencies using importer
+            $import_results = $this->agency_importer->import_agencies($agencies);
+            
+            // Update statistics
+            $this->stats['new_agencies'] = $import_results['imported'];
+            $this->stats['updated_agencies'] = $import_results['updated'];
+            $this->stats['skipped_agencies'] = $import_results['skipped'];
+            
+            // Get logo statistics
+            $logo_stats = $this->agency_importer->get_import_statistics();
+            $this->stats['agencies_with_logo'] = $logo_stats['agents_with_logo'];
+            
+            $this->logger->log('PHASE 1: Agencies import completed: ' . json_encode($import_results), 'success');
+            
+            return $import_results;
+            
+        } catch (Exception $e) {
+            $this->logger->log('PHASE 1: Agencies import failed: ' . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+    
+    /**
+     * 🆕 Link properties to agents after import
+     * 
+     * @return array Linking results
+     */
+    private function link_properties_to_agents() {
+        $this->logger->log('PHASE 2: Starting property-agent linking', 'info');
+        
+        try {
+            // Get all imported properties from this session
+            $imported_property_ids = $this->session_data['imported_property_ids'];
+            
+            if (empty($imported_property_ids)) {
+                $this->logger->log('No properties to link to agents', 'info');
+                return ['success' => true, 'linked' => 0];
+            }
+            
+            $linking_count = 0;
+            
+            // Link each property to its agent
+            foreach ($imported_property_ids as $property_xml_id) {
+                // Get WordPress property ID
+                $tracking_record = $this->tracking_manager->get_property_tracking($property_xml_id);
+                
+                if (!$tracking_record || !$tracking_record['post_id']) {
+                    continue;
+                }
+                
+                $property_id = $tracking_record['post_id'];
+                
+                // Get agency XML ID from property meta
+                $agency_xml_id = get_post_meta($property_id, 'property_agency_xml_id', true);
+                
+                if (!empty($agency_xml_id)) {
+                    if ($this->property_agent_linker->link_property_to_agent($property_id, $agency_xml_id)) {
+                        $linking_count++;
+                    }
+                }
+            }
+            
+            $this->stats['property_agent_links'] = $linking_count;
+            
+            // Get media deduplication statistics
+            $media_stats = $this->media_deduplicator->get_deduplication_stats();
+            $this->stats['media_duplicates_prevented'] = $media_stats['duplicate_prevention_ratio'];
+            
+            $this->logger->log("PHASE 2: Property-agent linking completed: {$linking_count} properties linked", 'success');
+            
+            return [
+                'success' => true,
+                'linked' => $linking_count,
+                'media_stats' => $media_stats
+            ];
+            
+        } catch (Exception $e) {
+            $this->logger->log('PHASE 2: Property-agent linking failed: ' . $e->getMessage(), 'error');
+            throw $e;
+        }
+    }
+    
+    /**
+     * 🆕 Store agency XML ID during property processing
+     * Enhanced property processing with agency data
+     * 
+     * @param array $property_data Raw property data from XML
+     * @param int $post_id WordPress post ID
+     */
+    private function store_property_agency_data($property_data, $post_id) {
+        // Extract agency ID from property data if available
+        if (isset($property_data['agency_id']) && !empty($property_data['agency_id'])) {
+            update_post_meta($post_id, 'property_agency_xml_id', $property_data['agency_id']);
+            $this->logger->log("Stored agency XML ID {$property_data['agency_id']} for property {$post_id}", 'debug');
+        }
     }
 }
