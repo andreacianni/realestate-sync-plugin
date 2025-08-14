@@ -574,18 +574,23 @@ class RealEstate_Sync_Image_Importer {
      * @param array $attachment_ids Attachment IDs
      */
     private function update_wpresidence_gallery($post_id, $attachment_ids) {
-        // WpResidence uses comma-separated attachment IDs
-        $gallery_string = implode(',', $attachment_ids);
-        update_post_meta($post_id, 'wpestate_property_gallery', $gallery_string);
+        // 🔧 FIX: WpResidence uses serialized array format for property_gallery
+        $gallery_serialized = serialize(array_map('strval', $attachment_ids));
+        update_post_meta($post_id, 'property_gallery', $gallery_serialized);
         
-        // Also store individual images for flexibility
+        // BACKUP: Also store comma-separated for compatibility
+        $gallery_string = implode(',', $attachment_ids);
+        update_post_meta($post_id, 'property_gallery_backup', $gallery_string);
+        
+        // Store individual images for flexibility
         foreach ($attachment_ids as $index => $attachment_id) {
-            update_post_meta($post_id, 'wpestate_property_image_' . $index, $attachment_id);
+            update_post_meta($post_id, 'property_image_' . $index, $attachment_id);
         }
         
-        $this->logger->log('WpResidence gallery updated', 'debug', [
+        $this->logger->log('WpResidence gallery updated - FIXED FORMAT', 'info', [
             'post_id' => $post_id,
-            'gallery_string' => $gallery_string,
+            'gallery_serialized' => $gallery_serialized,
+            'gallery_string_backup' => $gallery_string,
             'image_count' => count($attachment_ids)
         ]);
     }
