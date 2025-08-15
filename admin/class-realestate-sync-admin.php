@@ -1378,9 +1378,10 @@ class RealEstate_Sync_Admin {
                 unlink($temp_file);
             }
             
-            // Build detailed log
-            $log_output .= "[" . date('H:i:s') . "] Properties: " . ($results['properties_created'] ?? 0) . " create, " . ($results['properties_updated'] ?? 0) . " aggiornate\n";
-            $log_output .= "[" . date('H:i:s') . "] Agenzie: " . ($results['agencies_created'] ?? 0) . " create, " . ($results['agencies_updated'] ?? 0) . " aggiornate\n";
+            // Build detailed log - FIXED: Use correct Import Engine output structure
+            $stats = $results['statistics'] ?? [];
+            $log_output .= "[" . date('H:i:s') . "] Properties: " . ($stats['new_properties'] ?? 0) . " create, " . ($stats['updated_properties'] ?? 0) . " aggiornate\n";
+            $log_output .= "[" . date('H:i:s') . "] Agenzie: 0 create, 0 aggiornate\n"; // TODO: Add agency stats when implemented
             
             // Mock media tracking (if not available from engine)
             $media_new = rand(5, 15);
@@ -1388,13 +1389,13 @@ class RealEstate_Sync_Admin {
             $log_output .= "[" . date('H:i:s') . "] Media: {$media_new} nuove immagini importate, {$media_existing} immagini già esistenti\n";
             $log_output .= "[" . date('H:i:s') . "] COMPLETATO: Test import workflow\n";
             
-            $this->logger->log("TEST WORKFLOW: Completed - Props: {$results['properties_created']}, Agencies: {$results['agencies_created']}", 'info');
+            $this->logger->log("TEST WORKFLOW: Completed - Props: " . ($stats['new_properties'] ?? 0) . ", Agencies: 0", 'info');
             
             wp_send_json_success(array(
-                'properties_created' => $results['properties_created'] ?? 0,
-                'properties_updated' => $results['properties_updated'] ?? 0,
-                'agencies_created' => $results['agencies_created'] ?? 0,
-                'agencies_updated' => $results['agencies_updated'] ?? 0,
+                'properties_created' => $stats['new_properties'] ?? 0,
+                'properties_updated' => $stats['updated_properties'] ?? 0,
+                'agencies_created' => 0, // TODO: Add when agency import implemented
+                'agencies_updated' => 0, // TODO: Add when agency import implemented
                 'media_new' => $media_new,
                 'media_existing' => $media_existing,
                 'log_output' => $log_output,
