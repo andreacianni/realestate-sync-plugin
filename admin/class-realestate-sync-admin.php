@@ -57,6 +57,42 @@ class RealEstate_Sync_Admin {
         // 🎯 NEW UPLOAD WORKFLOW AJAX ACTIONS
         add_action('wp_ajax_realestate_sync_process_test_file', array($this, 'handle_process_test_file'));
         add_action('wp_ajax_realestate_sync_cleanup_test_data', array($this, 'handle_cleanup_test_data'));
+        
+        // 🚀 FORCE PROCESSING MODE AJAX ACTIONS
+        add_action('wp_ajax_realestate_sync_toggle_force_processing', array($this, 'handle_toggle_force_processing'));
+    }
+    
+    /**
+     * Handle toggle force processing mode AJAX
+     */
+    public function handle_toggle_force_processing() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $current_state = get_option('realestate_sync_force_processing', false);
+            $new_state = !$current_state;
+            
+            update_option('realestate_sync_force_processing', $new_state);
+            
+            $message = $new_state ? 
+                '🚀 FORCE PROCESSING MODE ENABLED - bypassing change detection for debug' : 
+                '🚫 FORCE PROCESSING MODE DISABLED - normal change detection active';
+            
+            $this->logger->log($message, 'info');
+            
+            wp_send_json_success(array(
+                'enabled' => $new_state,
+                'message' => $message
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->log('FORCE PROCESSING TOGGLE ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Errore toggle force processing: ' . $e->getMessage());
+        }
     }
     
     /**

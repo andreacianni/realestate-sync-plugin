@@ -55,6 +55,11 @@ class RealEstate_Sync_WP_Importer {
     private $image_importer;
     
     /**
+     * Agency manager instance
+     */
+    private $agency_manager;
+    
+    /**
      * Current import session ID
      */
     private $session_id;
@@ -77,7 +82,30 @@ class RealEstate_Sync_WP_Importer {
         // 🖼️ INITIALIZE IMAGE IMPORTER v1.0
         $this->image_importer = new RealEstate_Sync_Image_Importer($this->logger);
         
+        // 🏢 INITIALIZE AGENCY MANAGER v1.0
+        $this->agency_manager = new RealEstate_Sync_Agency_Manager($this->logger);
+        
         $this->init_importer();
+    }
+    
+    /**
+     * Process catasto data v3.0
+     */
+    private function process_catasto_v3($post_id, $catasto) {
+        if (empty($catasto)) {
+            return;
+        }
+        
+        foreach ($catasto as $key => $value) {
+            if ($value !== null && $value !== '') {
+                update_post_meta($post_id, $key, $value);
+            }
+        }
+        
+        $this->logger->log('Catasto processed v3.0', 'debug', [
+            'post_id' => $post_id,
+            'catasto_fields' => count($catasto)
+        ]);
     }
     
     /**
@@ -455,9 +483,22 @@ class RealEstate_Sync_WP_Importer {
             }
             
             if ($result['success']) {
+                // 🏢 ENHANCED v3.0: Process agency data if present
+                $agency_result = $this->process_agency_v3($mapped_property);
+                
                 // Process v3.0 specific features
                 $this->process_gallery_v3($result['post_id'], $mapped_property['gallery'] ?? []);
                 $this->process_catasto_v3($result['post_id'], $mapped_property['catasto'] ?? []);
+                
+                // 🔗 Link property to agency if agency was processed successfully
+                if ($agency_result['success'] && $agency_result['agency_post_id']) {
+                    $this->agency_manager->link_property_to_agency($result['post_id'], $agency_result['agency_post_id']);
+                    $this->logger->log('🔗 Property linked to agency successfully', 'info', [
+                        'property_id' => $result['post_id'],
+                        'agency_id' => $agency_result['agency_post_id'],
+                        'agency_name' => $agency_result['agency_name'] ?? 'Unknown'
+                    ]);
+                }
             }
             
             return $result;
@@ -724,23 +765,71 @@ class RealEstate_Sync_WP_Importer {
     }
     
     /**
-     * Process catasto data v3.0
+     * Process agency data v3.0 - NEW ENHANCED FEATURE
+     * 
+     * @param array $mapped_property Mapped property data with agency info
+     * @return array Agency processing result
      */
-    private function process_catasto_v3($post_id, $catasto) {
-        if (empty($catasto)) {
-            return;
+    private function process_agency_v3($mapped_property) {
+        // Check if agency data is present
+        if (empty($mapped_property['source_data']['agency_data'])) {
+            return [
+                'success' => false,
+                'reason' => 'no_agency_data',
+                'agency_post_id' => null
+            ];
         }
         
-        foreach ($catasto as $key => $value) {
-            if ($value !== null && $value !== '') {
-                update_post_meta($post_id, $key, $value);
-            }
-        }
+        $agency_data = $mapped_property['source_data']['agency_data'];
         
-        $this->logger->log('Catasto processed v3.0', 'debug', [
-            'post_id' => $post_id,
-            'catasto_fields' => count($catasto)
+        $this->logger->log('🏢 Processing agency data v3.0', 'info', [
+            'agency_id' => $agency_data['id'] ?? 'unknown',
+            'agency_name' => $agency_data['name'] ?? 'unknown',
+            'property_id' => $mapped_property['source_data']['id'] ?? 'unknown'
         ]);
+        
+        try {
+            $result = $this->agency_manager->process_agency($agency_data);
+            
+            if ($result['success']) {
+                $this->logger->log('🏢 Agency processed successfully v3.0', 'info', [
+                    'agency_id' => $agency_data['id'],
+                    'agency_name' => $agency_data['name'],
+                    'agency_post_id' => $result['post_id'],
+                    'action' => $result['action']
+                ]);
+                
+                return [
+                    'success' => true,
+                    'agency_post_id' => $result['post_id'],
+                    'agency_name' => $agency_data['name'],
+                    'action' => $result['action']
+                ];
+            } else {
+                $this->logger->log('🏢 Agency processing failed v3.0', 'warning', [
+                    'agency_id' => $agency_data['id'],
+                    'error' => $result['error']
+                ]);
+                
+                return [
+                    'success' => false,
+                    'reason' => $result['error'],
+                    'agency_post_id' => null
+                ];
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->log('🏢 Agency processing exception v3.0', 'error', [
+                'agency_id' => $agency_data['id'],
+                'error' => $e->getMessage()
+            ]);
+            
+            return [
+                'success' => false,
+                'reason' => $e->getMessage(),
+                'agency_post_id' => null
+            ];
+        }
     }
     
     /**

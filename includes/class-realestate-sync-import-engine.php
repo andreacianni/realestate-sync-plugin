@@ -64,21 +64,11 @@ class RealEstate_Sync_Import_Engine {
      * @return array v3.0 formatted data
      */
     private function convert_xml_to_v3_format($property_data) {
-        // Extract media files from JSON if present
-        $media_files = [];
-        if (isset($property_data['media_files']) && is_string($property_data['media_files'])) {
-            $decoded_media = json_decode($property_data['media_files'], true);
-            if (is_array($decoded_media)) {
-                foreach ($decoded_media as $media) {
-                    if (isset($media['url'])) {
-                        $media_files[] = [
-                            'url' => $media['url'],
-                            'type' => $media['type'] ?? 'image'
-                        ];
-                    }
-                }
-            }
-        }
+        // 🖼️ ENHANCED MEDIA EXTRACTION from XML
+        $media_files = $this->extract_media_from_xml($property_data);
+        
+        // 🏢 ENHANCED AGENCY EXTRACTION from XML  
+        $agency_data = $this->extract_agency_from_xml($property_data);
         
         // Extract features from JSON if present
         $info_inserite = [];
@@ -98,23 +88,24 @@ class RealEstate_Sync_Import_Engine {
             }
         }
         
-        // Build v3.0 compatible structure
+        // 🎯 Build v3.0 compatible structure with COMPLETE data
         return [
             'id' => $property_data['id'] ?? '',
             'categorie_id' => intval($property_data['categorie_id'] ?? 11),
             'price' => floatval($property_data['price'] ?? 0),
             'mq' => intval($property_data['mq'] ?? 0),
             'indirizzo' => $property_data['indirizzo'] ?? '',
-            'civico' => '', // Not typically in XML, could be extracted from address
+            'civico' => $this->extract_civico_from_address($property_data['indirizzo'] ?? ''),
             'comune_istat' => $property_data['comune_istat'] ?? '',
             'latitude' => floatval($property_data['latitude'] ?? 0),
             'longitude' => floatval($property_data['longitude'] ?? 0),
             'description' => $property_data['description'] ?? '',
-            'abstract' => substr($property_data['description'] ?? '', 0, 200), // Generate from description
+            'abstract' => substr($property_data['description'] ?? '', 0, 200),
             'seo_title' => $property_data['title'] ?? '',
             'info_inserite' => $info_inserite,
             'dati_inseriti' => $dati_inseriti,
-            'file_allegati' => $media_files,
+            'file_allegati' => $media_files, // 🖼️ Complete media structure
+            'agency_data' => $agency_data,   // 🏢 Complete agency structure
             'catasto' => [ // Default empty catasto info
                 'destinazione_uso' => 'Residenziale',
                 'rendita_catastale' => '',
@@ -123,6 +114,171 @@ class RealEstate_Sync_Import_Engine {
                 'subalterno' => ''
             ]
         ];
+    }
+    
+    /**
+     * 🖼️ Extract media files from XML data with enhanced structure
+     * 
+     * @param array $property_data XML property data
+     * @return array Enhanced media files structure
+     */
+    private function extract_media_from_xml($property_data) {
+        $media_files = [];
+        
+        // Method 1: From JSON encoded media_files
+        if (isset($property_data['media_files']) && is_string($property_data['media_files'])) {
+            $decoded_media = json_decode($property_data['media_files'], true);
+            if (is_array($decoded_media)) {
+                foreach ($decoded_media as $index => $media) {
+                    if (isset($media['url']) && !empty($media['url'])) {
+                        $media_files[] = [
+                            'url' => $media['url'],
+                            'type' => $media['type'] ?? 'image',
+                            'is_featured' => ($index === 0), // First image is featured
+                            'order' => $index
+                        ];
+                    }
+                }
+            }
+        }
+        
+        // Method 2: Direct XML structure (if media_files is array)
+        if (isset($property_data['media_files']) && is_array($property_data['media_files'])) {
+            foreach ($property_data['media_files'] as $index => $media) {
+                if (isset($media['url']) && !empty($media['url'])) {
+                    $media_files[] = [
+                        'url' => $media['url'],
+                        'type' => $media['type'] ?? 'image',
+                        'is_featured' => ($index === 0),
+                        'order' => $index
+                    ];
+                }
+            }
+        }
+        
+        // Method 3: Alternative field names (common in XML feeds)
+        if (empty($media_files)) {
+            // Check for alternative field names
+            $alternative_fields = ['images', 'photos', 'allegati', 'files'];
+            foreach ($alternative_fields as $field) {
+                if (isset($property_data[$field])) {
+                    $images_data = is_string($property_data[$field]) ? 
+                        json_decode($property_data[$field], true) : $property_data[$field];
+                    
+                    if (is_array($images_data)) {
+                        foreach ($images_data as $index => $image) {
+                            $url = '';
+                            if (is_string($image)) {
+                                $url = $image;
+                            } elseif (is_array($image) && isset($image['url'])) {
+                                $url = $image['url'];
+                            }
+                            
+                            if (!empty($url)) {
+                                $media_files[] = [
+                                    'url' => $url,
+                                    'type' => 'image',
+                                    'is_featured' => ($index === 0),
+                                    'order' => $index
+                                ];
+                            }
+                        }
+                        break; // Found images, stop searching
+                    }
+                }
+            }
+        }
+        
+        $this->logger->log("🖼️ MEDIA EXTRACTION: Found " . count($media_files) . " media files", 'info');
+        
+        return $media_files;
+    }
+    
+    /**
+     * 🏢 Extract agency data from XML with complete structure
+     * 
+     * @param array $property_data XML property data
+     * @return array Enhanced agency structure
+     */
+    private function extract_agency_from_xml($property_data) {
+        $agency_data = [];
+        
+        // Method 1: Direct agency fields in XML
+        if (isset($property_data['agency_id'])) {
+            $agency_data = [
+                'id' => $property_data['agency_id'],
+                'name' => $property_data['agency_name'] ?? 'Agenzia Immobiliare',
+                'address' => $property_data['agency_address'] ?? '',
+                'phone' => $property_data['agency_phone'] ?? '',
+                'email' => $property_data['agency_email'] ?? '',
+                'website' => $property_data['agency_website'] ?? '',
+                'logo_url' => $property_data['agency_logo'] ?? ''
+            ];
+        }
+        
+        // Method 2: Nested agency object
+        if (isset($property_data['agency']) && is_array($property_data['agency'])) {
+            $agency = $property_data['agency'];
+            $agency_data = [
+                'id' => $agency['id'] ?? $agency['agency_id'] ?? '',
+                'name' => $agency['name'] ?? $agency['ragione_sociale'] ?? $agency['agency_name'] ?? 'Agenzia Immobiliare',
+                'address' => $agency['address'] ?? $agency['indirizzo'] ?? '',
+                'phone' => $agency['phone'] ?? $agency['telefono'] ?? '',
+                'email' => $agency['email'] ?? '',
+                'website' => $agency['website'] ?? $agency['sito'] ?? '',
+                'logo_url' => $agency['logo'] ?? $agency['logo_url'] ?? ''
+            ];
+        }
+        
+        // Method 3: JSON encoded agency data
+        if (empty($agency_data) && isset($property_data['agency_data']) && is_string($property_data['agency_data'])) {
+            $decoded_agency = json_decode($property_data['agency_data'], true);
+            if (is_array($decoded_agency)) {
+                $agency_data = [
+                    'id' => $decoded_agency['id'] ?? '',
+                    'name' => $decoded_agency['name'] ?? $decoded_agency['ragione_sociale'] ?? 'Agenzia Immobiliare',
+                    'address' => $decoded_agency['address'] ?? $decoded_agency['indirizzo'] ?? '',
+                    'phone' => $decoded_agency['phone'] ?? $decoded_agency['telefono'] ?? '',
+                    'email' => $decoded_agency['email'] ?? '',
+                    'website' => $decoded_agency['website'] ?? '',
+                    'logo_url' => $decoded_agency['logo_url'] ?? ''
+                ];
+            }
+        }
+        
+        // Method 4: Fallback - create default agency from available data
+        if (empty($agency_data)) {
+            // Look for any agency indicators in the data
+            $agency_name = $property_data['source'] ?? 'GestionaleImmobiliare';
+            
+            $agency_data = [
+                'id' => 'default_agency',
+                'name' => $agency_name,
+                'address' => '',
+                'phone' => '',
+                'email' => '',
+                'website' => '',
+                'logo_url' => ''
+            ];
+        }
+        
+        $this->logger->log("🏢 AGENCY EXTRACTION: Found agency '" . ($agency_data['name'] ?? 'Unknown') . "' (ID: " . ($agency_data['id'] ?? 'Unknown') . ")", 'info');
+        
+        return $agency_data;
+    }
+    
+    /**
+     * Extract civic number from address string
+     * 
+     * @param string $address Full address
+     * @return string Civic number
+     */
+    private function extract_civico_from_address($address) {
+        // Simple regex to extract numbers from address
+        if (preg_match('/\b(\d+[a-zA-Z]?)\b/', $address, $matches)) {
+            return $matches[1];
+        }
+        return '';
     }
     
     /**
@@ -312,19 +468,35 @@ class RealEstate_Sync_Import_Engine {
                 return;
             }
             
-            // Calculate hash per change detection
-            $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
-            $property_id = intval($property_data['id']);
+            // 🔥 FORCE PROCESSING MODE for debugging media/agency workflow
+            $force_processing = get_option('realestate_sync_force_processing', false);
             
-            // Check changes
-            $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
-            
-            $this->logger->log("DEBUG: Property {$property_id} change_status: " . print_r($change_status, true), 'info');
-            
-            if (!$change_status['has_changed']) {
-                $this->stats['skipped_properties']++;
-                $this->logger->log("DEBUG: Property {$property_id} skipped - no changes detected", 'info');
-                return;
+            if ($force_processing) {
+                $this->logger->log("🚀 FORCE PROCESSING MODE ENABLED - bypassing change detection", 'info');
+                
+                // Force create change status for testing
+                $change_status = [
+                    'has_changed' => true,
+                    'action' => 'insert', // Force insert to test complete workflow
+                    'reason' => 'force_processing_debug'
+                ];
+                $property_hash = 'debug_hash_' . time();
+                
+            } else {
+                // Normal change detection workflow
+                $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
+                $property_id = intval($property_data['id']);
+                
+                // Check changes
+                $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
+                
+                $this->logger->log("DEBUG: Property {$property_id} change_status: " . print_r($change_status, true), 'info');
+                
+                if (!$change_status['has_changed']) {
+                    $this->stats['skipped_properties']++;
+                    $this->logger->log("DEBUG: Property {$property_id} skipped - no changes detected", 'info');
+                    return;
+                }
             }
             
             $this->logger->log("DEBUG: Property {$property_id} will be processed - action: {$change_status['action']}", 'info');
@@ -333,7 +505,7 @@ class RealEstate_Sync_Import_Engine {
             $this->process_property_by_action($property_data, $change_status, $property_hash);
             
             // Track processed property ID
-            $this->session_data['imported_property_ids'][] = $property_id;
+            $this->session_data['imported_property_ids'][] = intval($property_data['id']);
             
             // Statistics tracking
             $this->update_property_statistics($property_data);
@@ -357,9 +529,21 @@ class RealEstate_Sync_Import_Engine {
         // 🔧 CONVERT XML DATA TO SAMPLE v3.0 FORMAT
         $v3_formatted_data = $this->convert_xml_to_v3_format($property_data);
         
-        // 🔍 DEBUG: Log conversion results
-        $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
-        $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
+        // 🔍 ENHANCED DEBUG: Log conversion results with media/agency focus
+        $media_count = count($v3_formatted_data['file_allegati'] ?? []);
+        $agency_name = $v3_formatted_data['agency_data']['name'] ?? 'Unknown';
+        
+        $this->logger->log("🎯 CONVERSION SUMMARY for ID $property_id:", 'info');
+        $this->logger->log("   📊 Media Files: $media_count items", 'info');
+        $this->logger->log("   🏢 Agency: $agency_name", 'info');
+        $this->logger->log("   📍 Location: " . ($v3_formatted_data['indirizzo'] ?? 'Unknown'), 'info');
+        
+        // Full debug only in force processing mode
+        $force_processing = get_option('realestate_sync_force_processing', false);
+        if ($force_processing) {
+            $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
+            $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
+        }
         
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);
