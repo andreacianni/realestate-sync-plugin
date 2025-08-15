@@ -130,6 +130,29 @@ $import_stats = $tracking_manager->get_import_statistics();
                 </div>
             </div>
             
+            <!-- 🚀 FORCE PROCESSING MODE SECTION -->
+            <div class="rs-force-processing-section" style="border-left: 4px solid #dc3545; padding: 15px; margin-top: 20px; background: #fef2f2;">
+                <h4><span class="dashicons dashicons-admin-generic"></span> 🚀 Force Processing Mode (DEBUG)</h4>
+                <p><strong>Debug Mode:</strong> Bypassa change detection per testare conversion v3.0 + media/agency extraction</p>
+                
+                <div style="margin: 15px 0;">
+                    <?php $force_enabled = get_option('realestate_sync_force_processing', false); ?>
+                    <button type="button" class="<?php echo $force_enabled ? 'rs-button-danger' : 'rs-button-primary'; ?>" id="toggle-force-processing">
+                        <span class="dashicons dashicons-<?php echo $force_enabled ? 'dismiss' : 'yes'; ?>"></span>
+                        <?php echo $force_enabled ? 'DISABILITA Force Processing' : 'ABILITA Force Processing'; ?>
+                    </button>
+                    
+                    <div id="force-processing-status" style="margin-top: 10px; padding: 10px; border-radius: 4px; <?php echo $force_enabled ? 'background: #fecaca; color: #7f1d1d;' : 'background: #e5e7eb; color: #374151;'; ?>">
+                        <strong>Status:</strong> Force Processing <?php echo $force_enabled ? 'ENABLED 🚀' : 'DISABLED'; ?>
+                        <?php if ($force_enabled): ?>
+                            <br><small>⚠️ Change detection bypassed - tutti gli XML properties verranno processati</small>
+                        <?php else: ?>
+                            <br><small>Normal mode - properties skipped if no changes detected</small>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+            
             <!-- Database Tools Section -->
             <div class="rs-testing-section" style="border-left: 4px solid #f0ad4e; padding: 15px; margin-top: 20px;">
                 <h4><span class="dashicons dashicons-admin-tools"></span> Database Tools</h4>
@@ -247,6 +270,7 @@ jQuery(document).ready(function($) {
             $('#cleanup-test-data').on('click', this.cleanupTestData);
             $('#cleanup-properties').on('click', this.cleanupProperties);
             $('#view-logs').on('click', this.viewLogs);
+            $('#toggle-force-processing').on('click', this.toggleForceProcessing);
         },
         startManualImport: function(e) {
             e.preventDefault();
@@ -397,8 +421,47 @@ jQuery(document).ready(function($) {
                         $('#log-content').text(response.success ? (response.data.logs || 'Nessun log') : 'Errore: ' + response.data);
                     },
                     error: function() { $('#log-content').text('Errore comunicazione'); }
-                });
-            }
+                    });
+                    }
+                    },
+        toggleForceProcessing: function(e) {
+            e.preventDefault();
+            
+            var isCurrentlyEnabled = $('#toggle-force-processing').hasClass('rs-button-danger');
+            var confirmMessage = isCurrentlyEnabled ? 
+                'Disabilitare Force Processing Mode?\n\nTornerà alla normale change detection.' :
+                'Abilitare Force Processing Mode?\n\nBypasserà change detection per testare media/agency conversion.';
+            
+            if (!confirm(confirmMessage)) return;
+            
+            dashboard.showAlert('Aggiornamento Force Processing Mode...', 'warning');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_toggle_force_processing', 
+                    nonce: realestateSync.nonce 
+                },
+                beforeSend: function() {
+                    $('#toggle-force-processing').prop('disabled', true).html('<span class="rs-spinner"></span>Aggiornando...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.showAlert(response.data.message, 'success');
+                        // Reload page to update UI status
+                        setTimeout(function() { location.reload(); }, 1500);
+                    } else {
+                        dashboard.showAlert('Errore toggle: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    dashboard.showAlert('Errore comunicazione toggle', 'error'); 
+                },
+                complete: function() {
+                    $('#toggle-force-processing').prop('disabled', false);
+                }
+            });
         },
         onFileSelect: function(e) {
             var file = e.target.files[0];
