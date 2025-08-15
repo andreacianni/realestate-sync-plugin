@@ -252,6 +252,27 @@ class RealEstate_Sync_Import_Engine {
             }
         }
         
+        // Method 4: Direct agency data array (from XML Parser v3.0)
+        if (empty($agency_data) && isset($property_data['agency_data']) && is_array($property_data['agency_data'])) {
+            $agency = $property_data['agency_data'];
+            $agency_data = [
+                'id' => $agency['id'] ?? '',
+                'name' => $agency['ragione_sociale'] ?? $agency['name'] ?? 'Agenzia Immobiliare',
+                'address' => $this->build_agency_address_from_data($agency),
+                'phone' => $agency['telefono'] ?? $agency['phone'] ?? '',
+                'email' => $agency['email'] ?? '',
+                'website' => $agency['url'] ?? $agency['website'] ?? '',
+                'logo_url' => $agency['logo'] ?? $agency['logo_url'] ?? '',
+                'contact_person' => $agency['referente'] ?? '',
+                'vat_number' => $agency['iva'] ?? '',
+                'province' => $agency['provincia'] ?? '',
+                'city' => $agency['comune'] ?? '',
+                'mobile' => $agency['cellulare'] ?? ''
+            ];
+            
+            $this->logger->log("🏢 IMPORT ENGINE: Agency data extracted from array structure - ID: {$agency_data['id']}, Name: {$agency_data['name']}", 'info');
+        }
+        
         // 🚨 REMOVED FALLBACK: No agency association if agency data is missing
         // Properties without agency data will not be associated to any agency
         if (empty($agency_data)) {
@@ -279,6 +300,30 @@ class RealEstate_Sync_Import_Engine {
             return $matches[1];
         }
         return '';
+    }
+    
+    /**
+     * Build agency address from agency data array
+     * 
+     * @param array $agency_data Agency data from XML
+     * @return string Complete address
+     */
+    private function build_agency_address_from_data($agency_data) {
+        $address_parts = [];
+        
+        if (!empty($agency_data['indirizzo'])) {
+            $address_parts[] = $agency_data['indirizzo'];
+        }
+        
+        if (!empty($agency_data['comune'])) {
+            $address_parts[] = $agency_data['comune'];
+        }
+        
+        if (!empty($agency_data['provincia'])) {
+            $address_parts[] = '(' . $agency_data['provincia'] . ')';
+        }
+        
+        return implode(', ', $address_parts);
     }
     
     /**
