@@ -1367,8 +1367,12 @@ class RealEstate_Sync_Admin {
             $temp_file = wp_upload_dir()['basedir'] . '/realestate-test-' . time() . '.xml';
             file_put_contents($temp_file, $xml_content);
             
-            // Execute import with TEST MODE
-            $results = $import_engine->execute_chunked_import($temp_file, true); // true = test mode
+            // Execute import + DEBUG
+            $results = $import_engine->execute_chunked_import($temp_file);
+            
+            // DEBUG: Log complete results structure
+            $this->logger->log("DEBUG: Import Engine Results: " . print_r($results, true), 'debug');
+            $this->logger->log("DEBUG: Statistics: " . print_r($results['statistics'] ?? [], true), 'debug');
             
             // Add test flag to all created properties
             $this->add_test_flag_to_recent_properties($results['properties_created'] ?? 0);
@@ -1383,9 +1387,15 @@ class RealEstate_Sync_Admin {
             $log_output .= "[" . date('H:i:s') . "] Properties: " . ($stats['new_properties'] ?? 0) . " create, " . ($stats['updated_properties'] ?? 0) . " aggiornate\n";
             $log_output .= "[" . date('H:i:s') . "] Agenzie: 0 create, 0 aggiornate\n"; // TODO: Add agency stats when implemented
             
-            // Mock media tracking (if not available from engine)
-            $media_new = rand(5, 15);
-            $media_existing = rand(10, 25);
+            // Get real media stats from Import Engine if available
+            $media_stats = $results['media_stats'] ?? null;
+            if ($media_stats) {
+                $media_new = $media_stats['new'] ?? 0;
+                $media_existing = $media_stats['existing'] ?? 0;
+            } else {
+                $media_new = 0;
+                $media_existing = 0;
+            }
             $log_output .= "[" . date('H:i:s') . "] Media: {$media_new} nuove immagini importate, {$media_existing} immagini già esistenti\n";
             $log_output .= "[" . date('H:i:s') . "] COMPLETATO: Test import workflow\n";
             
