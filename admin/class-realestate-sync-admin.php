@@ -1421,7 +1421,15 @@ class RealEstate_Sync_Admin {
             // Build detailed log - FIXED: Use correct Import Engine output structure
             $stats = $results['statistics'] ?? [];
             $log_output .= "[" . date('H:i:s') . "] Properties: " . ($stats['new_properties'] ?? 0) . " create, " . ($stats['updated_properties'] ?? 0) . " aggiornate\n";
-            $log_output .= "[" . date('H:i:s') . "] Agenzie: 0 create, 0 aggiornate\n"; // TODO: Add agency stats when implemented
+            
+            // 🏢 AGENCY STATS: Extract from WP Importer stats if available
+            $agency_created = 0;
+            $agency_updated = 0;
+            if (isset($results['agency_stats'])) {
+                $agency_created = $results['agency_stats']['created'] ?? 0;
+                $agency_updated = $results['agency_stats']['updated'] ?? 0;
+            }
+            $log_output .= "[" . date('H:i:s') . "] Agenzie: {$agency_created} create, {$agency_updated} aggiornate\n";
             
             // Get real media stats from Import Engine if available
             $media_stats = $results['media_stats'] ?? null;
@@ -1435,13 +1443,13 @@ class RealEstate_Sync_Admin {
             $log_output .= "[" . date('H:i:s') . "] Media: {$media_new} nuove immagini importate, {$media_existing} immagini già esistenti\n";
             $log_output .= "[" . date('H:i:s') . "] COMPLETATO: Test import workflow\n";
             
-            $this->logger->log("TEST WORKFLOW: Completed - Props: " . ($stats['new_properties'] ?? 0) . ", Agencies: 0", 'info');
+            $this->logger->log("TEST WORKFLOW: Completed - Props: " . ($stats['new_properties'] ?? 0) . ", Agencies: {$agency_created}", 'info');
             
             wp_send_json_success(array(
                 'properties_created' => $stats['new_properties'] ?? 0,
                 'properties_updated' => $stats['updated_properties'] ?? 0,
-                'agencies_created' => 0, // TODO: Add when agency import implemented
-                'agencies_updated' => 0, // TODO: Add when agency import implemented
+                'agencies_created' => $agency_created,
+                'agencies_updated' => $agency_updated,
                 'media_new' => $media_new,
                 'media_existing' => $media_existing,
                 'log_output' => $log_output,

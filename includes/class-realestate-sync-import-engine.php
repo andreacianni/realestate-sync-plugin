@@ -42,6 +42,11 @@ class RealEstate_Sync_Import_Engine {
     private $stats;
     
     /**
+     * Agency tracking for statistics
+     */
+    private $agency_stats;
+    
+    /**
      * Constructor
      */
     public function __construct() {
@@ -54,6 +59,7 @@ class RealEstate_Sync_Import_Engine {
         $this->init_default_config();
         $this->init_session_data();
         $this->init_stats();
+        $this->init_agency_stats();
     }
     
     /**
@@ -334,6 +340,18 @@ class RealEstate_Sync_Import_Engine {
     }
     
     /**
+     * Inizializza agency statistics
+     */
+    private function init_agency_stats() {
+        $this->agency_stats = array(
+            'created' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'agencies_found' => array()
+        );
+    }
+    
+    /**
      * Configura import engine
      * 
      * @param array $config Configuration overrides
@@ -532,11 +550,21 @@ class RealEstate_Sync_Import_Engine {
         // 🔍 ENHANCED DEBUG: Log conversion results with media/agency focus
         $media_count = count($v3_formatted_data['file_allegati'] ?? []);
         $agency_name = $v3_formatted_data['agency_data']['name'] ?? 'Unknown';
+        $agency_id = $v3_formatted_data['agency_data']['id'] ?? 'Unknown';
         
         $this->logger->log("🎯 CONVERSION SUMMARY for ID $property_id:", 'info');
         $this->logger->log("   📊 Media Files: $media_count items", 'info');
         $this->logger->log("   🏢 Agency: $agency_name", 'info');
         $this->logger->log("   📍 Location: " . ($v3_formatted_data['indirizzo'] ?? 'Unknown'), 'info');
+        
+        // 🏢 TRACK AGENCY: Add to agency stats if we found an agency
+        if (!empty($agency_id) && $agency_id !== 'Unknown') {
+            if (!in_array($agency_id, $this->agency_stats['agencies_found'])) {
+                $this->agency_stats['agencies_found'][] = $agency_id;
+                $this->agency_stats['created']++; // Simple tracking for now
+                $this->logger->log("🏢 AGENCY TRACKED: New agency '$agency_name' (ID: $agency_id)", 'info');
+            }
+        }
         
         // Full debug only in force processing mode
         $force_processing = get_option('realestate_sync_force_processing', false);
@@ -687,6 +715,7 @@ class RealEstate_Sync_Import_Engine {
             'duration_formatted' => $this->format_duration($this->stats['duration']),
             'memory_peak_mb' => $this->stats['memory_peak_mb'],
             'statistics' => $this->stats,
+            'agency_stats' => $this->agency_stats,
             'parser_results' => $parse_results,
             'config_used' => $this->config,
             'performance' => array(
