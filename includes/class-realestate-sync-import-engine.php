@@ -57,6 +57,75 @@ class RealEstate_Sync_Import_Engine {
     }
     
     /**
+     * Convert XML property data to Sample v3.0 format
+     * Transforms raw XML data into the structure expected by Property Mapper v3.0
+     * 
+     * @param array $property_data Raw XML property data
+     * @return array v3.0 formatted data
+     */
+    private function convert_xml_to_v3_format($property_data) {
+        // Extract media files from JSON if present
+        $media_files = [];
+        if (isset($property_data['media_files']) && is_string($property_data['media_files'])) {
+            $decoded_media = json_decode($property_data['media_files'], true);
+            if (is_array($decoded_media)) {
+                foreach ($decoded_media as $media) {
+                    if (isset($media['url'])) {
+                        $media_files[] = [
+                            'url' => $media['url'],
+                            'type' => $media['type'] ?? 'image'
+                        ];
+                    }
+                }
+            }
+        }
+        
+        // Extract features from JSON if present
+        $info_inserite = [];
+        if (isset($property_data['features']) && is_string($property_data['features'])) {
+            $decoded_features = json_decode($property_data['features'], true);
+            if (is_array($decoded_features)) {
+                $info_inserite = $decoded_features;
+            }
+        }
+        
+        // Extract numeric data from JSON if present
+        $dati_inseriti = [];
+        if (isset($property_data['numeric_data']) && is_string($property_data['numeric_data'])) {
+            $decoded_numeric = json_decode($property_data['numeric_data'], true);
+            if (is_array($decoded_numeric)) {
+                $dati_inseriti = $decoded_numeric;
+            }
+        }
+        
+        // Build v3.0 compatible structure
+        return [
+            'id' => $property_data['id'] ?? '',
+            'categorie_id' => intval($property_data['categorie_id'] ?? 11),
+            'price' => floatval($property_data['price'] ?? 0),
+            'mq' => intval($property_data['mq'] ?? 0),
+            'indirizzo' => $property_data['indirizzo'] ?? '',
+            'civico' => '', // Not typically in XML, could be extracted from address
+            'comune_istat' => $property_data['comune_istat'] ?? '',
+            'latitude' => floatval($property_data['latitude'] ?? 0),
+            'longitude' => floatval($property_data['longitude'] ?? 0),
+            'description' => $property_data['description'] ?? '',
+            'abstract' => substr($property_data['description'] ?? '', 0, 200), // Generate from description
+            'seo_title' => $property_data['title'] ?? '',
+            'info_inserite' => $info_inserite,
+            'dati_inseriti' => $dati_inseriti,
+            'file_allegati' => $media_files,
+            'catasto' => [ // Default empty catasto info
+                'destinazione_uso' => 'Residenziale',
+                'rendita_catastale' => '',
+                'foglio' => '',
+                'particella' => '',
+                'subalterno' => ''
+            ]
+        ];
+    }
+    
+    /**
      * Inizializza configurazione default
      */
     private function init_default_config() {
@@ -285,8 +354,11 @@ class RealEstate_Sync_Import_Engine {
     private function process_property_by_action($property_data, $change_status, $property_hash) {
         $property_id = intval($property_data['id']);
         
+        // 🔧 CONVERT XML DATA TO SAMPLE v3.0 FORMAT
+        $v3_formatted_data = $this->convert_xml_to_v3_format($property_data);
+        
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
-        $mapped_result = $this->property_mapper->map_properties([$property_data]);
+        $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);
         
         if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
             $this->logger->log("Property mapping failed for ID $property_id", 'warning');
