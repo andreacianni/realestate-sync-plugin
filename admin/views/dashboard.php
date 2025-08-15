@@ -105,11 +105,34 @@ $import_stats = $tracking_manager->get_import_statistics();
     <!-- TAB 2: IMPORT STATUS -->
     <div id="import-status" class="tab-content">
         <div class="rs-card">
-            <h3><span class="dashicons dashicons-database-import"></span> Stato Import</h3>
+            <h3><span class="dashicons dashicons-database-import"></span> Testing & Development</h3>
             
-            <!-- Testing & Development Section -->
+            <!-- Upload Test Section -->
+            <div class="rs-upload-section" style="border-left: 4px solid #2271b1; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
+                <h4><span class="dashicons dashicons-upload"></span> Import Test</h4>
+                <p>Upload qualsiasi file XML per testare il workflow completo: Properties + Agenzie + Media</p>
+                
+                <div style="margin: 15px 0;">
+                    <input type="file" id="test-xml-file" accept=".xml" style="margin-bottom: 10px; padding: 8px;">
+                    <small style="display: block; color: #666;">Seleziona file XML (esempio: sample-con-agenzie.xml)</small>
+                </div>
+                
+                <div style="margin: 15px 0;">
+                    <button type="button" class="rs-button-primary" id="process-test-file" disabled>
+                        <span class="dashicons dashicons-admin-generic"></span> Processa File XML
+                    </button>
+                </div>
+                
+                <!-- Test Log Output -->
+                <div id="test-log-output" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                    <h5>Log Processo:</h5>
+                    <pre id="test-log-content" style="margin: 0; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">Avvio processo...</pre>
+                </div>
+            </div>
+            
+            <!-- Database Tools Section -->
             <div class="rs-testing-section" style="border-left: 4px solid #f0ad4e; padding: 15px; margin-top: 20px;">
-                <h4><span class="dashicons dashicons-admin-tools"></span> Testing & Development</h4>
+                <h4><span class="dashicons dashicons-admin-tools"></span> Database Tools</h4>
                 
                 <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                     <button type="button" class="rs-button-primary" id="create-properties-from-sample" style="background: #00a32a; border-color: #00a32a;">
@@ -120,8 +143,12 @@ $import_stats = $tracking_manager->get_import_statistics();
                         <span class="dashicons dashicons-chart-bar"></span> Mostra Statistiche Properties
                     </button>
                     
+                    <button type="button" class="rs-button-warning" id="cleanup-test-data" style="background: #ffc107; border-color: #ffc107; color: #000;">
+                        <span class="dashicons dashicons-trash"></span> Cleanup Test Data
+                    </button>
+                    
                     <button type="button" class="rs-button-danger" id="cleanup-properties" style="background: #dc3545; border-color: #dc3545;">
-                        <span class="dashicons dashicons-trash"></span> Cleanup Database
+                        <span class="dashicons dashicons-dismiss"></span> Cleanup ALL Database
                     </button>
                 </div>
 
@@ -213,8 +240,11 @@ jQuery(document).ready(function($) {
             $('#start-manual-import').on('click', this.startManualImport);
             $('#rs-test-connection').on('click', this.testConnection);
             $('#rs-quick-settings').on('submit', this.saveSettings);
+            $('#test-xml-file').on('change', this.onFileSelect);
+            $('#process-test-file').on('click', this.processTestFile);
             $('#create-properties-from-sample').on('click', this.createPropertiesFromSampleV3);
             $('#show-property-stats').on('click', this.showPropertyStats);
+            $('#cleanup-test-data').on('click', this.cleanupTestData);
             $('#cleanup-properties').on('click', this.cleanupProperties);
             $('#view-logs').on('click', this.viewLogs);
         },
@@ -369,6 +399,102 @@ jQuery(document).ready(function($) {
                     error: function() { $('#log-content').text('Errore comunicazione'); }
                 });
             }
+        },
+        onFileSelect: function(e) {
+            var file = e.target.files[0];
+            if (file && file.name.endsWith('.xml')) {
+                $('#process-test-file').prop('disabled', false);
+                dashboard.showAlert('File XML selezionato: ' + file.name, 'info');
+            } else {
+                $('#process-test-file').prop('disabled', true);
+                if (file) dashboard.showAlert('Seleziona un file XML valido', 'error');
+            }
+        },
+        processTestFile: function(e) {
+            e.preventDefault();
+            var fileInput = $('#test-xml-file')[0];
+            if (!fileInput.files[0]) {
+                dashboard.showAlert('Seleziona un file XML prima di procedere', 'error');
+                return;
+            }
+            
+            $('#test-log-output').removeClass('rs-hidden');
+            dashboard.updateTestLog('Avvio processo test import...');
+            
+            var formData = new FormData();
+            formData.append('action', 'realestate_sync_process_test_file');
+            formData.append('nonce', realestateSync.nonce);
+            formData.append('test_xml_file', fileInput.files[0]);
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                beforeSend: function() {
+                    $('#process-test-file').prop('disabled', true).html('<span class="rs-spinner"></span>Processando...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        dashboard.updateTestLog(result.log_output || 'Import completato');
+                        var message = 'Test completato! Props: ' + (result.properties_created || 0) + ' create, ' + 
+                                     (result.properties_updated || 0) + ' aggiornate. Agenzie: ' + 
+                                     (result.agencies_created || 0) + ' create, ' + (result.agencies_updated || 0) + ' aggiornate';
+                        if (result.media_new || result.media_existing) {
+                            message += '. Media: ' + (result.media_new || 0) + ' nuove, ' + (result.media_existing || 0) + ' esistenti';
+                        }
+                        dashboard.showAlert(message, 'success');
+                    } else {
+                        dashboard.updateTestLog('ERRORE: ' + response.data);
+                        dashboard.showAlert('Errore nel processo: ' + response.data, 'error');
+                    }
+                },
+                error: function() {
+                    dashboard.updateTestLog('ERRORE: Comunicazione con il server fallita');
+                    dashboard.showAlert('Errore di comunicazione', 'error');
+                },
+                complete: function() {
+                    $('#process-test-file').prop('disabled', false).html('<span class="dashicons dashicons-admin-generic"></span> Processa File XML');
+                }
+            });
+        },
+        cleanupTestData: function(e) {
+            e.preventDefault();
+            if (!confirm('Sei sicuro di voler cancellare SOLO i dati di test?\n\nQuesto cancellerà solo properties e agenzie create durante i test.')) return;
+            
+            dashboard.showAlert('Cancellazione test data in corso...', 'warning');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { action: 'realestate_sync_cleanup_test_data', nonce: realestateSync.nonce },
+                beforeSend: function() {
+                    $('#cleanup-test-data').prop('disabled', true).html('<span class="rs-spinner"></span>Cancellando...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        var message = 'Test data cancellati: ' + (result.properties_deleted || 0) + ' properties, ' + 
+                                     (result.agencies_deleted || 0) + ' agenzie';
+                        dashboard.showAlert(message, 'success');
+                        if (!$('#property-stats-display').hasClass('rs-hidden')) $('#show-property-stats').click();
+                    } else {
+                        dashboard.showAlert('Errore cancellazione: ' + response.data, 'error');
+                    }
+                },
+                error: function() { dashboard.showAlert('Errore comunicazione', 'error'); },
+                complete: function() {
+                    $('#cleanup-test-data').prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Cleanup Test Data');
+                }
+            });
+        },
+        updateTestLog: function(message) {
+            var timestamp = new Date().toLocaleTimeString();
+            var logLine = '[' + timestamp + '] ' + message + '\n';
+            $('#test-log-content').append(logLine);
+            $('#test-log-output').scrollTop($('#test-log-content')[0].scrollHeight);
         },
         showAlert: function(message, type) {
             var alertHtml = '<div class="rs-alert rs-alert-' + (type || 'info') + '">' + message + '</div>';
