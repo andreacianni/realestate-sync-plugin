@@ -357,6 +357,10 @@ class RealEstate_Sync_Import_Engine {
         // 🔧 CONVERT XML DATA TO SAMPLE v3.0 FORMAT
         $v3_formatted_data = $this->convert_xml_to_v3_format($property_data);
         
+        // 🔍 DEBUG: Log conversion results
+        $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
+        $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
+        
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);
         
