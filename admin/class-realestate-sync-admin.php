@@ -1371,8 +1371,8 @@ class RealEstate_Sync_Admin {
             $results = $import_engine->execute_chunked_import($temp_file);
             
             // DEBUG: Log complete results structure
-            $this->logger->log("DEBUG: Import Engine Results: " . print_r($results, true), 'debug');
-            $this->logger->log("DEBUG: Statistics: " . print_r($results['statistics'] ?? [], true), 'debug');
+            $this->logger->log("DEBUG: Import Engine Results: " . print_r($results, true), 'info');
+            $this->logger->log("DEBUG: Statistics: " . print_r($results['statistics'] ?? [], true), 'info');
             
             // Add test flag to all created properties
             $this->add_test_flag_to_recent_properties($results['properties_created'] ?? 0);
