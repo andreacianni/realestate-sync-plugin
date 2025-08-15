@@ -144,10 +144,21 @@ class RealEstate_Sync_Property_Mapper {
         
         // 🏢 ENHANCED: Prepare agency data for WP Importer (only if agency exists)
         $source_data = $xml_property;
-        if (isset($xml_property['agency_data']) && !empty($xml_property['agency_data'])) {
-            $source_data['agency_data'] = $this->map_agency_data_v3($xml_property['agency_data']);
+        if (isset($xml_property['agency_data']) && !empty($xml_property['agency_data']) && is_array($xml_property['agency_data'])) {
+            $mapped_agency = $this->map_agency_data_v3($xml_property['agency_data']);
+            if ($mapped_agency !== null) {
+                $source_data['agency_data'] = $mapped_agency;
+                $this->logger->log('🏢 Property Mapper: Agency data mapped successfully', 'debug', [
+                    'agency_id' => $mapped_agency['id'] ?? 'unknown',
+                    'agency_name' => $mapped_agency['name'] ?? 'unknown'
+                ]);
+            } else {
+                $this->logger->log('🏢 Property Mapper: Agency mapping returned null', 'warning');
+                unset($source_data['agency_data']);
+            }
         } else {
             // No agency data - property will not be linked to any agency
+            $this->logger->log('🏢 Property Mapper: No agency data found in XML property', 'debug');
             unset($source_data['agency_data']);
         }
         

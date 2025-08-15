@@ -295,7 +295,7 @@ class RealEstate_Sync_XML_Parser {
         
         // 🏢 ENHANCED: Parse agency data da <agenzia>
         $agency_data = null;
-        $agenzia_nodes = $xpath->query('//agenzia');
+        $agenzia_nodes = $xpath->query('agenzia'); // Fixed XPath - direct child
         if ($agenzia_nodes->length > 0) {
             $agenzia = $agenzia_nodes->item(0);
             $agency_data = array();
@@ -315,7 +315,14 @@ class RealEstate_Sync_XML_Parser {
             // Only include agency if has valid ID
             if (!empty($agency_data['id']) && intval($agency_data['id']) > 0) {
                 $property_data['agency_data'] = $agency_data;
+                
+                // Debug log successful extraction
+                error_log("🏢 XML PARSER: Agency data extracted successfully - ID: {$agency_data['id']}, Name: " . ($agency_data['ragione_sociale'] ?? 'Unknown'));
+            } else {
+                error_log("🏢 XML PARSER: Agency found but invalid ID or missing data");
             }
+        } else {
+            error_log("🏢 XML PARSER: No <agenzia> section found in this annuncio");
         }
         
         // Validate required fields
