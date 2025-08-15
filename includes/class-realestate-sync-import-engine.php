@@ -225,16 +225,21 @@ class RealEstate_Sync_Import_Engine {
     public function handle_single_property($property_data, $property_index) {
         try {
             $this->stats['total_in_xml']++;
+            $property_id = $property_data['id'] ?? 'unknown';
+            
+            $this->logger->log("DEBUG: Processing property {$property_id}", 'info');
             
             // Skip properties deleted
             if (isset($property_data['deleted']) && $property_data['deleted'] == '1') {
                 $this->stats['deleted_properties']++;
+                $this->logger->log("DEBUG: Property {$property_id} skipped - marked as deleted", 'info');
                 return;
             }
             
             // Province filtering
             if (!$this->property_mapper->is_property_in_enabled_provinces($property_data, $this->config['enabled_provinces'])) {
                 $this->stats['skipped_properties']++;
+                $this->logger->log("DEBUG: Property {$property_id} skipped - province filtering failed", 'info');
                 return;
             }
             
@@ -245,10 +250,15 @@ class RealEstate_Sync_Import_Engine {
             // Check changes
             $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
             
+            $this->logger->log("DEBUG: Property {$property_id} change_status: " . print_r($change_status, true), 'info');
+            
             if (!$change_status['has_changed']) {
                 $this->stats['skipped_properties']++;
+                $this->logger->log("DEBUG: Property {$property_id} skipped - no changes detected", 'info');
                 return;
             }
+            
+            $this->logger->log("DEBUG: Property {$property_id} will be processed - action: {$change_status['action']}", 'info');
             
             // Process property based on action needed
             $this->process_property_by_action($property_data, $change_status, $property_hash);
