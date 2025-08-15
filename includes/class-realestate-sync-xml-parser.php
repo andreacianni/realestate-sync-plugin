@@ -293,6 +293,31 @@ class RealEstate_Sync_XML_Parser {
         }
         $property_data['media_files'] = $media_files;
         
+        // 🏢 ENHANCED: Parse agency data da <agenzia>
+        $agency_data = null;
+        $agenzia_nodes = $xpath->query('//agenzia');
+        if ($agenzia_nodes->length > 0) {
+            $agenzia = $agenzia_nodes->item(0);
+            $agency_data = array();
+            
+            foreach ($agenzia->childNodes as $child) {
+                if ($child->nodeType === XML_ELEMENT_NODE) {
+                    $agency_data[$child->nodeName] = trim($child->textContent);
+                }
+            }
+            
+            // Extract attributes from comune if present
+            $comune_node = $xpath->query('comune', $agenzia)->item(0);
+            if ($comune_node && $comune_node->hasAttribute('istat')) {
+                $agency_data['comune_istat'] = $comune_node->getAttribute('istat');
+            }
+            
+            // Only include agency if has valid ID
+            if (!empty($agency_data['id']) && intval($agency_data['id']) > 0) {
+                $property_data['agency_data'] = $agency_data;
+            }
+        }
+        
         // Validate required fields
         if (!isset($property_data['id']) || empty($property_data['id'])) {
             return null; // Skip properties senza ID

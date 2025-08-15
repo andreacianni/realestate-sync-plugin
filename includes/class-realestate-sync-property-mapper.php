@@ -142,6 +142,15 @@ class RealEstate_Sync_Property_Mapper {
             return null;
         }
         
+        // 🏢 ENHANCED: Prepare agency data for WP Importer (only if agency exists)
+        $source_data = $xml_property;
+        if (isset($xml_property['agency_data']) && !empty($xml_property['agency_data'])) {
+            $source_data['agency_data'] = $this->map_agency_data_v3($xml_property['agency_data']);
+        } else {
+            // No agency data - property will not be linked to any agency
+            unset($source_data['agency_data']);
+        }
+        
         return [
             'post_data' => $this->map_post_data_v3($xml_property),
             'meta_fields' => $this->map_meta_fields_v3($xml_property),
@@ -149,7 +158,7 @@ class RealEstate_Sync_Property_Mapper {
             'features' => $this->map_features_v3($xml_property),
             'gallery' => $this->map_gallery_v3($xml_property),
             'catasto' => $this->map_catasto_v3($xml_property),
-            'source_data' => $xml_property,
+            'source_data' => $source_data,
             'content_hash_v3' => $this->generate_content_hash_v3($xml_property)
         ];
     }
@@ -585,6 +594,66 @@ class RealEstate_Sync_Property_Mapper {
         }
         
         return md5(serialize($hash_data));
+    }
+    
+    /**
+     * Map agency data from XML to WP format v3.0
+     * 
+     * @param array $xml_agency_data Raw agency data from XML
+     * @return array Mapped agency data for Agency Manager
+     */
+    private function map_agency_data_v3($xml_agency_data) {
+        if (empty($xml_agency_data['id'])) {
+            return null;
+        }
+        
+        $mapped_agency = [
+            'id' => $xml_agency_data['id'],
+            'name' => $xml_agency_data['ragione_sociale'] ?? 'Agenzia Immobiliare',
+            'phone' => $xml_agency_data['telefono'] ?? '',
+            'email' => $xml_agency_data['email'] ?? '',
+            'website' => $xml_agency_data['url'] ?? '',
+            'address' => $this->build_agency_address($xml_agency_data),
+            'logo_url' => $xml_agency_data['logo'] ?? '',
+            'contact_person' => $xml_agency_data['referente'] ?? '',
+            'vat_number' => $xml_agency_data['iva'] ?? '',
+            'province' => $xml_agency_data['provincia'] ?? '',
+            'city' => $xml_agency_data['comune'] ?? '',
+            'mobile' => $xml_agency_data['cellulare'] ?? ''
+        ];
+        
+        $this->logger->log('🏢 Agency data mapped from XML', 'debug', [
+            'agency_id' => $mapped_agency['id'],
+            'agency_name' => $mapped_agency['name'],
+            'has_logo' => !empty($mapped_agency['logo_url']),
+            'has_contact' => !empty($mapped_agency['contact_person'])
+        ]);
+        
+        return $mapped_agency;
+    }
+    
+    /**
+     * Build agency address from XML data
+     * 
+     * @param array $xml_agency_data XML agency data
+     * @return string Complete address
+     */
+    private function build_agency_address($xml_agency_data) {
+        $address_parts = [];
+        
+        if (!empty($xml_agency_data['indirizzo'])) {
+            $address_parts[] = $xml_agency_data['indirizzo'];
+        }
+        
+        if (!empty($xml_agency_data['comune'])) {
+            $address_parts[] = $xml_agency_data['comune'];
+        }
+        
+        if (!empty($xml_agency_data['provincia'])) {
+            $address_parts[] = '(' . $xml_agency_data['provincia'] . ')';
+        }
+        
+        return implode(', ', $address_parts);
     }
     
     /**

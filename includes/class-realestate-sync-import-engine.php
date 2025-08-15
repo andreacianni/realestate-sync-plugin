@@ -73,7 +73,7 @@ class RealEstate_Sync_Import_Engine {
         // 🖼️ ENHANCED MEDIA EXTRACTION from XML
         $media_files = $this->extract_media_from_xml($property_data);
         
-        // 🏢 ENHANCED AGENCY EXTRACTION from XML  
+        // 🏢 ENHANCED AGENCY EXTRACTION from XML (can be null if no agency found)
         $agency_data = $this->extract_agency_from_xml($property_data);
         
         // Extract features from JSON if present
@@ -111,7 +111,7 @@ class RealEstate_Sync_Import_Engine {
             'info_inserite' => $info_inserite,
             'dati_inseriti' => $dati_inseriti,
             'file_allegati' => $media_files, // 🖼️ Complete media structure
-            'agency_data' => $agency_data,   // 🏢 Complete agency structure
+            'agency_data' => $agency_data,   // 🏢 Complete agency structure (null if no agency)
             'catasto' => [ // Default empty catasto info
                 'destinazione_uso' => 'Residenziale',
                 'rendita_catastale' => '',
@@ -252,23 +252,17 @@ class RealEstate_Sync_Import_Engine {
             }
         }
         
-        // Method 4: Fallback - create default agency from available data
+        // 🚨 REMOVED FALLBACK: No agency association if agency data is missing
+        // Properties without agency data will not be associated to any agency
         if (empty($agency_data)) {
-            // Look for any agency indicators in the data
-            $agency_name = $property_data['source'] ?? 'GestionaleImmobiliare';
-            
-            $agency_data = [
-                'id' => 'default_agency',
-                'name' => $agency_name,
-                'address' => '',
-                'phone' => '',
-                'email' => '',
-                'website' => '',
-                'logo_url' => ''
-            ];
+            $this->logger->log("🏢 No agency data found for property - property will not be linked to any agency", 'debug');
+            return null; // Return null instead of creating default agency
         }
         
-        $this->logger->log("🏢 AGENCY EXTRACTION: Found agency '" . ($agency_data['name'] ?? 'Unknown') . "' (ID: " . ($agency_data['id'] ?? 'Unknown') . ")", 'info');
+        // Only log if we actually found agency data
+        if (!empty($agency_data['id'])) {
+            $this->logger->log("🏢 AGENCY EXTRACTION: Found agency '" . ($agency_data['name'] ?? 'Unknown') . "' (ID: " . ($agency_data['id'] ?? 'Unknown') . ")", 'info');
+        }
         
         return $agency_data;
     }
@@ -557,13 +551,15 @@ class RealEstate_Sync_Import_Engine {
         $this->logger->log("   🏢 Agency: $agency_name", 'info');
         $this->logger->log("   📍 Location: " . ($v3_formatted_data['indirizzo'] ?? 'Unknown'), 'info');
         
-        // 🏢 TRACK AGENCY: Add to agency stats if we found an agency
-        if (!empty($agency_id) && $agency_id !== 'Unknown') {
+        // 🏢 TRACK AGENCY: Add to agency stats only if we found valid agency data
+        if (isset($v3_formatted_data['agency_data']) && !empty($agency_id) && $agency_id !== 'Unknown') {
             if (!in_array($agency_id, $this->agency_stats['agencies_found'])) {
                 $this->agency_stats['agencies_found'][] = $agency_id;
                 $this->agency_stats['created']++; // Simple tracking for now
                 $this->logger->log("🏢 AGENCY TRACKED: New agency '$agency_name' (ID: $agency_id)", 'info');
             }
+        } else {
+            $this->logger->log("🏢 Property ID $property_id has no agency - will not be linked to any agency", 'info');
         }
         
         // Full debug only in force processing mode
