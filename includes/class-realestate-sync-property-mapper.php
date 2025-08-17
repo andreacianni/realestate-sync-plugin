@@ -19,11 +19,17 @@ class RealEstate_Sync_Property_Mapper {
     private $gi_categories;
     private $gi_features;
     private $energy_class_mapping;
+    private $agency_manager;
     
     public function __construct($logger = null) {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
+        
+        // Initialize Agency Manager for direct property→agency mapping
+        require_once dirname(__FILE__) . '/class-realestate-sync-agency-manager.php';
+        $this->agency_manager = new RealEstate_Sync_Agency_Manager();
+        
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.0 initialized with database-driven mapping', 'info');
+        $this->logger->log('Property Mapper v3.0 initialized with Agency Manager integration', 'info');
     }
     
     private function init_mappings() {
@@ -142,6 +148,23 @@ class RealEstate_Sync_Property_Mapper {
             return null;
         }
         
+        // 🏢 AGENCY MANAGER v3.0: Process agency and get agency ID for direct association
+        $agency_id = $this->process_agency_for_property($xml_property);
+        $source_data = $xml_property;
+        
+        if ($agency_id) {
+            $source_data['agency_id'] = $agency_id;
+            $this->logger->log('🏢 Property Mapper: Agency processed and ID assigned', 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'agency_id' => $agency_id
+            ]);
+        } else {
+            // No agency processed - property will not be linked to any agency
+            $this->logger->log('🏢 Property Mapper: No agency processed for property', 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown'
+            ]);
+        }
+        
         return [
             'post_data' => $this->map_post_data_v3($xml_property),
             'meta_fields' => $this->map_meta_fields_v3($xml_property),
@@ -149,16 +172,16 @@ class RealEstate_Sync_Property_Mapper {
             'features' => $this->map_features_v3($xml_property),
             'gallery' => $this->map_gallery_v3($xml_property),
             'catasto' => $this->map_catasto_v3($xml_property),
-            'source_data' => $xml_property,
+            'source_data' => $source_data,
             'content_hash_v3' => $this->generate_content_hash_v3($xml_property)
         ];
     }
     
     /**
-     * Map post data v3.0
+     * Map post data v3.0 - ENHANCED: Use XML <title> field
      */
     private function map_post_data_v3($xml_property) {
-        $title = $this->generate_smart_title_v3($xml_property);
+        $title = $this->get_xml_title_or_fallback($xml_property);
         $description = $this->get_best_description($xml_property);
         
         return [
@@ -207,6 +230,13 @@ class RealEstate_Sync_Property_Mapper {
         $meta['property_import_source'] = 'GestionaleImmobiliare';
         $meta['property_import_date'] = current_time('mysql');
         $meta['property_content_hash_v3'] = $this->generate_content_hash_v3($xml_property);
+        
+        // 🎯 FRONTEND DISPLAY: XML ID for frontend templates
+        $meta['property_xml_id'] = $xml_property['id'];
+        $meta['property_display_id'] = $xml_property['id'];
+        
+        // 🏢 AGENCY ASSOCIATION: Will be set by WP Importer if agency_id exists in source_data
+        // property_agent field will be populated by WP Importer using source_data['agency_id']
         
         return $meta;
     }
@@ -362,6 +392,31 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     // HELPER METHODS
+    
+    /**
+     * Get XML title or generate smart fallback v3.1
+     * 🎯 PRIORITY: Use XML <title> field first, fallback to smart generation
+     */
+    private function get_xml_title_or_fallback($xml_property) {
+        // 🎯 PRIORITY: Use XML <title> field if available
+        if (!empty($xml_property['title'])) {
+            $xml_title = trim(wp_strip_all_tags($xml_property['title']));
+            if (!empty($xml_title)) {
+                $this->logger->log('🎯 Using XML title field', 'debug', [
+                    'property_id' => $xml_property['id'] ?? 'unknown',
+                    'xml_title' => $xml_title
+                ]);
+                return $xml_title;
+            }
+        }
+        
+        // Fallback to smart generation if no XML title
+        $this->logger->log('🎯 XML title empty, using smart generation fallback', 'debug', [
+            'property_id' => $xml_property['id'] ?? 'unknown'
+        ]);
+        
+        return $this->generate_smart_title_v3($xml_property);
+    }
     
     private function generate_smart_title_v3($xml_property) {
         $parts = [];
@@ -585,6 +640,51 @@ class RealEstate_Sync_Property_Mapper {
         }
         
         return md5(serialize($hash_data));
+    }
+    
+    /**
+     * Process agency for property using Agency Manager
+     * Direct integration with Agency Manager for property→agency mapping
+     * 
+     * @param array $xml_property XML property containing agency data
+     * @return int|false Agency ID for property_agent association, false if no agency
+     */
+    private function process_agency_for_property($xml_property) {
+        try {
+            $this->logger->log('INFO', '🏢 PROPERTY MAPPER: process_agency_for_property called', array(
+                'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
+                'agency_manager_exists' => isset($this->agency_manager),
+                'agency_manager_class' => isset($this->agency_manager) ? get_class($this->agency_manager) : 'NOT_SET'
+            ));
+            
+            // Check if agency_data exists
+            if (empty($xml_property['agency_data'])) {
+                $this->logger->log('WARNING', 'No agency_data found in XML property', array(
+                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown'
+                ));
+                return false;
+            }
+            
+            // Use Agency Manager to create/update agency from XML agency data
+            $agency_id = $this->agency_manager->create_or_update_agency_from_xml($xml_property['agency_data']);
+            
+            if ($agency_id) {
+                $this->logger->log('SUCCESS', 'Agency processed for property via Agency Manager', array(
+                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
+                    'agency_id' => $agency_id
+                ));
+                return $agency_id;
+            } else {
+                $this->logger->log('WARNING', 'No agency processed for property', array(
+                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown'
+                ));
+                return false;
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->log('ERROR', 'Error processing agency for property: ' . $e->getMessage());
+            return false;
+        }
     }
     
     /**

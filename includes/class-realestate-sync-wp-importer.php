@@ -55,9 +55,9 @@ class RealEstate_Sync_WP_Importer {
     private $image_importer;
     
     /**
-     * Media deduplicator instance
+     * Agency manager instance
      */
-    private $media_deduplicator;
+    private $agency_manager;
     
     /**
      * Current import session ID
@@ -82,10 +82,30 @@ class RealEstate_Sync_WP_Importer {
         // 🖼️ INITIALIZE IMAGE IMPORTER v1.0
         $this->image_importer = new RealEstate_Sync_Image_Importer($this->logger);
         
-        // 🆕 INITIALIZE MEDIA DEDUPLICATOR
-        $this->media_deduplicator = new RealEstate_Sync_Media_Deduplicator();
+        // 🏢 INITIALIZE AGENCY MANAGER v1.0
+        $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_importer();
+    }
+    
+    /**
+     * Process catasto data v3.0
+     */
+    private function process_catasto_v3($post_id, $catasto) {
+        if (empty($catasto)) {
+            return;
+        }
+        
+        foreach ($catasto as $key => $value) {
+            if ($value !== null && $value !== '') {
+                update_post_meta($post_id, $key, $value);
+            }
+        }
+        
+        $this->logger->log('Catasto processed v3.0', 'debug', [
+            'post_id' => $post_id,
+            'catasto_fields' => count($catasto)
+        ]);
     }
     
     /**
@@ -463,9 +483,26 @@ class RealEstate_Sync_WP_Importer {
             }
             
             if ($result['success']) {
+                // 🏢 ENHANCED v3.0: Process agency data if present
+                $agency_result = $this->process_agency_v3($mapped_property);
+                
                 // Process v3.0 specific features
                 $this->process_gallery_v3($result['post_id'], $mapped_property['gallery'] ?? []);
                 $this->process_catasto_v3($result['post_id'], $mapped_property['catasto'] ?? []);
+                
+                // 🔗 Agency association is handled by assign_agency_to_property in create/update methods
+                if ($agency_result['success']) {
+                    $this->logger->log('🔗 Agency association completed via property_agent field', 'info', [
+                        'property_id' => $result['post_id'],
+                        'agency_id' => $agency_result['agency_post_id'],
+                        'agency_name' => $agency_result['agency_name'] ?? 'Unknown'
+                    ]);
+                } else {
+                    $this->logger->log('🔗 No agency associated with property', 'debug', [
+                        'property_id' => $result['post_id'],
+                        'reason' => $agency_result['reason'] ?? 'unknown'
+                    ]);
+                }
             }
             
             return $result;
@@ -513,6 +550,9 @@ class RealEstate_Sync_WP_Importer {
         $this->assign_meta_fields($post_id, $mapped_property['meta_fields'] ?? []);
         $this->assign_taxonomies($post_id, $mapped_property['taxonomies'] ?? []);
         $this->assign_property_features_v3($post_id, $mapped_property['features'] ?? []);
+        
+        // 🏢 AGENCY ASSOCIATION: Direct property→agency mapping
+        $this->assign_agency_to_property($post_id, $mapped_property['source_data'] ?? []);
         
         // Set import metadata
         update_post_meta($post_id, 'property_import_id', $import_id);
@@ -581,6 +621,9 @@ class RealEstate_Sync_WP_Importer {
         $this->assign_meta_fields($post_id, $mapped_property['meta_fields'] ?? []);
         $this->assign_taxonomies($post_id, $mapped_property['taxonomies'] ?? []);
         $this->assign_property_features_v3($post_id, $mapped_property['features'] ?? []);
+        
+        // 🏢 AGENCY ASSOCIATION: Update property→agency mapping
+        $this->assign_agency_to_property($post_id, $mapped_property['source_data'] ?? []);
         
         // Update import metadata
         update_post_meta($post_id, 'property_import_hash', $mapped_property['content_hash'] ?? '');
@@ -667,8 +710,8 @@ class RealEstate_Sync_WP_Importer {
             'image_count' => count($gallery)
         ]);
         
-        // 🆕 ENHANCED: Use Media Deduplicator for optimized image processing
-        $image_result = $this->process_gallery_with_deduplication($post_id, $gallery);
+        // 🖼️ ENHANCED: Use Image Importer v1.0 for complete image processing
+        $image_result = $this->image_importer->process_property_images($post_id, $gallery);
         
         if ($image_result['success']) {
             $stats = $image_result['stats'];
@@ -680,9 +723,6 @@ class RealEstate_Sync_WP_Importer {
                 'failed' => $stats['failed_images'],
                 'featured_set' => $stats['featured_images_set'] > 0
             ]);
-            
-            // 🔧 GALLERY FIX: Apply WpResidence compatibility fixes
-            $this->apply_wpresidence_gallery_fixes($post_id, $image_result);
             
             // Update stats in main importer
             $this->stats['gallery_images_downloaded'] = ($this->stats['gallery_images_downloaded'] ?? 0) + $stats['downloaded_images'];
@@ -735,23 +775,56 @@ class RealEstate_Sync_WP_Importer {
     }
     
     /**
-     * Process catasto data v3.0
+     * Process agency data v3.0 - FIXED METHOD CALL
+     * 
+     * @param array $mapped_property Mapped property data with agency info
+     * @return array Agency processing result
      */
-    private function process_catasto_v3($post_id, $catasto) {
-        if (empty($catasto)) {
-            return;
+    private function process_agency_v3($mapped_property) {
+        // Check if agency data is present in source_data
+        if (empty($mapped_property['source_data']['agency_id'])) {
+            $this->logger->log('🏢 No agency ID in source_data for agency processing', 'debug', [
+                'property_id' => $mapped_property['source_data']['id'] ?? 'unknown'
+            ]);
+            return [
+                'success' => false,
+                'reason' => 'no_agency_id_in_source',
+                'agency_post_id' => null
+            ];
         }
         
-        foreach ($catasto as $key => $value) {
-            if ($value !== null && $value !== '') {
-                update_post_meta($post_id, $key, $value);
-            }
-        }
+        // Agency ID is already available from Property Mapper - use for verification only
+        $agency_id = $mapped_property['source_data']['agency_id'];
         
-        $this->logger->log('Catasto processed v3.0', 'debug', [
-            'post_id' => $post_id,
-            'catasto_fields' => count($catasto)
+        $this->logger->log('🏢 Agency already processed by Property Mapper', 'info', [
+            'agency_id' => $agency_id,
+            'property_id' => $mapped_property['source_data']['id'] ?? 'unknown'
         ]);
+        
+        // Verify agency exists
+        $agency_post = get_post($agency_id);
+        if (!$agency_post || $agency_post->post_type !== 'estate_agency') {
+            $this->logger->log('🏢 Agency ID not found in WordPress', 'error', [
+                'agency_id' => $agency_id
+            ]);
+            return [
+                'success' => false,
+                'reason' => 'agency_not_found_in_wp',
+                'agency_post_id' => null
+            ];
+        }
+        
+        $this->logger->log('🏢 Agency verified successfully', 'info', [
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_post->post_title
+        ]);
+        
+        return [
+            'success' => true,
+            'agency_post_id' => $agency_id,
+            'agency_name' => $agency_post->post_title,
+            'action' => 'verified'
+        ];
     }
     
     /**
@@ -772,6 +845,43 @@ class RealEstate_Sync_WP_Importer {
         ]);
         
         return !empty($posts) ? $posts[0] : null;
+    }
+    
+    /**
+     * Assign agency to property using direct property_agent mapping
+     * Uses unified dropdown approach - property_agent accepts agency IDs
+     * 
+     * @param int $post_id Property post ID
+     * @param array $source_data Source data containing agency_id
+     */
+    private function assign_agency_to_property($post_id, $source_data) {
+        if (empty($source_data['agency_id'])) {
+            $this->logger->log('🏢 No agency ID found in source data', 'debug', [
+                'property_id' => $post_id
+            ]);
+            return;
+        }
+        
+        $agency_id = $source_data['agency_id'];
+        
+        // Verify agency exists
+        $agency_post = get_post($agency_id);
+        if (!$agency_post || $agency_post->post_type !== 'estate_agency') {
+            $this->logger->log('🏢 Agency not found or invalid type', 'warning', [
+                'property_id' => $post_id,
+                'agency_id' => $agency_id
+            ]);
+            return;
+        }
+        
+        // Set property_agent meta field (unified dropdown)
+        update_post_meta($post_id, 'property_agent', $agency_id);
+        
+        $this->logger->log('🏢 Property associated with agency via property_agent', 'info', [
+            'property_id' => $post_id,
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_post->post_title
+        ]);
     }
     
     /**
@@ -863,172 +973,6 @@ class RealEstate_Sync_WP_Importer {
                 'property_county_state',
                 'property_features'
             ]
-        ];
-    }
-    
-    /**
-     * 🔧 Apply WpResidence Gallery Fixes - CRITICAL COMPATIBILITY
-     * 
-     * Fixes the 3 critical issues found via Property Comparison:
-     * 1. Gallery format: Convert comma string to serialized array
-     * 2. Slider type: Set local_pgpr_slider_type = "global"
-     * 3. Image attach: Set image_to_attach with correct format
-     */
-    private function apply_wpresidence_gallery_fixes($post_id, $image_result) {
-        $this->logger->log('🔧 GALLERY FIX: Applying WpResidence compatibility fixes', 'info', [
-            'post_id' => $post_id
-        ]);
-        
-        // Get current gallery meta (comma string format)
-        $gallery_meta = get_post_meta($post_id, 'wpestate_property_gallery', true);
-        
-        if (!empty($gallery_meta) && is_string($gallery_meta)) {
-            // 🔧 FIX 1: Convert comma string to serialized array
-            $gallery_ids = array_filter(explode(',', $gallery_meta));
-            
-            if (!empty($gallery_ids)) {
-                // Create serialized array format: a:N:{i:0;s:4:"ID1";i:1;s:4:"ID2";...}
-                $serialized_array = array();
-                foreach ($gallery_ids as $index => $id) {
-                    $serialized_array[$index] = trim($id);
-                }
-                
-                // Update with serialized format
-                update_post_meta($post_id, 'wpestate_property_gallery', $serialized_array);
-                
-                $this->logger->log('🔧 FIX 1: Gallery format converted to serialized array', 'info', [
-                    'post_id' => $post_id,
-                    'from' => $gallery_meta,
-                    'to' => 'serialized_array[' . count($gallery_ids) . ']',
-                    'ids' => $gallery_ids
-                ]);
-                
-                // 🔧 FIX 3: Set image_to_attach with trailing comma
-                $image_to_attach = implode(',', $gallery_ids) . ',';
-                update_post_meta($post_id, 'image_to_attach', $image_to_attach);
-                
-                $this->logger->log('🔧 FIX 3: image_to_attach set with trailing comma', 'info', [
-                    'post_id' => $post_id,
-                    'image_to_attach' => $image_to_attach
-                ]);
-            }
-        }
-        
-        // 🔧 FIX 2: Set slider type to "global"
-        update_post_meta($post_id, 'local_pgpr_slider_type', 'global');
-        
-        $this->logger->log('🔧 FIX 2: local_pgpr_slider_type set to global', 'info', [
-            'post_id' => $post_id
-        ]);
-        
-        // 🔧 ADDITIONAL FIXES: Set other missing meta fields found in comparison
-        $additional_fixes = [
-            'property_theme_slider' => '0',
-            'page_header_image_full_screen' => 'no',
-            'page_header_image_back_type' => 'cover'
-        ];
-        
-        foreach ($additional_fixes as $meta_key => $meta_value) {
-            update_post_meta($post_id, $meta_key, $meta_value);
-        }
-        
-        $this->logger->log('🔧 GALLERY FIXES COMPLETE: All WpResidence compatibility fixes applied', 'info', [
-            'post_id' => $post_id,
-            'fixes_applied' => [
-                'gallery_format' => 'comma_string_to_serialized_array',
-                'slider_type' => 'global',
-                'image_to_attach' => 'with_trailing_comma',
-                'additional_meta' => count($additional_fixes)
-            ]
-        ]);
-    }
-    
-    /**
-     * 🆕 Process gallery with Media Deduplicator
-     * 
-     * @param int $post_id WordPress post ID
-     * @param array $gallery Gallery data from XML
-     * @return array Processing results
-     */
-    private function process_gallery_with_deduplication($post_id, $gallery) {
-        if (empty($gallery)) {
-            return ['success' => true, 'stats' => ['downloaded_images' => 0, 'skipped_images' => 0, 'failed_images' => 0, 'featured_images_set' => 0]];
-        }
-        
-        $this->logger->log('🆕 Processing gallery with Media Deduplicator', 'info', [
-            'post_id' => $post_id,
-            'image_count' => count($gallery)
-        ]);
-        
-        $stats = [
-            'downloaded_images' => 0,
-            'skipped_images' => 0,
-            'failed_images' => 0,
-            'featured_images_set' => 0,
-            'deduplication_saves' => 0
-        ];
-        
-        $gallery_ids = [];
-        $featured_image_id = null;
-        
-        foreach ($gallery as $index => $image) {
-            if (empty($image['url'])) {
-                $stats['failed_images']++;
-                continue;
-            }
-            
-            // Import with deduplication
-            $attachment_id = $this->media_deduplicator->import_media_without_duplication(
-                $image['url'],
-                $post_id,
-                'property_image'
-            );
-            
-            if ($attachment_id) {
-                $gallery_ids[] = $attachment_id;
-                $stats['downloaded_images']++;
-                
-                // Set as featured if specified
-                if (($image['is_featured'] ?? false) && !$featured_image_id) {
-                    $featured_image_id = $attachment_id;
-                }
-                
-                // Set first image as featured if no featured specified
-                if ($index === 0 && !$featured_image_id) {
-                    $featured_image_id = $attachment_id;
-                }
-            } else {
-                $stats['failed_images']++;
-            }
-        }
-        
-        // Set featured image
-        if ($featured_image_id) {
-            set_post_thumbnail($post_id, $featured_image_id);
-            $stats['featured_images_set'] = 1;
-        }
-        
-        // Set gallery for WpResidence
-        if (!empty($gallery_ids)) {
-            // Store as comma-separated string (will be fixed by gallery fixes)
-            update_post_meta($post_id, 'wpestate_property_gallery', implode(',', $gallery_ids));
-        }
-        
-        // Get deduplication statistics
-        $dedup_stats = $this->media_deduplicator->get_deduplication_stats();
-        $stats['deduplication_saves'] = $dedup_stats['duplicate_prevention_ratio'];
-        
-        $this->logger->log('🆕 Gallery processed with Media Deduplicator', 'info', [
-            'post_id' => $post_id,
-            'downloaded' => $stats['downloaded_images'],
-            'failed' => $stats['failed_images'],
-            'featured_set' => $stats['featured_images_set'] > 0,
-            'deduplication_ratio' => $stats['deduplication_saves'] . '%'
-        ]);
-        
-        return [
-            'success' => true,
-            'stats' => $stats
         ];
     }
 }
