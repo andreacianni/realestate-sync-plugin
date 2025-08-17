@@ -1,481 +1,634 @@
 <?php
 /**
- * RealEstate Sync Plugin - Agency Manager v1.0
+ * RealEstate Sync Agency Manager
  * 
- * Gestisce la creazione e gestione delle agenzie immobiliari come Custom Post Type
- * Associa properties alle agenzie per il tema WpResidence
+ * Handles agency creation and management from XML data
+ * Direct mapping: XML agency data → WordPress estate_agency CPT
  * 
  * @package RealEstateSync
  * @version 1.0.0
- * @author Andrea Cianni - Novacom
+ * @since 1.1.0
  */
 
 if (!defined('ABSPATH')) {
-    exit('Direct access not allowed.');
+    exit;
 }
 
 class RealEstate_Sync_Agency_Manager {
     
+    /**
+     * Logger instance
+     */
     private $logger;
-    private $agency_post_type = 'estate_agent';
-    private $stats = [];
     
-    public function __construct($logger = null) {
-        $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
-        $this->init_stats();
-        $this->logger->log('🏢 Agency Manager v1.0 initialized', 'info');
-    }
+    /**
+     * Agency cache for session performance
+     */
+    private $agency_cache = array();
     
-    private function init_stats() {
-        $this->stats = [
-            'agencies_created' => 0,
-            'agencies_updated' => 0,
-            'agencies_skipped' => 0,
-            'agencies_failed' => 0,
-            'properties_linked' => 0
-        ];
+    /**
+     * Constructor
+     */
+    public function __construct() {
+        $this->logger = RealEstate_Sync_Logger::get_instance();
     }
     
     /**
-     * Process agency data and create/update agency post
+     * Create or update agency from XML property data
      * 
-     * @param array $agency_data Agency data from XML conversion
-     * @return array Processing result
+     * @param array $xml_property XML property data containing agency info
+     * @return int|false Agency ID on success, false on failure
      */
-    public function process_agency($agency_data) {
-        if (empty($agency_data['id'])) {
-            $this->stats['agencies_failed']++;
-            return [
-                'success' => false,
-                'error' => 'Agency ID missing'
-            ];
-        }
-        
+    public function create_or_update_agency_from_xml($xml_property) {
         try {
+            $this->logger->log('INFO', '🏢 AGENCY MANAGER: create_or_update_agency_from_xml called', array(
+                'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
+                'method' => 'create_or_update_agency_from_xml',
+                'timestamp' => current_time('mysql')
+            ));
+            
+            $this->logger->log('INFO', 'Processing agency from XML property', array(
+                'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown'
+            ));
+            
+            // Extract agency data from XML property
+            $agency_data = $this->extract_agency_data_from_xml($xml_property);
+            
+            if (empty($agency_data)) {
+                $this->logger->log('WARNING', 'No agency data found in XML property');
+                return false;
+            }
+            
             // Check if agency already exists
-            $existing_agency_id = $this->find_existing_agency($agency_data['id']);
+            $existing_agency_id = $this->find_existing_agency($agency_data);
             
             if ($existing_agency_id) {
-                $result = $this->update_agency($existing_agency_id, $agency_data);
-                if ($result['success']) {
-                    $this->stats['agencies_updated']++;
-                }
+                $this->logger->log('INFO', 'Updating existing agency', array(
+                    'agency_id' => $existing_agency_id,
+                    'agency_name' => $agency_data['name']
+                ));
+                return $this->update_agency($existing_agency_id, $agency_data);
             } else {
-                $result = $this->create_agency($agency_data);
-                if ($result['success']) {
-                    $this->stats['agencies_created']++;
-                }
+                $this->logger->log('INFO', 'Creating new agency', array(
+                    'agency_name' => $agency_data['name']
+                ));
+                return $this->create_agency($agency_data);
             }
-            
-            return $result;
             
         } catch (Exception $e) {
-            $this->stats['agencies_failed']++;
-            $this->logger->log('🏢 Agency processing failed: ' . $e->getMessage(), 'error', [
-                'agency_id' => $agency_data['id'],
-                'agency_name' => $agency_data['name'] ?? 'Unknown'
-            ]);
-            
-            return [
-                'success' => false,
-                'error' => $e->getMessage()
-            ];
+            $this->logger->log('ERROR', 'Error processing agency from XML: ' . $e->getMessage());
+            return false;
         }
     }
     
     /**
-     * Create new agency post
+     * Extract agency data from XML property
+     * 
+     * @param array $xml_property XML property data
+     * @return array Agency data array
+     */
+    private function extract_agency_data_from_xml($xml_property) {
+        // Extract agency information from XML property data
+        // Based on GestionaleImmobiliare.it XML structure
+        
+        $agency_data = array();
+        
+        // Agency basic info
+        $agency_data['name'] = $this->get_xml_value($xml_property, 'ragione_sociale');
+        $agency_data['xml_agency_id'] = $this->get_xml_value($xml_property, 'agenzia_id');
+        
+        // Contact information
+        $agency_data['address'] = $this->get_xml_value($xml_property, 'agenzia_indirizzo');
+        $agency_data['email'] = $this->get_xml_value($xml_property, 'agenzia_email');
+        $agency_data['phone'] = $this->get_xml_value($xml_property, 'agenzia_telefono');
+        $agency_data['mobile'] = $this->get_xml_value($xml_property, 'agenzia_cellulare');
+        $agency_data['website'] = $this->get_xml_value($xml_property, 'agenzia_sito_web');
+        
+        // Business information
+        $agency_data['license'] = $this->get_xml_value($xml_property, 'partita_iva');
+        $agency_data['vat_number'] = $this->get_xml_value($xml_property, 'partita_iva');
+        
+        // Location information
+        $agency_data['city'] = $this->get_xml_value($xml_property, 'agenzia_citta');
+        $agency_data['province'] = $this->get_xml_value($xml_property, 'agenzia_provincia');
+        $agency_data['zip_code'] = $this->get_xml_value($xml_property, 'agenzia_cap');
+        
+        // Additional contact info
+        $agency_data['fax'] = $this->get_xml_value($xml_property, 'agenzia_fax');
+        
+        // 🔍 DEBUG: Log tutti i campi che stiamo cercando vs quello che troviamo
+        $this->logger->log('DEBUG', 'Agency Manager field mapping attempt:', array(
+            'looking_for_ragione_sociale' => 'ragione_sociale',
+            'found_name' => $agency_data['name'],
+            'looking_for_agenzia_id' => 'agenzia_id', 
+            'found_xml_agency_id' => $agency_data['xml_agency_id'],
+            'available_keys' => array_keys($xml_property)
+        ));
+        
+        // ✅ VALIDATE REQUIRED FIELDS - ROBUST LOGIC
+        $missing_required = array();
+        
+        if (empty($agency_data['name'])) {
+            $missing_required[] = 'name (ragione_sociale)';
+        }
+        
+        if (empty($agency_data['xml_agency_id'])) {
+            $missing_required[] = 'id (identificativo univoco)';
+        }
+        
+        // 😨 STOP se mancano campi obbligatori
+        if (!empty($missing_required)) {
+            $this->logger->log('ERROR', 'Agency NOT created - Missing required fields: ' . implode(', ', $missing_required), array(
+                'available_data' => $xml_property
+            ));
+            return array();
+        }
+        
+        // ⚠️ VALIDATE OPTIONAL FIELDS - WARNING only
+        $missing_optional = array();
+        if (empty($agency_data['address'])) $missing_optional[] = 'address';
+        if (empty($agency_data['phone'])) $missing_optional[] = 'phone';
+        if (empty($agency_data['email'])) $missing_optional[] = 'email';
+        if (empty($agency_data['website'])) $missing_optional[] = 'website';
+        
+        if (!empty($missing_optional)) {
+            $this->logger->log('WARNING', 'Agency will be created but missing optional fields: ' . implode(', ', $missing_optional));
+        }
+        
+        // Clean and validate data
+        $agency_data = $this->sanitize_agency_data($agency_data);
+        
+        $this->logger->log('SUCCESS', 'Agency data extracted successfully', array(
+            'agency_name' => $agency_data['name'],
+            'agency_id' => $agency_data['xml_agency_id'],
+            'optional_fields_found' => count($agency_data) - 2
+        ));
+        
+        return $agency_data;
+    }
+    
+    /**
+     * Get value from XML array with fallback
+     * 
+     * @param array $xml_data XML data array
+     * @param string $key Key to search for
+     * @return string Value or empty string
+     */
+    private function get_xml_value($xml_data, $key) {
+        return isset($xml_data[$key]) ? trim((string)$xml_data[$key]) : '';
+    }
+    
+    /**
+     * Sanitize agency data
+     * 
+     * @param array $agency_data Raw agency data
+     * @return array Sanitized agency data
+     */
+    private function sanitize_agency_data($agency_data) {
+        $sanitized = array();
+        
+        // Sanitize each field
+        $sanitized['name'] = sanitize_text_field($agency_data['name']);
+        $sanitized['xml_agency_id'] = sanitize_text_field($agency_data['xml_agency_id']);
+        $sanitized['address'] = sanitize_textarea_field($agency_data['address']);
+        $sanitized['email'] = sanitize_email($agency_data['email']);
+        $sanitized['phone'] = sanitize_text_field($agency_data['phone']);
+        $sanitized['mobile'] = sanitize_text_field($agency_data['mobile']);
+        $sanitized['website'] = esc_url_raw($agency_data['website']);
+        $sanitized['license'] = sanitize_text_field($agency_data['license']);
+        $sanitized['vat_number'] = sanitize_text_field($agency_data['vat_number']);
+        $sanitized['city'] = sanitize_text_field($agency_data['city']);
+        $sanitized['province'] = sanitize_text_field($agency_data['province']);
+        $sanitized['zip_code'] = sanitize_text_field($agency_data['zip_code']);
+        $sanitized['fax'] = sanitize_text_field($agency_data['fax']);
+        
+        return $sanitized;
+    }
+    
+    /**
+     * Find existing agency by name or XML ID
      * 
      * @param array $agency_data Agency data
-     * @return array Creation result
+     * @return int|false Agency ID if found, false otherwise
+     */
+    private function find_existing_agency($agency_data) {
+        // Check cache first
+        $cache_key = md5($agency_data['name'] . $agency_data['xml_agency_id']);
+        if (isset($this->agency_cache[$cache_key])) {
+            return $this->agency_cache[$cache_key];
+        }
+        
+        $existing_agency_id = false;
+        
+        // Try to find by XML agency ID first (most accurate)
+        if (!empty($agency_data['xml_agency_id'])) {
+            $meta_query = array(
+                array(
+                    'key' => 'xml_agency_id',
+                    'value' => $agency_data['xml_agency_id'],
+                    'compare' => '='
+                )
+            );
+            
+            $query = new WP_Query(array(
+                'post_type' => 'estate_agency',
+                'post_status' => 'publish',
+                'meta_query' => $meta_query,
+                'posts_per_page' => 1,
+                'fields' => 'ids'
+            ));
+            
+            if ($query->have_posts()) {
+                $existing_agency_id = $query->posts[0];
+                $this->logger->log('DEBUG', 'Found existing agency by XML ID', array(
+                    'agency_id' => $existing_agency_id,
+                    'xml_agency_id' => $agency_data['xml_agency_id']
+                ));
+            }
+            
+            wp_reset_postdata();
+        }
+        
+        // If not found by XML ID, try by name
+        if (!$existing_agency_id && !empty($agency_data['name'])) {
+            $query = new WP_Query(array(
+                'post_type' => 'estate_agency',
+                'post_status' => 'publish',
+                'title' => $agency_data['name'],
+                'posts_per_page' => 1,
+                'fields' => 'ids'
+            ));
+            
+            if ($query->have_posts()) {
+                $existing_agency_id = $query->posts[0];
+                $this->logger->log('DEBUG', 'Found existing agency by name', array(
+                    'agency_id' => $existing_agency_id,
+                    'agency_name' => $agency_data['name']
+                ));
+            }
+            
+            wp_reset_postdata();
+        }
+        
+        // Cache result
+        if ($existing_agency_id) {
+            $this->agency_cache[$cache_key] = $existing_agency_id;
+        }
+        
+        return $existing_agency_id;
+    }
+    
+    /**
+     * Create new agency
+     * 
+     * @param array $agency_data Agency data
+     * @return int|false Agency ID on success, false on failure
      */
     private function create_agency($agency_data) {
-        $post_data = [
-            'post_type' => $this->agency_post_type,
+        // Prepare post data
+        $post_data = array(
+            'post_type' => 'estate_agency',
+            'post_title' => $agency_data['name'],
             'post_status' => 'publish',
-            'post_author' => 1,
-            'post_title' => $agency_data['name'],
-            'post_content' => $this->generate_agency_description($agency_data),
-            'post_name' => sanitize_title($agency_data['name'] . '-' . $agency_data['id']),
-            'comment_status' => 'closed',
-            'ping_status' => 'closed'
-        ];
+            'post_author' => 1, // Admin user
+            'meta_input' => $this->prepare_agency_meta_fields($agency_data)
+        );
         
-        $agency_post_id = wp_insert_post($post_data, true);
+        // Insert the post
+        $agency_id = wp_insert_post($post_data);
         
-        if (is_wp_error($agency_post_id)) {
-            return [
-                'success' => false,
-                'error' => 'Agency post creation failed: ' . $agency_post_id->get_error_message()
-            ];
-        }
-        
-        // Add agency meta fields
-        $this->assign_agency_meta_fields($agency_post_id, $agency_data);
-        
-        $this->logger->log('🏢 Agency created successfully', 'info', [
-            'agency_id' => $agency_data['id'],
-            'agency_name' => $agency_data['name'],
-            'post_id' => $agency_post_id
-        ]);
-        
-        return [
-            'success' => true,
-            'action' => 'created',
-            'post_id' => $agency_post_id,
-            'message' => 'Agency created successfully'
-        ];
-    }
-    
-    /**
-     * Update existing agency post
-     * 
-     * @param int $agency_post_id WordPress post ID
-     * @param array $agency_data New agency data
-     * @return array Update result
-     */
-    private function update_agency($agency_post_id, $agency_data) {
-        // Check if content has changed
-        $existing_hash = get_post_meta($agency_post_id, 'agency_content_hash', true);
-        $new_hash = $this->generate_agency_hash($agency_data);
-        
-        if ($existing_hash === $new_hash) {
-            $this->stats['agencies_skipped']++;
-            $this->logger->log('🏢 Agency content unchanged - skipping update', 'debug', [
-                'agency_id' => $agency_data['id'],
-                'post_id' => $agency_post_id
-            ]);
-            
-            return [
-                'success' => true,
-                'action' => 'skipped',
-                'post_id' => $agency_post_id,
-                'message' => 'No changes detected'
-            ];
-        }
-        
-        $post_data = [
-            'ID' => $agency_post_id,
-            'post_title' => $agency_data['name'],
-            'post_content' => $this->generate_agency_description($agency_data)
-        ];
-        
-        $result = wp_update_post($post_data, true);
-        
-        if (is_wp_error($result)) {
-            return [
-                'success' => false,
-                'error' => 'Agency post update failed: ' . $result->get_error_message()
-            ];
-        }
-        
-        // Update agency meta fields
-        $this->assign_agency_meta_fields($agency_post_id, $agency_data);
-        
-        // Update content hash
-        update_post_meta($agency_post_id, 'agency_content_hash', $new_hash);
-        
-        $this->logger->log('🏢 Agency updated successfully', 'info', [
-            'agency_id' => $agency_data['id'],
-            'agency_name' => $agency_data['name'],
-            'post_id' => $agency_post_id
-        ]);
-        
-        return [
-            'success' => true,
-            'action' => 'updated',
-            'post_id' => $agency_post_id,
-            'message' => 'Agency updated successfully'
-        ];
-    }
-    
-    /**
-     * Assign meta fields to agency post
-     * 
-     * @param int $agency_post_id WordPress post ID
-     * @param array $agency_data Agency data
-     */
-    private function assign_agency_meta_fields($agency_post_id, $agency_data) {
-        $meta_fields = [
-            // WpResidence standard fields
-            'agent_position' => 'Agenzia Immobiliare',
-            'agent_mobile' => $agency_data['phone'] ?? '',
-            'agent_phone' => $agency_data['phone'] ?? '',
-            'agent_email' => $agency_data['email'] ?? '',
-            'agent_website' => $agency_data['website'] ?? '',
-            'agent_address' => $agency_data['address'] ?? '',
-            'agent_skype' => '',
-            'agent_facebook' => '',
-            'agent_twitter' => '',
-            'agent_linkedin' => '',
-            'agent_instagram' => '',
-            'agent_pinterest' => '',
-            
-            // Custom import fields
-            'agency_import_id' => $agency_data['id'],
-            'agency_import_source' => 'GestionaleImmobiliare',
-            'agency_import_date' => current_time('mysql'),
-            'agency_content_hash' => $this->generate_agency_hash($agency_data),
-            'agency_logo_url' => $agency_data['logo_url'] ?? '',
-            
-            // Statistics fields
-            'agency_total_properties' => 0, // Will be updated when properties are linked
-            'agency_last_property_sync' => current_time('mysql')
-        ];
-        
-        foreach ($meta_fields as $meta_key => $meta_value) {
-            if ($meta_value !== null && $meta_value !== '') {
-                update_post_meta($agency_post_id, $meta_key, $meta_value);
-            }
-        }
-        
-        // Handle agency logo if URL provided
-        if (!empty($agency_data['logo_url'])) {
-            $this->process_agency_logo($agency_post_id, $agency_data['logo_url']);
-        }
-    }
-    
-    /**
-     * Process agency logo from URL
-     * 
-     * @param int $agency_post_id WordPress post ID
-     * @param string $logo_url Logo URL
-     */
-    private function process_agency_logo($agency_post_id, $logo_url) {
-        // Simple implementation - store URL for now
-        // Could be enhanced to download and store logo locally
-        update_post_meta($agency_post_id, 'agent_logo_url', $logo_url);
-        
-        $this->logger->log('🏢 Agency logo URL stored', 'debug', [
-            'post_id' => $agency_post_id,
-            'logo_url' => $logo_url
-        ]);
-    }
-    
-    /**
-     * Link property to agency
-     * 
-     * @param int $property_post_id Property post ID
-     * @param int $agency_post_id Agency post ID
-     * @return bool Success status
-     */
-    public function link_property_to_agency($property_post_id, $agency_post_id) {
-        if (empty($property_post_id) || empty($agency_post_id)) {
+        if (is_wp_error($agency_id)) {
+            $this->logger->log('ERROR', 'Failed to create agency: ' . $agency_id->get_error_message());
             return false;
         }
         
-        // Set property agent field (WpResidence standard)
-        update_post_meta($property_post_id, 'property_agent', $agency_post_id);
-        
-        // Update agency statistics
-        $this->update_agency_property_count($agency_post_id);
-        
-        $this->stats['properties_linked']++;
-        
-        $this->logger->log('🔗 Property linked to agency', 'debug', [
-            'property_id' => $property_post_id,
-            'agency_id' => $agency_post_id
-        ]);
-        
-        return true;
-    }
-    
-    /**
-     * Update agency property count
-     * 
-     * @param int $agency_post_id Agency post ID
-     */
-    private function update_agency_property_count($agency_post_id) {
-        // Count properties linked to this agency
-        $property_count = $this->count_agency_properties($agency_post_id);
-        
-        update_post_meta($agency_post_id, 'agency_total_properties', $property_count);
-        update_post_meta($agency_post_id, 'agency_last_property_sync', current_time('mysql'));
-    }
-    
-    /**
-     * Count properties linked to agency
-     * 
-     * @param int $agency_post_id Agency post ID
-     * @return int Property count
-     */
-    private function count_agency_properties($agency_post_id) {
-        $properties = get_posts([
-            'post_type' => 'estate_property',
-            'meta_query' => [
-                [
-                    'key' => 'property_agent',
-                    'value' => $agency_post_id,
-                    'compare' => '='
-                ]
-            ],
-            'posts_per_page' => -1,
-            'fields' => 'ids'
-        ]);
-        
-        return count($properties);
-    }
-    
-    /**
-     * Find existing agency by import ID
-     * 
-     * @param string $agency_import_id Agency import ID
-     * @return int|null Agency post ID or null
-     */
-    private function find_existing_agency($agency_import_id) {
-        $agencies = get_posts([
-            'post_type' => $this->agency_post_type,
-            'meta_query' => [
-                [
-                    'key' => 'agency_import_id',
-                    'value' => $agency_import_id,
-                    'compare' => '='
-                ]
-            ],
-            'posts_per_page' => 1,
-            'fields' => 'ids'
-        ]);
-        
-        return !empty($agencies) ? $agencies[0] : null;
-    }
-    
-    /**
-     * Generate agency description
-     * 
-     * @param array $agency_data Agency data
-     * @return string Agency description
-     */
-    private function generate_agency_description($agency_data) {
-        $description = "Agenzia immobiliare " . $agency_data['name'];
-        
-        if (!empty($agency_data['address'])) {
-            $description .= " con sede in " . $agency_data['address'];
+        if (!$agency_id) {
+            $this->logger->log('ERROR', 'Failed to create agency - wp_insert_post returned 0');
+            return false;
         }
         
-        $description .= ". Specializzata nella vendita e affitto di immobili in Trentino Alto Adige.";
+        $this->logger->log('SUCCESS', 'Created new agency', array(
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_data['name']
+        ));
+        
+        // Cache the new agency
+        $cache_key = md5($agency_data['name'] . $agency_data['xml_agency_id']);
+        $this->agency_cache[$cache_key] = $agency_id;
+        
+        return $agency_id;
+    }
+    
+    /**
+     * Update existing agency
+     * 
+     * @param int $agency_id Agency ID
+     * @param array $agency_data Agency data
+     * @return int|false Agency ID on success, false on failure
+     */
+    private function update_agency($agency_id, $agency_data) {
+        // Update post data
+        $post_data = array(
+            'ID' => $agency_id,
+            'post_title' => $agency_data['name'],
+            'post_modified' => current_time('mysql'),
+        );
+        
+        // Update the post
+        $result = wp_update_post($post_data);
+        
+        if (is_wp_error($result)) {
+            $this->logger->log('ERROR', 'Failed to update agency: ' . $result->get_error_message());
+            return false;
+        }
+        
+        // Update meta fields
+        $meta_fields = $this->prepare_agency_meta_fields($agency_data);
+        foreach ($meta_fields as $meta_key => $meta_value) {
+            update_post_meta($agency_id, $meta_key, $meta_value);
+        }
+        
+        $this->logger->log('SUCCESS', 'Updated agency', array(
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_data['name']
+        ));
+        
+        return $agency_id;
+    }
+    
+    /**
+     * Prepare WpResidence agency meta fields
+     * 
+     * @param array $agency_data Agency data
+     * @return array Meta fields array
+     */
+    private function prepare_agency_meta_fields($agency_data) {
+        $meta_fields = array();
+        
+        // XML tracking field
+        if (!empty($agency_data['xml_agency_id'])) {
+            $meta_fields['xml_agency_id'] = $agency_data['xml_agency_id'];
+        }
+        
+        // WpResidence agency meta fields mapping
+        if (!empty($agency_data['address'])) {
+            $meta_fields['agency_address'] = $agency_data['address'];
+        }
+        
+        if (!empty($agency_data['email'])) {
+            $meta_fields['agency_email'] = $agency_data['email'];
+        }
+        
+        if (!empty($agency_data['phone'])) {
+            $meta_fields['agency_phone'] = $agency_data['phone'];
+        }
+        
+        if (!empty($agency_data['mobile'])) {
+            $meta_fields['agency_mobile'] = $agency_data['mobile'];
+        }
         
         if (!empty($agency_data['website'])) {
-            $description .= " Visita il nostro sito web: " . $agency_data['website'];
+            $meta_fields['agency_website'] = $agency_data['website'];
         }
         
-        return $description;
-    }
-    
-    /**
-     * Generate agency content hash for change detection
-     * 
-     * @param array $agency_data Agency data
-     * @return string Content hash
-     */
-    private function generate_agency_hash($agency_data) {
-        $hash_fields = ['id', 'name', 'address', 'phone', 'email', 'website', 'logo_url'];
-        $hash_data = [];
-        
-        foreach ($hash_fields as $field) {
-            $hash_data[$field] = $agency_data[$field] ?? '';
+        if (!empty($agency_data['license'])) {
+            $meta_fields['agency_license'] = $agency_data['license'];
         }
         
-        return md5(serialize($hash_data));
+        if (!empty($agency_data['city'])) {
+            $meta_fields['agency_city'] = $agency_data['city'];
+        }
+        
+        if (!empty($agency_data['province'])) {
+            $meta_fields['agency_state'] = $agency_data['province'];
+        }
+        
+        if (!empty($agency_data['zip_code'])) {
+            $meta_fields['agency_zip'] = $agency_data['zip_code'];
+        }
+        
+        if (!empty($agency_data['fax'])) {
+            $meta_fields['agency_fax'] = $agency_data['fax'];
+        }
+        
+        // Additional WpResidence fields with defaults
+        $meta_fields['agency_languages'] = 'Italiano';
+        $meta_fields['agency_skype'] = '';
+        $meta_fields['agency_facebook'] = '';
+        $meta_fields['agency_twitter'] = '';
+        $meta_fields['agency_linkedin'] = '';
+        $meta_fields['agency_pinterest'] = '';
+        $meta_fields['agency_instagram'] = '';
+        
+        // Last import timestamp
+        $meta_fields['last_xml_import'] = current_time('timestamp');
+        
+        $this->logger->log('DEBUG', 'Prepared agency meta fields', array(
+            'fields_count' => count($meta_fields),
+            'agency_email' => isset($meta_fields['agency_email']) ? $meta_fields['agency_email'] : 'not_set'
+        ));
+        
+        return $meta_fields;
     }
     
     /**
-     * Get agency manager statistics
+     * Get agency by XML ID
      * 
-     * @return array Statistics
+     * @param string $xml_agency_id XML agency ID
+     * @return int|false Agency ID if found, false otherwise
      */
-    public function get_stats() {
-        return $this->stats;
-    }
-    
-    /**
-     * Reset statistics
-     */
-    public function reset_stats() {
-        $this->init_stats();
-    }
-    
-    /**
-     * Get all agencies
-     * 
-     * @return array Agency posts
-     */
-    public function get_all_agencies() {
-        return get_posts([
-            'post_type' => $this->agency_post_type,
+    public function get_agency_by_xml_id($xml_agency_id) {
+        if (empty($xml_agency_id)) {
+            return false;
+        }
+        
+        $meta_query = array(
+            array(
+                'key' => 'xml_agency_id',
+                'value' => $xml_agency_id,
+                'compare' => '='
+            )
+        );
+        
+        $query = new WP_Query(array(
+            'post_type' => 'estate_agency',
             'post_status' => 'publish',
-            'posts_per_page' => -1,
-            'orderby' => 'title',
-            'order' => 'ASC'
-        ]);
+            'meta_query' => $meta_query,
+            'posts_per_page' => 1,
+            'fields' => 'ids'
+        ));
+        
+        $agency_id = $query->have_posts() ? $query->posts[0] : false;
+        wp_reset_postdata();
+        
+        return $agency_id;
     }
     
     /**
-     * Get agency by import ID
+     * Bulk process agencies from XML properties array
      * 
-     * @param string $agency_import_id Agency import ID
-     * @return WP_Post|null Agency post or null
+     * @param array $xml_properties Array of XML properties
+     * @return array Array of results with agency IDs
      */
-    public function get_agency_by_import_id($agency_import_id) {
-        $agency_post_id = $this->find_existing_agency($agency_import_id);
+    public function bulk_process_agencies($xml_properties) {
+        $results = array();
+        $processed_agencies = array();
         
-        if ($agency_post_id) {
-            return get_post($agency_post_id);
-        }
+        $this->logger->log('INFO', 'Starting bulk agency processing', array(
+            'properties_count' => count($xml_properties)
+        ));
         
-        return null;
-    }
-    
-    /**
-     * Delete orphaned agencies (agencies without properties)
-     * 
-     * @return int Number of deleted agencies
-     */
-    public function cleanup_orphaned_agencies() {
-        $agencies = $this->get_all_agencies();
-        $deleted_count = 0;
-        
-        foreach ($agencies as $agency) {
-            $property_count = $this->count_agency_properties($agency->ID);
+        foreach ($xml_properties as $index => $xml_property) {
+            // Extract agency data
+            $agency_data = $this->extract_agency_data_from_xml($xml_property);
             
-            if ($property_count === 0) {
-                // Check if agency was imported (has import_id)
-                $import_id = get_post_meta($agency->ID, 'agency_import_id', true);
-                
-                if (!empty($import_id)) {
-                    wp_delete_post($agency->ID, true);
-                    $deleted_count++;
-                    
-                    $this->logger->log('🏢 Orphaned agency deleted', 'info', [
-                        'agency_id' => $agency->ID,
-                        'agency_name' => $agency->post_title,
-                        'import_id' => $import_id
-                    ]);
-                }
+            if (empty($agency_data) || empty($agency_data['name'])) {
+                $results[$index] = array(
+                    'success' => false,
+                    'agency_id' => false,
+                    'message' => 'No valid agency data found'
+                );
+                continue;
+            }
+            
+            // Check if we already processed this agency in this batch
+            $agency_key = md5($agency_data['name'] . $agency_data['xml_agency_id']);
+            if (isset($processed_agencies[$agency_key])) {
+                $results[$index] = array(
+                    'success' => true,
+                    'agency_id' => $processed_agencies[$agency_key],
+                    'message' => 'Agency already processed in this batch'
+                );
+                continue;
+            }
+            
+            // Process the agency
+            $agency_id = $this->create_or_update_agency_from_xml($xml_property);
+            
+            if ($agency_id) {
+                $processed_agencies[$agency_key] = $agency_id;
+                $results[$index] = array(
+                    'success' => true,
+                    'agency_id' => $agency_id,
+                    'message' => 'Agency processed successfully'
+                );
+            } else {
+                $results[$index] = array(
+                    'success' => false,
+                    'agency_id' => false,
+                    'message' => 'Failed to process agency'
+                );
             }
         }
         
-        return $deleted_count;
+        $successful_count = count(array_filter($results, function($result) {
+            return $result['success'];
+        }));
+        
+        $this->logger->log('INFO', 'Completed bulk agency processing', array(
+            'total_properties' => count($xml_properties),
+            'successful_agencies' => $successful_count,
+            'unique_agencies' => count($processed_agencies)
+        ));
+        
+        return $results;
     }
     
     /**
-     * Get version and capabilities
+     * Get agency statistics
      * 
-     * @return array Version info
+     * @return array Agency statistics
      */
-    public function get_version_info() {
-        return [
-            'version' => '1.0.0',
-            'capabilities' => [
-                'agency_creation' => true,
-                'agency_updates' => true,
-                'property_linking' => true,
-                'change_detection' => true,
-                'logo_processing' => true,
-                'statistics_tracking' => true,
-                'orphan_cleanup' => true
-            ],
-            'supported_post_type' => $this->agency_post_type,
-            'wpresidence_integration' => true
-        ];
+    public function get_agency_statistics() {
+        // Total agencies
+        $total_agencies = wp_count_posts('estate_agency');
+        
+        // Agencies with XML ID (imported from XML)
+        $xml_agencies_query = new WP_Query(array(
+            'post_type' => 'estate_agency',
+            'post_status' => 'publish',
+            'meta_query' => array(
+                array(
+                    'key' => 'xml_agency_id',
+                    'compare' => 'EXISTS'
+                )
+            ),
+            'posts_per_page' => -1,
+            'fields' => 'ids'
+        ));
+        
+        $xml_agencies_count = $xml_agencies_query->found_posts;
+        wp_reset_postdata();
+        
+        return array(
+            'total_agencies' => $total_agencies->publish,
+            'xml_imported_agencies' => $xml_agencies_count,
+            'manual_agencies' => $total_agencies->publish - $xml_agencies_count
+        );
+    }
+    
+    /**
+     * Clean orphaned agencies (agencies not associated with any property)
+     * 
+     * @return array Cleanup results
+     */
+    public function clean_orphaned_agencies() {
+        $this->logger->log('INFO', 'Starting orphaned agencies cleanup');
+        
+        $cleanup_results = array(
+            'checked' => 0,
+            'orphaned' => 0,
+            'deleted' => 0,
+            'errors' => 0
+        );
+        
+        // Get all agencies
+        $agencies_query = new WP_Query(array(
+            'post_type' => 'estate_agency',
+            'post_status' => 'publish',
+            'posts_per_page' => -1,
+            'fields' => 'ids'
+        ));
+        
+        $cleanup_results['checked'] = $agencies_query->found_posts;
+        
+        foreach ($agencies_query->posts as $agency_id) {
+            // Check if agency has associated properties
+            $properties_query = new WP_Query(array(
+                'post_type' => 'estate_property',
+                'post_status' => 'publish',
+                'meta_query' => array(
+                    array(
+                        'key' => 'property_agent',
+                        'value' => $agency_id,
+                        'compare' => '='
+                    )
+                ),
+                'posts_per_page' => 1,
+                'fields' => 'ids'
+            ));
+            
+            if (!$properties_query->have_posts()) {
+                $cleanup_results['orphaned']++;
+                
+                // Delete orphaned agency
+                $deleted = wp_delete_post($agency_id, true);
+                if ($deleted) {
+                    $cleanup_results['deleted']++;
+                } else {
+                    $cleanup_results['errors']++;
+                }
+            }
+            
+            wp_reset_postdata();
+        }
+        
+        wp_reset_postdata();
+        
+        $this->logger->log('INFO', 'Completed orphaned agencies cleanup', $cleanup_results);
+        
+        return $cleanup_results;
     }
 }
+
+// End of class

@@ -107,7 +107,8 @@ class RealEstate_Sync_Import_Engine {
             'longitude' => floatval($property_data['longitude'] ?? 0),
             'description' => $property_data['description'] ?? '',
             'abstract' => substr($property_data['description'] ?? '', 0, 200),
-            'seo_title' => $property_data['title'] ?? '',
+            'title' => $property_data['title'] ?? '', // 🎯 FIX: Use 'title' not 'seo_title'
+            'seo_title' => $property_data['title'] ?? '', // Keep for compatibility
             'info_inserite' => $info_inserite,
             'dati_inseriti' => $dati_inseriti,
             'file_allegati' => $media_files, // 🖼️ Complete media structure

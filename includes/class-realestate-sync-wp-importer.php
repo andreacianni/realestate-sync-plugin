@@ -83,7 +83,7 @@ class RealEstate_Sync_WP_Importer {
         $this->image_importer = new RealEstate_Sync_Image_Importer($this->logger);
         
         // 🏢 INITIALIZE AGENCY MANAGER v1.0
-        $this->agency_manager = new RealEstate_Sync_Agency_Manager($this->logger);
+        $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_importer();
     }
@@ -490,13 +490,17 @@ class RealEstate_Sync_WP_Importer {
                 $this->process_gallery_v3($result['post_id'], $mapped_property['gallery'] ?? []);
                 $this->process_catasto_v3($result['post_id'], $mapped_property['catasto'] ?? []);
                 
-                // 🔗 Link property to agency if agency was processed successfully
-                if ($agency_result['success'] && $agency_result['agency_post_id']) {
-                    $this->agency_manager->link_property_to_agency($result['post_id'], $agency_result['agency_post_id']);
-                    $this->logger->log('🔗 Property linked to agency successfully', 'info', [
+                // 🔗 Agency association is handled by assign_agency_to_property in create/update methods
+                if ($agency_result['success']) {
+                    $this->logger->log('🔗 Agency association completed via property_agent field', 'info', [
                         'property_id' => $result['post_id'],
                         'agency_id' => $agency_result['agency_post_id'],
                         'agency_name' => $agency_result['agency_name'] ?? 'Unknown'
+                    ]);
+                } else {
+                    $this->logger->log('🔗 No agency associated with property', 'debug', [
+                        'property_id' => $result['post_id'],
+                        'reason' => $agency_result['reason'] ?? 'unknown'
                     ]);
                 }
             }
@@ -546,6 +550,9 @@ class RealEstate_Sync_WP_Importer {
         $this->assign_meta_fields($post_id, $mapped_property['meta_fields'] ?? []);
         $this->assign_taxonomies($post_id, $mapped_property['taxonomies'] ?? []);
         $this->assign_property_features_v3($post_id, $mapped_property['features'] ?? []);
+        
+        // 🏢 AGENCY ASSOCIATION: Direct property→agency mapping
+        $this->assign_agency_to_property($post_id, $mapped_property['source_data'] ?? []);
         
         // Set import metadata
         update_post_meta($post_id, 'property_import_id', $import_id);
@@ -614,6 +621,9 @@ class RealEstate_Sync_WP_Importer {
         $this->assign_meta_fields($post_id, $mapped_property['meta_fields'] ?? []);
         $this->assign_taxonomies($post_id, $mapped_property['taxonomies'] ?? []);
         $this->assign_property_features_v3($post_id, $mapped_property['features'] ?? []);
+        
+        // 🏢 AGENCY ASSOCIATION: Update property→agency mapping
+        $this->assign_agency_to_property($post_id, $mapped_property['source_data'] ?? []);
         
         // Update import metadata
         update_post_meta($post_id, 'property_import_hash', $mapped_property['content_hash'] ?? '');
@@ -765,71 +775,56 @@ class RealEstate_Sync_WP_Importer {
     }
     
     /**
-     * Process agency data v3.0 - NEW ENHANCED FEATURE
+     * Process agency data v3.0 - FIXED METHOD CALL
      * 
      * @param array $mapped_property Mapped property data with agency info
      * @return array Agency processing result
      */
     private function process_agency_v3($mapped_property) {
-        // Check if agency data is present
-        if (empty($mapped_property['source_data']['agency_data'])) {
+        // Check if agency data is present in source_data
+        if (empty($mapped_property['source_data']['agency_id'])) {
+            $this->logger->log('🏢 No agency ID in source_data for agency processing', 'debug', [
+                'property_id' => $mapped_property['source_data']['id'] ?? 'unknown'
+            ]);
             return [
                 'success' => false,
-                'reason' => 'no_agency_data',
+                'reason' => 'no_agency_id_in_source',
                 'agency_post_id' => null
             ];
         }
         
-        $agency_data = $mapped_property['source_data']['agency_data'];
+        // Agency ID is already available from Property Mapper - use for verification only
+        $agency_id = $mapped_property['source_data']['agency_id'];
         
-        $this->logger->log('🏢 Processing agency data v3.0', 'info', [
-            'agency_id' => $agency_data['id'] ?? 'unknown',
-            'agency_name' => $agency_data['name'] ?? 'unknown',
+        $this->logger->log('🏢 Agency already processed by Property Mapper', 'info', [
+            'agency_id' => $agency_id,
             'property_id' => $mapped_property['source_data']['id'] ?? 'unknown'
         ]);
         
-        try {
-            $result = $this->agency_manager->process_agency($agency_data);
-            
-            if ($result['success']) {
-                $this->logger->log('🏢 Agency processed successfully v3.0', 'info', [
-                    'agency_id' => $agency_data['id'],
-                    'agency_name' => $agency_data['name'],
-                    'agency_post_id' => $result['post_id'],
-                    'action' => $result['action']
-                ]);
-                
-                return [
-                    'success' => true,
-                    'agency_post_id' => $result['post_id'],
-                    'agency_name' => $agency_data['name'],
-                    'action' => $result['action']
-                ];
-            } else {
-                $this->logger->log('🏢 Agency processing failed v3.0', 'warning', [
-                    'agency_id' => $agency_data['id'],
-                    'error' => $result['error']
-                ]);
-                
-                return [
-                    'success' => false,
-                    'reason' => $result['error'],
-                    'agency_post_id' => null
-                ];
-            }
-            
-        } catch (Exception $e) {
-            $this->logger->log('🏢 Agency processing exception v3.0', 'error', [
-                'agency_id' => $agency_data['id'],
-                'error' => $e->getMessage()
+        // Verify agency exists
+        $agency_post = get_post($agency_id);
+        if (!$agency_post || $agency_post->post_type !== 'estate_agency') {
+            $this->logger->log('🏢 Agency ID not found in WordPress', 'error', [
+                'agency_id' => $agency_id
             ]);
-            
             return [
                 'success' => false,
-                'reason' => $e->getMessage(),
+                'reason' => 'agency_not_found_in_wp',
                 'agency_post_id' => null
             ];
         }
+        
+        $this->logger->log('🏢 Agency verified successfully', 'info', [
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_post->post_title
+        ]);
+        
+        return [
+            'success' => true,
+            'agency_post_id' => $agency_id,
+            'agency_name' => $agency_post->post_title,
+            'action' => 'verified'
+        ];
     }
     
     /**
@@ -850,6 +845,43 @@ class RealEstate_Sync_WP_Importer {
         ]);
         
         return !empty($posts) ? $posts[0] : null;
+    }
+    
+    /**
+     * Assign agency to property using direct property_agent mapping
+     * Uses unified dropdown approach - property_agent accepts agency IDs
+     * 
+     * @param int $post_id Property post ID
+     * @param array $source_data Source data containing agency_id
+     */
+    private function assign_agency_to_property($post_id, $source_data) {
+        if (empty($source_data['agency_id'])) {
+            $this->logger->log('🏢 No agency ID found in source data', 'debug', [
+                'property_id' => $post_id
+            ]);
+            return;
+        }
+        
+        $agency_id = $source_data['agency_id'];
+        
+        // Verify agency exists
+        $agency_post = get_post($agency_id);
+        if (!$agency_post || $agency_post->post_type !== 'estate_agency') {
+            $this->logger->log('🏢 Agency not found or invalid type', 'warning', [
+                'property_id' => $post_id,
+                'agency_id' => $agency_id
+            ]);
+            return;
+        }
+        
+        // Set property_agent meta field (unified dropdown)
+        update_post_meta($post_id, 'property_agent', $agency_id);
+        
+        $this->logger->log('🏢 Property associated with agency via property_agent', 'info', [
+            'property_id' => $post_id,
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_post->post_title
+        ]);
     }
     
     /**
