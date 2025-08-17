@@ -88,39 +88,40 @@ class RealEstate_Sync_Agency_Manager {
      * @return array Agency data array
      */
     private function extract_agency_data_from_xml($xml_property) {
-        // Extract agency information from XML property data
-        // Based on GestionaleImmobiliare.it XML structure
+        // Extract agency information from converted agency data
+        // Data comes already converted from Import Engine v3.0
         
         $agency_data = array();
         
-        // Agency basic info
-        $agency_data['name'] = $this->get_xml_value($xml_property, 'ragione_sociale');
-        $agency_data['xml_agency_id'] = $this->get_xml_value($xml_property, 'agenzia_id');
+        // 🆕 UPDATED FIELD MAPPING: Use converted field names, not original XML names
+        $agency_data['name'] = $this->get_xml_value($xml_property, 'name');
+        $agency_data['xml_agency_id'] = $this->get_xml_value($xml_property, 'id');
         
-        // Contact information
-        $agency_data['address'] = $this->get_xml_value($xml_property, 'agenzia_indirizzo');
-        $agency_data['email'] = $this->get_xml_value($xml_property, 'agenzia_email');
-        $agency_data['phone'] = $this->get_xml_value($xml_property, 'agenzia_telefono');
-        $agency_data['mobile'] = $this->get_xml_value($xml_property, 'agenzia_cellulare');
-        $agency_data['website'] = $this->get_xml_value($xml_property, 'agenzia_sito_web');
+        // Contact information - using converted field names
+        $agency_data['address'] = $this->get_xml_value($xml_property, 'address');
+        $agency_data['email'] = $this->get_xml_value($xml_property, 'email');
+        $agency_data['phone'] = $this->get_xml_value($xml_property, 'phone');
+        $agency_data['mobile'] = $this->get_xml_value($xml_property, 'mobile');
+        $agency_data['website'] = $this->get_xml_value($xml_property, 'website');
         
-        // Business information
-        $agency_data['license'] = $this->get_xml_value($xml_property, 'partita_iva');
-        $agency_data['vat_number'] = $this->get_xml_value($xml_property, 'partita_iva');
+        // Business information - using converted field names
+        $agency_data['license'] = $this->get_xml_value($xml_property, 'vat_number');
+        $agency_data['vat_number'] = $this->get_xml_value($xml_property, 'vat_number');
         
-        // Location information
-        $agency_data['city'] = $this->get_xml_value($xml_property, 'agenzia_citta');
-        $agency_data['province'] = $this->get_xml_value($xml_property, 'agenzia_provincia');
-        $agency_data['zip_code'] = $this->get_xml_value($xml_property, 'agenzia_cap');
+        // Location information - using converted field names
+        $agency_data['city'] = $this->get_xml_value($xml_property, 'city');
+        $agency_data['province'] = $this->get_xml_value($xml_property, 'province');
+        $agency_data['zip_code'] = $this->get_xml_value($xml_property, 'zip_code');
         
         // Additional contact info
-        $agency_data['fax'] = $this->get_xml_value($xml_property, 'agenzia_fax');
+        $agency_data['contact_person'] = $this->get_xml_value($xml_property, 'contact_person');
+        $agency_data['logo_url'] = $this->get_xml_value($xml_property, 'logo_url');
         
         // 🔍 DEBUG: Log tutti i campi che stiamo cercando vs quello che troviamo
         $this->logger->log('DEBUG', 'Agency Manager field mapping attempt:', array(
-            'looking_for_ragione_sociale' => 'ragione_sociale',
+            'looking_for_name' => 'name',
             'found_name' => $agency_data['name'],
-            'looking_for_agenzia_id' => 'agenzia_id', 
+            'looking_for_id' => 'id', 
             'found_xml_agency_id' => $agency_data['xml_agency_id'],
             'available_keys' => array_keys($xml_property)
         ));
