@@ -31,8 +31,8 @@ $import_stats = $tracking_manager->get_import_statistics();
         <a href="#dashboard" class="nav-tab nav-tab-active" data-tab="dashboard">
             <span class="dashicons dashicons-dashboard"></span> Dashboard
         </a>
-        <a href="#import-status" class="nav-tab" data-tab="import-status">
-            <span class="dashicons dashicons-database-import"></span> Import Status
+        <a href="#tools" class="nav-tab" data-tab="tools">
+            <span class="dashicons dashicons-admin-tools"></span> Tools
         </a>
         <a href="#logs" class="nav-tab" data-tab="logs">
             <span class="dashicons dashicons-list-view"></span> Logs
@@ -102,8 +102,8 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 2: IMPORT STATUS -->
-    <div id="import-status" class="tab-content">
+    <!-- TAB 2: TOOLS -->
+    <div id="tools" class="tab-content">
         <div class="rs-card">
             <h3><span class="dashicons dashicons-database-import"></span> Testing & Development</h3>
             
@@ -158,6 +158,10 @@ $import_stats = $tracking_manager->get_import_statistics();
                 <h4><span class="dashicons dashicons-admin-tools"></span> Database Tools</h4>
                 
                 <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button type="button" class="rs-button-primary" id="create-property-fields" style="background: #6366f1; border-color: #6366f1;">
+                        <span class="dashicons dashicons-plus-alt"></span> Create Property Fields
+                    </button>
+                    
                     <button type="button" class="rs-button-primary" id="create-properties-from-sample" style="background: #00a32a; border-color: #00a32a;">
                         <span class="dashicons dashicons-plus-alt"></span> Crea Properties da Sample v3.0
                     </button>
