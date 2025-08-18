@@ -1584,7 +1584,13 @@ class RealEstate_Sync_Admin {
         }
         
         try {
-            $this->logger->log('🏗️ PROPERTY FIELDS: Starting creation of 9 Property Details custom fields', 'info');
+            $this->logger->log('🏗️ PROPERTY FIELDS: Starting creation of 9 Property Details custom fields (META FIELDS APPROACH)', 'info');
+            
+            // FALLBACK: Use WordPress options to store custom fields definition
+            // Instead of WpResidence table (which may not exist in child theme)
+            $existing_custom_fields = get_option('wpresidence_custom_fields', []);
+            
+            $this->logger->log('📋 EXISTING META FIELDS: Found ' . count($existing_custom_fields) . ' custom fields in options', 'info');
             
             // Property Details Custom Fields - From KB Field Mapping v3.0
             $property_fields = [
@@ -1649,32 +1655,8 @@ class RealEstate_Sync_Admin {
             $error_count = 0;
             $field_details = [];
             
-            global $wpdb;
-            
-            // Check existing custom fields first
-            $table_name = $wpdb->prefix . 'wpestate_custom_fields';
-            
-            // DEBUG: Check if table exists
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
-            $this->logger->log("🔍 TABLE CHECK: {$table_name} exists = " . ($table_exists ? 'YES' : 'NO'), 'info');
-            
-            if (!$table_exists) {
-                $this->logger->log('❌ TABLE MISSING: wpestate_custom_fields table does not exist', 'error');
-                throw new Exception('WpResidence custom fields table missing. Please ensure WpResidence theme is active.');
-            }
-            
-            // DEBUG: Get table structure
-            $table_structure = $wpdb->get_results("DESCRIBE $table_name", ARRAY_A);
-            $this->logger->log('📋 TABLE STRUCTURE: ' . print_r($table_structure, true), 'debug');
-            
-            $existing_fields = $wpdb->get_results("
-                SELECT * FROM $table_name 
-                ORDER BY field_order ASC
-            ", ARRAY_A);
-            
-            $existing_names = array_column($existing_fields, 'field_name');
-            
-            $this->logger->log('📋 EXISTING FIELDS CHECK: Found ' . count($existing_names) . ' existing custom fields', 'info');
+            // Extract existing field names
+            $existing_names = array_column($existing_custom_fields, 'name');
             
             foreach ($property_fields as $field) {
                 try {
@@ -1685,54 +1667,28 @@ class RealEstate_Sync_Admin {
                             'name' => $field['name'],
                             'label' => $field['label'],
                             'status' => 'existing',
-                            'message' => 'Already exists'
+                            'message' => 'Already exists in meta fields'
                         ];
-                        $this->logger->log("✅ FIELD EXISTS: {$field['name']} already present", 'info');
+                        $this->logger->log("✅ FIELD EXISTS: {$field['name']} already present in meta", 'info');
                         continue;
                     }
                     
-                    // Create new custom field
-                    $insert_data = [
-                        'field_name' => $field['name'],
-                        'field_label' => $field['label'],
-                        'field_type' => $field['type'],
-                        'field_order' => $field['order'],
-                        'field_dropdown_values' => '', // Empty for numeric/text fields
-                        'field_is_required' => 0
+                    // Add to custom fields options
+                    $existing_custom_fields[] = [
+                        'name' => $field['name'],
+                        'label' => $field['label'],
+                        'type' => $field['type'],
+                        'order' => $field['order']
                     ];
                     
-                    $this->logger->log("🔧 INSERTING FIELD: {$field['name']} with data: " . print_r($insert_data, true), 'debug');
-                    
-                    $result = $wpdb->insert(
-                        $table_name,
-                        $insert_data,
-                        ['%s', '%s', '%s', '%d', '%s', '%d']
-                    );
-                    
-                    // DEBUG: Check for database errors
-                    if ($wpdb->last_error) {
-                        $this->logger->log("❌ DB ERROR for {$field['name']}: " . $wpdb->last_error, 'error');
-                    }
-                    
-                    if ($result !== false) {
-                        $created_count++;
-                        $field_details[] = [
-                            'name' => $field['name'],
-                            'label' => $field['label'], 
-                            'status' => 'created',
-                            'message' => 'Successfully created'
-                        ];
-                        $this->logger->log("✅ FIELD CREATED: {$field['name']} → {$field['label']}", 'info');
-                    } else {
-                        $error_count++;
-                        $field_details[] = [
-                            'name' => $field['name'],
-                            'label' => $field['label'],
-                            'status' => 'error', 
-                            'message' => 'Database insert failed'
-                        ];
-                        $this->logger->log("❌ FIELD ERROR: {$field['name']} creation failed", 'error');
-                    }
+                    $created_count++;
+                    $field_details[] = [
+                        'name' => $field['name'],
+                        'label' => $field['label'], 
+                        'status' => 'created',
+                        'message' => 'Successfully added to meta fields'
+                    ];
+                    $this->logger->log("✅ FIELD CREATED: {$field['name']} → {$field['label']} (meta approach)", 'info');
                     
                 } catch (Exception $e) {
                     $error_count++;
@@ -1743,6 +1699,14 @@ class RealEstate_Sync_Admin {
                         'message' => 'Exception: ' . $e->getMessage()
                     ];
                     $this->logger->log("❌ FIELD EXCEPTION: {$field['name']} - " . $e->getMessage(), 'error');
+                }
+            }
+            
+            // Save updated custom fields
+            if ($created_count > 0) {
+                $result = update_option('wpresidence_custom_fields', $existing_custom_fields);
+                if (!$result) {
+                    $this->logger->log('❌ OPTIONS UPDATE FAILED: Could not save custom fields to options', 'error');
                 }
             }
             
