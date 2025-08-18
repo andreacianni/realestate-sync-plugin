@@ -1,11 +1,12 @@
 <?php
 /**
- * RealEstate Sync Plugin - Property Mapper v3.0
+ * RealEstate Sync Plugin - Property Mapper v3.1
  * 
  * MAPPING COMPLETO basato su database analysis reale
+ * ENHANCED: Custom Fields Property Details Integration
  * 
  * @package RealEstateSync
- * @version 3.0.0
+ * @version 3.1.0
  * @author Andrea Cianni - Novacom
  */
 
@@ -29,7 +30,7 @@ class RealEstate_Sync_Property_Mapper {
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.0 initialized with Agency Manager integration', 'info');
+        $this->logger->log('Property Mapper v3.1 initialized with Agency Manager integration + Custom Fields', 'info');
     }
     
     private function init_mappings() {
@@ -103,10 +104,10 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map properties v3.0
+     * Map properties v3.1 - ENHANCED: Custom Fields Integration
      */
     public function map_properties($xml_properties) {
-        $this->logger->log('Starting Property Mapper v3.0', 'info', [
+        $this->logger->log('Starting Property Mapper v3.1', 'info', [
             'input_count' => count($xml_properties)
         ]);
         
@@ -131,7 +132,7 @@ class RealEstate_Sync_Property_Mapper {
             }
         }
         
-        $this->logger->log('Property Mapper v3.0 completed', 'info', $stats);
+        $this->logger->log('Property Mapper v3.1 completed', 'info', $stats);
         
         return [
             'success' => true,
@@ -198,7 +199,7 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map meta fields v3.0
+     * Map meta fields v3.1 - ENHANCED: Custom Fields Integration
      */
     private function map_meta_fields_v3($xml_property) {
         $meta = [];
@@ -223,6 +224,9 @@ class RealEstate_Sync_Property_Mapper {
         
         // Extended dimensions
         $this->map_extended_dimensions($xml_property, $meta);
+        
+        // 🆕 CUSTOM FIELDS v3.1: Property Details misurabili
+        $this->map_custom_fields_v31($xml_property, $meta);
         
         // Reference and tracking
         $meta['property_ref'] = 'TI-' . $xml_property['id'];
@@ -389,6 +393,103 @@ class RealEstate_Sync_Property_Mapper {
         }
         
         return $catasto;
+    }
+    
+    /**
+     * Map custom fields v3.1 - Property Details Implementation
+     * 
+     * Maps XML data to WpResidence custom fields based on KB Field Mapping v3.1
+     * Implements 9 custom fields for Property Details (misurabili)
+     * 
+     * @param array $xml_property XML property data
+     * @param array &$meta Meta fields array (passed by reference)
+     */
+    private function map_custom_fields_v31($xml_property, &$meta) {
+        try {
+            $custom_fields_mapped = 0;
+            
+            // 1. Superficie giardino (m²)
+            if (!empty($xml_property['dati_inseriti'][4]) && $xml_property['dati_inseriti'][4] > 0) {
+                $meta['superficie-giardino'] = intval($xml_property['dati_inseriti'][4]);
+                $custom_fields_mapped++;
+            }
+            
+            // 2. Aree esterne (m²)
+            if (!empty($xml_property['dati_inseriti'][5]) && $xml_property['dati_inseriti'][5] > 0) {
+                $meta['aree-esterne'] = intval($xml_property['dati_inseriti'][5]);
+                $custom_fields_mapped++;
+            }
+            
+            // 3. Superficie commerciale (m²)
+            if (!empty($xml_property['dati_inseriti'][20]) && $xml_property['dati_inseriti'][20] > 0) {
+                $meta['superficie-commerciale'] = intval($xml_property['dati_inseriti'][20]);
+                $custom_fields_mapped++;
+            }
+            
+            // 4. Superficie utile (m²)
+            if (!empty($xml_property['dati_inseriti'][21]) && $xml_property['dati_inseriti'][21] > 0) {
+                $meta['superficie-utile'] = intval($xml_property['dati_inseriti'][21]);
+                $custom_fields_mapped++;
+            }
+            
+            // 5. Totale piani edificio
+            if (!empty($xml_property['info_inserite'][32]) && $xml_property['info_inserite'][32] > 0) {
+                $meta['totale-piani-edificio'] = intval($xml_property['info_inserite'][32]);
+                $custom_fields_mapped++;
+            }
+            
+            // 6. Deposito cauzionale (€) - Solo per affitti
+            $is_affitto = $this->get_feature_value($xml_property, 10) > 0;
+            if ($is_affitto && !empty($xml_property['dati_inseriti'][27]) && $xml_property['dati_inseriti'][27] > 0) {
+                $meta['deposito-cauzionale'] = intval($xml_property['dati_inseriti'][27]);
+                $custom_fields_mapped++;
+            }
+            
+            // 7. Distanza dal mare (m)
+            if (!empty($xml_property['dati_inseriti'][8]) && $xml_property['dati_inseriti'][8] > 0) {
+                $meta['distanza-mare'] = intval($xml_property['dati_inseriti'][8]);
+                $custom_fields_mapped++;
+            }
+            
+            // 8. Rendita catastale (€)
+            if (!empty($xml_property['catasto']['rendita'])) {
+                $rendita = $xml_property['catasto']['rendita'];
+                // Gestione formato numerico (può essere stringa con virgola)
+                if (is_string($rendita)) {
+                    $rendita = str_replace(',', '.', $rendita);
+                    $rendita = floatval($rendita);
+                }
+                if ($rendita > 0) {
+                    $meta['rendita-catastale'] = $rendita;
+                    $custom_fields_mapped++;
+                }
+            }
+            
+            // 9. Destinazione catastale
+            if (!empty($xml_property['catasto']['destinazione'])) {
+                $destinazione = trim($xml_property['catasto']['destinazione']);
+                if (!empty($destinazione)) {
+                    $meta['destinazione-catastale'] = $destinazione;
+                    $custom_fields_mapped++;
+                }
+            }
+            
+            // Logging per debug e monitoring
+            $this->logger->log('🆕 Custom Fields v3.1 mapping completed', 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'custom_fields_mapped' => $custom_fields_mapped,
+                'total_possible' => 9,
+                'is_affitto' => $is_affitto ?? false,
+                'has_catasto_data' => !empty($xml_property['catasto'])
+            ]);
+            
+        } catch (Exception $e) {
+            $this->logger->log('ERROR: Custom Fields v3.1 mapping failed', 'error', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+        }
     }
     
     // HELPER METHODS
@@ -697,25 +798,26 @@ class RealEstate_Sync_Property_Mapper {
             'energy_classes_count' => count($this->energy_class_mapping)
         ];
         
-        $this->logger->log('Property Mapper v3.0 validation', 'info', $validation);
+        $this->logger->log('Property Mapper v3.1 validation', 'info', $validation);
         
         return [
             'success' => true,
-            'version' => '3.0.0',
+            'version' => '3.1.0',
             'mapping_stats' => $validation,
             'features' => [
                 'database_analysis_based' => true,
                 'auto_feature_creation' => true,
                 'gallery_support' => true,
                 'catasto_support' => true,
-                'target_page_compliance' => true
+                'target_page_compliance' => true,
+                'custom_fields_property_details' => true
             ]
         ];
     }
     
     public function get_mapping_stats() {
         return [
-            'version' => '3.0.0',
+            'version' => '3.1.0',
             'total_categories' => count($this->gi_categories),
             'total_features' => count($this->gi_features),
             'supported_provinces' => ['TN', 'BZ'],
