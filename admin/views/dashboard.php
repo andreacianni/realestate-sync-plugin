@@ -269,12 +269,64 @@ jQuery(document).ready(function($) {
             $('#rs-quick-settings').on('submit', this.saveSettings);
             $('#test-xml-file').on('change', this.onFileSelect);
             $('#process-test-file').on('click', this.processTestFile);
+            $('#create-property-fields').on('click', this.createPropertyFields);
             $('#create-properties-from-sample').on('click', this.createPropertiesFromSampleV3);
             $('#show-property-stats').on('click', this.showPropertyStats);
             $('#cleanup-test-data').on('click', this.cleanupTestData);
             $('#cleanup-properties').on('click', this.cleanupProperties);
             $('#view-logs').on('click', this.viewLogs);
             $('#toggle-force-processing').on('click', this.toggleForceProcessing);
+        },
+        createPropertyFields: function(e) {
+            e.preventDefault();
+            
+            if (!confirm('Create 9 Property Details custom fields?\n\nThis will add the Property Details fields according to KB Field Mapping v3.0.')) return;
+            
+            dashboard.showAlert('Creating Property Details custom fields...', 'warning');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_create_property_fields', 
+                    nonce: realestateSync.nonce 
+                },
+                beforeSend: function() {
+                    $('#create-property-fields').prop('disabled', true).html('<span class="rs-spinner"></span>Creating Fields...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        var message = result.summary_message || 'Property fields operation completed!';
+                        
+                        // Detailed breakdown in alert
+                        if (result.created_count > 0 || result.existing_count > 0) {
+                            var details = [];
+                            if (result.created_count > 0) details.push(result.created_count + ' fields created');
+                            if (result.existing_count > 0) details.push(result.existing_count + ' already existed');
+                            if (result.error_count > 0) details.push(result.error_count + ' errors');
+                            
+                            message = 'Property Fields: ' + details.join(', ');
+                        }
+                        
+                        dashboard.showAlert(message, result.error_count > 0 ? 'warning' : 'success');
+                        
+                        // Show field details in console for debugging
+                        if (result.field_details) {
+                            console.log('Property Fields Details:', result.field_details);
+                        }
+                        
+                    } else {
+                        dashboard.showAlert('Error creating fields: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    dashboard.showAlert('Communication error during field creation', 'error'); 
+                },
+                complete: function() {
+                    $('#create-property-fields').prop('disabled', false).html('<span class="dashicons dashicons-plus-alt"></span> Create Property Fields');
+                }
+            });
         },
         startManualImport: function(e) {
             e.preventDefault();
