@@ -1573,8 +1573,9 @@ class RealEstate_Sync_Admin {
     }
     
     /**
-     * Handle create property fields AJAX - PROPERTY DETAILS CUSTOM FIELDS
-     * Phase 1: Create 9 Property Details fields according to KB Field Mapping v3.0
+     * Handle create property fields AJAX - WPRESIDENCE SYSTEM INTEGRATION
+     * Phase 1: Create Property Details fields using correct WpResidence system
+     * REVERSE ENGINEERED: Uses wpestate_custom_fields_list option array structure
      */
     public function handle_create_property_fields() {
         check_ajax_referer('realestate_sync_nonce', 'nonce');
@@ -1584,154 +1585,178 @@ class RealEstate_Sync_Admin {
         }
         
         try {
-            $this->logger->log('🏗️ PROPERTY FIELDS: Starting creation of 9 Property Details custom fields (META FIELDS APPROACH)', 'info');
+            $this->logger->log('🎯 WPRESIDENCE FIELDS: Using REVERSE ENGINEERED system wpestate_custom_fields_list', 'info');
             
-            // FALLBACK: Use WordPress options to store custom fields definition
-            // Instead of WpResidence table (which may not exist in child theme)
-            $existing_custom_fields = get_option('wpresidence_custom_fields', []);
+            // 🎯 CORRECT WPRESIDENCE SYSTEM: wpestate_custom_fields_list
+            $existing_fields = get_option('wpestate_custom_fields_list', []);
             
-            $this->logger->log('📋 EXISTING META FIELDS: Found ' . count($existing_custom_fields) . ' custom fields in options', 'info');
+            $this->logger->log('🔍 REVERSE ENG: Current wpestate_custom_fields_list structure: ' . print_r($existing_fields, true), 'info');
             
-            // Property Details Custom Fields - From KB Field Mapping v3.0
-            $property_fields = [
+            // Property Details Custom Fields - NO PREFISSO property_ (come campi esistenti piano/stato-immobile)
+            $new_fields_data = [
                 [
-                    'name' => 'property_garden_size',
-                    'label' => 'Superficie giardino', 
-                    'type' => 'numeric',
-                    'order' => 3
+                    'name' => 'superficie-giardino',
+                    'label' => 'Superficie giardino (m²)',
+                    'order' => '3'
                 ],
                 [
-                    'name' => 'property_external_areas',
-                    'label' => 'Aree esterne',
-                    'type' => 'numeric', 
-                    'order' => 4
+                    'name' => 'aree-esterne',
+                    'label' => 'Aree esterne (m²)',
+                    'order' => '4'
                 ],
                 [
-                    'name' => 'property_commercial_surface',
-                    'label' => 'Superficie commerciale',
-                    'type' => 'numeric',
-                    'order' => 5
+                    'name' => 'superficie-commerciale',
+                    'label' => 'Superficie commerciale (m²)',
+                    'order' => '5'
                 ],
                 [
-                    'name' => 'property_usable_surface', 
-                    'label' => 'Superficie utile',
-                    'type' => 'numeric',
-                    'order' => 6
+                    'name' => 'superficie-utile',
+                    'label' => 'Superficie utile (m²)',
+                    'order' => '6'
                 ],
                 [
-                    'name' => 'property_total_floors_building',
+                    'name' => 'totale-piani-edificio',
                     'label' => 'Totale piani edificio',
-                    'type' => 'numeric',
-                    'order' => 7
+                    'order' => '7'
                 ],
                 [
-                    'name' => 'property_deposit_amount',
-                    'label' => 'Deposito cauzionale', 
-                    'type' => 'numeric',
-                    'order' => 8
+                    'name' => 'deposito-cauzionale',
+                    'label' => 'Deposito cauzionale (€)',
+                    'order' => '8'
                 ],
                 [
-                    'name' => 'property_distance_sea',
-                    'label' => 'Distanza dal mare',
-                    'type' => 'numeric',
-                    'order' => 9
+                    'name' => 'distanza-mare',
+                    'label' => 'Distanza dal mare (m)',
+                    'order' => '9'
                 ],
                 [
-                    'name' => 'property_catasto_income',
-                    'label' => 'Rendita catastale',
-                    'type' => 'numeric', 
-                    'order' => 10
+                    'name' => 'rendita-catastale',
+                    'label' => 'Rendita catastale (€)',
+                    'order' => '10'
                 ],
                 [
-                    'name' => 'property_catasto_destination',
+                    'name' => 'destinazione-catastale',
                     'label' => 'Destinazione catastale',
-                    'type' => 'short_text',
-                    'order' => 11
+                    'order' => '11'
                 ]
             ];
             
+            // 🔧 PREPARE WPRESIDENCE ARRAYS STRUCTURE (come nei database results)
+            // Existing arrays or initialize
+            $add_field_name = isset($existing_fields['add_field_name']) ? $existing_fields['add_field_name'] : [];
+            $add_field_label = isset($existing_fields['add_field_label']) ? $existing_fields['add_field_label'] : [];
+            $add_field_order = isset($existing_fields['add_field_order']) ? $existing_fields['add_field_order'] : [];
+            
             $created_count = 0;
             $existing_count = 0;
-            $error_count = 0;
             $field_details = [];
             
-            // Extract existing field names
-            $existing_names = array_column($existing_custom_fields, 'name');
+            foreach ($new_fields_data as $field) {
+                // Check if field already exists (check in names array)
+                if (in_array($field['name'], $add_field_name)) {
+                    $existing_count++;
+                    $field_details[] = [
+                        'name' => $field['name'],
+                        'label' => $field['label'],
+                        'status' => 'existing',
+                        'message' => 'Already exists in wpestate_custom_fields_list'
+                    ];
+                    $this->logger->log("ℹ️ FIELD EXISTS: {$field['name']} already in wpestate system", 'info');
+                    continue;
+                }
+                
+                // 🎯 ADD TO WPRESIDENCE ARRAYS STRUCTURE
+                $add_field_name[] = $field['name'];
+                $add_field_label[] = $field['label'];
+                $add_field_order[] = $field['order'];
+                
+                $created_count++;
+                $field_details[] = [
+                    'name' => $field['name'],
+                    'label' => $field['label'],
+                    'status' => 'created',
+                    'message' => 'Added to wpestate_custom_fields_list system'
+                ];
+                $this->logger->log("✅ WPRESIDENCE FIELD: {$field['name']} → {$field['label']} (order: {$field['order']})", 'info');
+            }
             
-            foreach ($property_fields as $field) {
-                try {
-                    // Check if field already exists
-                    if (in_array($field['name'], $existing_names)) {
-                        $existing_count++;
-                        $field_details[] = [
-                            'name' => $field['name'],
-                            'label' => $field['label'],
-                            'status' => 'existing',
-                            'message' => 'Already exists in meta fields'
-                        ];
-                        $this->logger->log("✅ FIELD EXISTS: {$field['name']} already present in meta", 'info');
-                        continue;
+            // 🚀 UPDATE WPRESIDENCE OPTION WITH NEW STRUCTURE
+            if ($created_count > 0) {
+                $updated_fields = [
+                    'add_field_name' => $add_field_name,
+                    'add_field_label' => $add_field_label,
+                    'add_field_order' => $add_field_order
+                ];
+                
+                // PRESERVE other existing data if present
+                if (is_array($existing_fields)) {
+                    foreach ($existing_fields as $key => $value) {
+                        if (!in_array($key, ['add_field_name', 'add_field_label', 'add_field_order'])) {
+                            $updated_fields[$key] = $value;
+                        }
                     }
-                    
-                    // Add to custom fields options
-                    $existing_custom_fields[] = [
-                        'name' => $field['name'],
-                        'label' => $field['label'],
-                        'type' => $field['type'],
-                        'order' => $field['order']
-                    ];
-                    
-                    $created_count++;
-                    $field_details[] = [
-                        'name' => $field['name'],
-                        'label' => $field['label'], 
-                        'status' => 'created',
-                        'message' => 'Successfully added to meta fields'
-                    ];
-                    $this->logger->log("✅ FIELD CREATED: {$field['name']} → {$field['label']} (meta approach)", 'info');
-                    
-                } catch (Exception $e) {
-                    $error_count++;
-                    $field_details[] = [
-                        'name' => $field['name'],
-                        'label' => $field['label'],
-                        'status' => 'error',
-                        'message' => 'Exception: ' . $e->getMessage()
-                    ];
-                    $this->logger->log("❌ FIELD EXCEPTION: {$field['name']} - " . $e->getMessage(), 'error');
+                }
+                
+                $result = update_option('wpestate_custom_fields_list', $updated_fields);
+                
+                if ($result) {
+                    $this->logger->log('✅ WPRESIDENCE UPDATE: Successfully updated wpestate_custom_fields_list option', 'info');
+                    $this->logger->log('🎯 FINAL STRUCTURE: ' . print_r($updated_fields, true), 'info');
+                } else {
+                    $this->logger->log('❌ WPRESIDENCE UPDATE FAILED: Could not save to wpestate_custom_fields_list', 'error');
                 }
             }
             
-            // Save updated custom fields
-            if ($created_count > 0) {
-                $result = update_option('wpresidence_custom_fields', $existing_custom_fields);
-                if (!$result) {
-                    $this->logger->log('❌ OPTIONS UPDATE FAILED: Could not save custom fields to options', 'error');
-                }
+            // 🎉 GENERATE EXAMPLE FIELD FOR TESTING
+            $example_property_id = $this->get_first_property_for_testing();
+            if ($example_property_id && $created_count > 0) {
+                // Add example values to one property for testing
+                update_post_meta($example_property_id, 'superficie-giardino', '150');
+                update_post_meta($example_property_id, 'aree-esterne', '200');
+                update_post_meta($example_property_id, 'superficie-commerciale', '120');
+                
+                $this->logger->log("🧪 TESTING: Added example values to property {$example_property_id}", 'info');
             }
             
             // Generate summary message
-            $summary_message = "Property Fields Creation Completed! ";
-            if ($created_count > 0) $summary_message .= "✅ {$created_count} fields created. ";
+            $summary_message = "WpResidence Fields Integration Completed! ";
+            if ($created_count > 0) $summary_message .= "✅ {$created_count} fields added to WpResidence system. ";
             if ($existing_count > 0) $summary_message .= "ℹ️ {$existing_count} fields already existed. ";
-            if ($error_count > 0) $summary_message .= "❌ {$error_count} fields had errors.";
+            if ($example_property_id) $summary_message .= "🧪 Example values added to property {$example_property_id} for testing.";
             
-            $this->logger->log("🎉 PROPERTY FIELDS COMPLETE: Created={$created_count}, Existing={$existing_count}, Errors={$error_count}", 'info');
+            $this->logger->log("🎉 WPRESIDENCE INTEGRATION: Created={$created_count}, Existing={$existing_count}", 'info');
             
             wp_send_json_success([
                 'created_count' => $created_count,
                 'existing_count' => $existing_count,
-                'error_count' => $error_count,
-                'total_fields' => count($property_fields),
+                'total_fields' => count($new_fields_data),
+                'example_property_id' => $example_property_id,
                 'field_details' => $field_details,
+                'wpresidence_system' => true,
                 'summary_message' => $summary_message,
                 'message' => $summary_message
             ]);
             
         } catch (Exception $e) {
-            $this->logger->log('🚨 PROPERTY FIELDS ERROR: ' . $e->getMessage(), 'error');
-            wp_send_json_error('Property Fields Creation Failed: ' . $e->getMessage());
+            $this->logger->log('🚨 WPRESIDENCE FIELDS ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('WpResidence Fields Creation Failed: ' . $e->getMessage());
         }
+    }
+    
+    /**
+     * Get first property for testing custom fields
+     */
+    private function get_first_property_for_testing() {
+        global $wpdb;
+        
+        $property_id = $wpdb->get_var(
+            "SELECT ID FROM {$wpdb->posts} 
+             WHERE post_type = 'estate_property' 
+             AND post_status = 'publish' 
+             LIMIT 1"
+        );
+        
+        return $property_id ? intval($property_id) : null;
     }
 }
 
