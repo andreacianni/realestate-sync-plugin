@@ -1,12 +1,13 @@
 <?php
 /**
- * RealEstate Sync Plugin - Property Mapper v3.0
+ * RealEstate Sync Plugin - Property Mapper v3.1
  * 
- * MAPPING COMPLETO basato su database analysis reale
+ * MAPPING COMPLETO basato su database analysis reale + STEP 3 field verification fixes
  * 
  * @package RealEstateSync
- * @version 3.0.0
+ * @version 3.1.0
  * @author Andrea Cianni - Novacom
+ * @updated 17/08/2025 - STEP 3 field mapping gap fixes implemented
  */
 
 if (!defined('ABSPATH')) {
@@ -29,26 +30,31 @@ class RealEstate_Sync_Property_Mapper {
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.0 initialized with Agency Manager integration', 'info');
+        $this->logger->log('Property Mapper v3.1 initialized with Agency Manager integration + STEP 3 field mapping fixes', 'info');
     }
     
     private function init_mappings() {
-        // GI Categories → WpResidence Categories
+        // GI Categories → WpResidence Categories (ENHANCED v3.1)
         $this->gi_categories = [
             1 => 'Case singole',
             2 => 'Case singole', 
+            8 => 'Garage e Posti auto',
+            9 => 'Garage e Posti auto',
             11 => 'Appartamenti',
             12 => 'Appartamenti',
+            13 => 'Rustici e Case rurali',
+            14 => 'Uffici e Commerciali',
+            15 => 'Uffici e Commerciali',
+            16 => 'Uffici e Commerciali',
+            17 => 'Uffici e Commerciali',
             18 => 'Ville',
             19 => 'Terreni',
-            14 => 'Uffici e Commerciali',
-            17 => 'Uffici e Commerciali',
-            8 => 'Garage e Posti auto',
-            28 => 'Camere e Posti letto',
-            23 => 'Loft e Mansarde',
-            13 => 'Rustici e Case rurali',
+            20 => 'Rustici e Case rurali',
+            21 => 'Ville',
             22 => 'Case vacanza',
-            25 => 'Case vacanza'
+            23 => 'Loft e Mansarde',
+            25 => 'Case vacanza',
+            28 => 'Camere e Posti letto'
         ];
         
         // GI Features → WpResidence Features
@@ -103,10 +109,10 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map properties v3.0
+     * Map properties v3.1 - ENHANCED with field mapping fixes
      */
     public function map_properties($xml_properties) {
-        $this->logger->log('Starting Property Mapper v3.0', 'info', [
+        $this->logger->log('Starting Property Mapper v3.1 with field mapping fixes', 'info', [
             'input_count' => count($xml_properties)
         ]);
         
@@ -131,7 +137,7 @@ class RealEstate_Sync_Property_Mapper {
             }
         }
         
-        $this->logger->log('Property Mapper v3.0 completed', 'info', $stats);
+        $this->logger->log('Property Mapper v3.1 completed', 'info', $stats);
         
         return [
             'success' => true,
@@ -198,7 +204,7 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map meta fields v3.0
+     * Map meta fields v3.1 - ENHANCED with gap fixes
      */
     private function map_meta_fields_v3($xml_property) {
         $meta = [];
@@ -212,6 +218,55 @@ class RealEstate_Sync_Property_Mapper {
         if (!empty($xml_property['latitude']) && !empty($xml_property['longitude'])) {
             $meta['property_latitude'] = floatval($xml_property['latitude']);
             $meta['property_longitude'] = floatval($xml_property['longitude']);
+        }
+        
+        // 🎯 STEP 3 FIX: Zone/Area mapping
+        if (!empty($xml_property['zona'])) {
+            $meta['property_area'] = trim($xml_property['zona']);
+            $meta['property_neighborhood'] = trim($xml_property['zona']);
+        }
+        
+        // 🎯 STEP 3 FIX: Year built mapping
+        if (!empty($xml_property['age']) && is_numeric($xml_property['age'])) {
+            $year = intval($xml_property['age']);
+            if ($year >= 1800 && $year <= 2030) {
+                $meta['property_year'] = $year;
+                $meta['property_year_built'] = $year;
+            }
+        }
+        
+        // 🎯 STEP 3 FIX: Agency code reference
+        if (!empty($xml_property['agency_code'])) {
+            $meta['property_agency_code'] = trim($xml_property['agency_code']);
+        }
+        
+        // 🎯 STEP 3 FIX: Energy performance mapping
+        if (!empty($xml_property['ipe']) && floatval($xml_property['ipe']) > 0) {
+            $meta['property_energy_index'] = floatval($xml_property['ipe']);
+        }
+        if (!empty($xml_property['ipe_unit'])) {
+            $meta['property_energy_unit'] = trim($xml_property['ipe_unit']);
+        }
+        if (!empty($xml_property['ape']) && $xml_property['ape'] !== 'ape2015') {
+            $meta['property_energy_certificate'] = trim($xml_property['ape']);
+        }
+        
+        // 🎯 STEP 3 FIX: Micro category mapping
+        if (!empty($xml_property['categorie_micro_id'])) {
+            $meta['property_subcategory'] = intval($xml_property['categorie_micro_id']);
+        }
+        
+        // 🎯 STEP 3 FIX: Source URL reference
+        if (!empty($xml_property['url'])) {
+            $meta['property_source_url'] = esc_url($xml_property['url']);
+        }
+        
+        // 🎯 STEP 3 FIX: Virtual tours
+        if (!empty($xml_property['video_tour'])) {
+            $meta['property_video_tour'] = esc_url($xml_property['video_tour']);
+        }
+        if (!empty($xml_property['virtual_tour'])) {
+            $meta['property_virtual_tour'] = esc_url($xml_property['virtual_tour']);
         }
         
         // Room data
@@ -619,7 +674,7 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     private function generate_content_hash_v3($xml_property) {
-        $hash_fields = ['id', 'price', 'description', 'abstract', 'mq', 'indirizzo'];
+        $hash_fields = ['id', 'price', 'description', 'abstract', 'mq', 'indirizzo', 'zona', 'age', 'agency_code', 'ipe', 'ape', 'categorie_micro_id', 'url', 'video_tour', 'virtual_tour'];
         $hash_data = [];
         
         foreach ($hash_fields as $field) {
@@ -697,30 +752,45 @@ class RealEstate_Sync_Property_Mapper {
             'energy_classes_count' => count($this->energy_class_mapping)
         ];
         
-        $this->logger->log('Property Mapper v3.0 validation', 'info', $validation);
+        $this->logger->log('Property Mapper v3.1 validation', 'info', $validation);
         
         return [
             'success' => true,
-            'version' => '3.0.0',
+            'version' => '3.1.0',
             'mapping_stats' => $validation,
             'features' => [
                 'database_analysis_based' => true,
                 'auto_feature_creation' => true,
                 'gallery_support' => true,
                 'catasto_support' => true,
-                'target_page_compliance' => true
+                'target_page_compliance' => true,
+                'step3_field_mapping_fixes' => true,
+                'enhanced_categories' => true,
+                'zone_area_mapping' => true,
+                'year_built_mapping' => true,
+                'energy_index_mapping' => true,
+                'agency_code_mapping' => true,
+                'virtual_tours_mapping' => true
             ]
         ];
     }
     
     public function get_mapping_stats() {
         return [
-            'version' => '3.0.0',
+            'version' => '3.1.0',
             'total_categories' => count($this->gi_categories),
             'total_features' => count($this->gi_features),
             'supported_provinces' => ['TN', 'BZ'],
             'energy_classes' => array_values($this->energy_class_mapping),
-            'target_compliance' => true
+            'target_compliance' => true,
+            'field_mapping_fixes' => [
+                'zone_area_mapping' => true,
+                'year_built_mapping' => true,
+                'energy_index_mapping' => true,
+                'agency_code_mapping' => true,
+                'virtual_tours_mapping' => true,
+                'enhanced_categories' => true
+            ]
         ];
     }
 }

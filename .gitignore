@@ -1,3 +1,5 @@
 logs/
 logs/import-logs/
 *.zip
+admin/views/appo-dash.php
+admin/views/dashboard-main-backup.php
