@@ -1652,8 +1652,23 @@ class RealEstate_Sync_Admin {
             global $wpdb;
             
             // Check existing custom fields first
+            $table_name = $wpdb->prefix . 'wpestate_custom_fields';
+            
+            // DEBUG: Check if table exists
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+            $this->logger->log("🔍 TABLE CHECK: {$table_name} exists = " . ($table_exists ? 'YES' : 'NO'), 'info');
+            
+            if (!$table_exists) {
+                $this->logger->log('❌ TABLE MISSING: wpestate_custom_fields table does not exist', 'error');
+                throw new Exception('WpResidence custom fields table missing. Please ensure WpResidence theme is active.');
+            }
+            
+            // DEBUG: Get table structure
+            $table_structure = $wpdb->get_results("DESCRIBE $table_name", ARRAY_A);
+            $this->logger->log('📋 TABLE STRUCTURE: ' . print_r($table_structure, true), 'debug');
+            
             $existing_fields = $wpdb->get_results("
-                SELECT * FROM {$wpdb->prefix}wpestate_custom_fields 
+                SELECT * FROM $table_name 
                 ORDER BY field_order ASC
             ", ARRAY_A);
             
@@ -1677,18 +1692,27 @@ class RealEstate_Sync_Admin {
                     }
                     
                     // Create new custom field
+                    $insert_data = [
+                        'field_name' => $field['name'],
+                        'field_label' => $field['label'],
+                        'field_type' => $field['type'],
+                        'field_order' => $field['order'],
+                        'field_dropdown_values' => '', // Empty for numeric/text fields
+                        'field_is_required' => 0
+                    ];
+                    
+                    $this->logger->log("🔧 INSERTING FIELD: {$field['name']} with data: " . print_r($insert_data, true), 'debug');
+                    
                     $result = $wpdb->insert(
-                        $wpdb->prefix . 'wpestate_custom_fields',
-                        [
-                            'field_name' => $field['name'],
-                            'field_label' => $field['label'],
-                            'field_type' => $field['type'],
-                            'field_order' => $field['order'],
-                            'field_dropdown_values' => '', // Empty for numeric/text fields
-                            'field_is_required' => 0
-                        ],
+                        $table_name,
+                        $insert_data,
                         ['%s', '%s', '%s', '%d', '%s', '%d']
                     );
+                    
+                    // DEBUG: Check for database errors
+                    if ($wpdb->last_error) {
+                        $this->logger->log("❌ DB ERROR for {$field['name']}: " . $wpdb->last_error, 'error');
+                    }
                     
                     if ($result !== false) {
                         $created_count++;
