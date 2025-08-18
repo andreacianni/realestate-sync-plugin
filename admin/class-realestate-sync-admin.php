@@ -60,6 +60,9 @@ class RealEstate_Sync_Admin {
         
         // 🚀 FORCE PROCESSING MODE AJAX ACTIONS
         add_action('wp_ajax_realestate_sync_toggle_force_processing', array($this, 'handle_toggle_force_processing'));
+        
+        // 🏗️ PROPERTY FIELDS CREATION AJAX ACTION
+        add_action('wp_ajax_realestate_sync_create_property_fields', array($this, 'handle_create_property_fields'));
     }
     
     /**
@@ -1567,6 +1570,180 @@ class RealEstate_Sync_Admin {
         }
         
         $this->logger->log("TEST FLAG: Added test flag to {$count} recent properties", 'info');
+    }
+    
+    /**
+     * Handle create property fields AJAX - PROPERTY DETAILS CUSTOM FIELDS
+     * Phase 1: Create 9 Property Details fields according to KB Field Mapping v3.0
+     */
+    public function handle_create_property_fields() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('🏗️ PROPERTY FIELDS: Starting creation of 9 Property Details custom fields', 'info');
+            
+            // Property Details Custom Fields - From KB Field Mapping v3.0
+            $property_fields = [
+                [
+                    'name' => 'property_garden_size',
+                    'label' => 'Superficie giardino', 
+                    'type' => 'numeric',
+                    'order' => 3
+                ],
+                [
+                    'name' => 'property_external_areas',
+                    'label' => 'Aree esterne',
+                    'type' => 'numeric', 
+                    'order' => 4
+                ],
+                [
+                    'name' => 'property_commercial_surface',
+                    'label' => 'Superficie commerciale',
+                    'type' => 'numeric',
+                    'order' => 5
+                ],
+                [
+                    'name' => 'property_usable_surface', 
+                    'label' => 'Superficie utile',
+                    'type' => 'numeric',
+                    'order' => 6
+                ],
+                [
+                    'name' => 'property_total_floors_building',
+                    'label' => 'Totale piani edificio',
+                    'type' => 'numeric',
+                    'order' => 7
+                ],
+                [
+                    'name' => 'property_deposit_amount',
+                    'label' => 'Deposito cauzionale', 
+                    'type' => 'numeric',
+                    'order' => 8
+                ],
+                [
+                    'name' => 'property_distance_sea',
+                    'label' => 'Distanza dal mare',
+                    'type' => 'numeric',
+                    'order' => 9
+                ],
+                [
+                    'name' => 'property_catasto_income',
+                    'label' => 'Rendita catastale',
+                    'type' => 'numeric', 
+                    'order' => 10
+                ],
+                [
+                    'name' => 'property_catasto_destination',
+                    'label' => 'Destinazione catastale',
+                    'type' => 'short_text',
+                    'order' => 11
+                ]
+            ];
+            
+            $created_count = 0;
+            $existing_count = 0;
+            $error_count = 0;
+            $field_details = [];
+            
+            global $wpdb;
+            
+            // Check existing custom fields first
+            $existing_fields = $wpdb->get_results("
+                SELECT * FROM {$wpdb->prefix}wpestate_custom_fields 
+                ORDER BY field_order ASC
+            ", ARRAY_A);
+            
+            $existing_names = array_column($existing_fields, 'field_name');
+            
+            $this->logger->log('📋 EXISTING FIELDS CHECK: Found ' . count($existing_names) . ' existing custom fields', 'info');
+            
+            foreach ($property_fields as $field) {
+                try {
+                    // Check if field already exists
+                    if (in_array($field['name'], $existing_names)) {
+                        $existing_count++;
+                        $field_details[] = [
+                            'name' => $field['name'],
+                            'label' => $field['label'],
+                            'status' => 'existing',
+                            'message' => 'Already exists'
+                        ];
+                        $this->logger->log("✅ FIELD EXISTS: {$field['name']} already present", 'info');
+                        continue;
+                    }
+                    
+                    // Create new custom field
+                    $result = $wpdb->insert(
+                        $wpdb->prefix . 'wpestate_custom_fields',
+                        [
+                            'field_name' => $field['name'],
+                            'field_label' => $field['label'],
+                            'field_type' => $field['type'],
+                            'field_order' => $field['order'],
+                            'field_dropdown_values' => '', // Empty for numeric/text fields
+                            'field_is_required' => 0
+                        ],
+                        ['%s', '%s', '%s', '%d', '%s', '%d']
+                    );
+                    
+                    if ($result !== false) {
+                        $created_count++;
+                        $field_details[] = [
+                            'name' => $field['name'],
+                            'label' => $field['label'], 
+                            'status' => 'created',
+                            'message' => 'Successfully created'
+                        ];
+                        $this->logger->log("✅ FIELD CREATED: {$field['name']} → {$field['label']}", 'info');
+                    } else {
+                        $error_count++;
+                        $field_details[] = [
+                            'name' => $field['name'],
+                            'label' => $field['label'],
+                            'status' => 'error', 
+                            'message' => 'Database insert failed'
+                        ];
+                        $this->logger->log("❌ FIELD ERROR: {$field['name']} creation failed", 'error');
+                    }
+                    
+                } catch (Exception $e) {
+                    $error_count++;
+                    $field_details[] = [
+                        'name' => $field['name'],
+                        'label' => $field['label'],
+                        'status' => 'error',
+                        'message' => 'Exception: ' . $e->getMessage()
+                    ];
+                    $this->logger->log("❌ FIELD EXCEPTION: {$field['name']} - " . $e->getMessage(), 'error');
+                }
+            }
+            
+            // Generate summary message
+            $summary_message = "Property Fields Creation Completed! ";
+            if ($created_count > 0) $summary_message .= "✅ {$created_count} fields created. ";
+            if ($existing_count > 0) $summary_message .= "ℹ️ {$existing_count} fields already existed. ";
+            if ($error_count > 0) $summary_message .= "❌ {$error_count} fields had errors.";
+            
+            $this->logger->log("🎉 PROPERTY FIELDS COMPLETE: Created={$created_count}, Existing={$existing_count}, Errors={$error_count}", 'info');
+            
+            wp_send_json_success([
+                'created_count' => $created_count,
+                'existing_count' => $existing_count,
+                'error_count' => $error_count,
+                'total_fields' => count($property_fields),
+                'field_details' => $field_details,
+                'summary_message' => $summary_message,
+                'message' => $summary_message
+            ]);
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 PROPERTY FIELDS ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Property Fields Creation Failed: ' . $e->getMessage());
+        }
     }
 }
 
