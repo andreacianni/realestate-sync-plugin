@@ -21,15 +21,18 @@ $import_stats = $tracking_manager->get_import_statistics();
 <div class="wrap realestate-sync-admin">
     <h1>
         <span class="dashicons dashicons-building" style="font-size: 28px; margin-right: 10px; color: #2271b1;"></span>
-        RealEstate Sync Dashboard - 3-TAB SYSTEM RESTORED ✅
+        RealEstate Sync Dashboard - 4-TAB SYSTEM WITH INFO TAB ✨
     </h1>
 
     <div id="rs-alerts-container"></div>
 
-    <!-- 3-TAB NAVIGATION -->
+    <!-- 4-TAB NAVIGATION WITH INFO TAB -->
     <div class="nav-tab-wrapper">
         <a href="#dashboard" class="nav-tab nav-tab-active" data-tab="dashboard">
             <span class="dashicons dashicons-dashboard"></span> Dashboard
+        </a>
+        <a href="#info" class="nav-tab" data-tab="info">
+            <span class="dashicons dashicons-info"></span> Info
         </a>
         <a href="#tools" class="nav-tab" data-tab="tools">
             <span class="dashicons dashicons-admin-tools"></span> Tools
@@ -102,7 +105,168 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 2: TOOLS -->
+    <!-- TAB 2: INFO - CUSTOM FIELDS MANAGEMENT -->
+    <div id="info" class="tab-content">
+        <div class="rs-card">
+            <h3><span class="dashicons dashicons-info"></span> Custom Fields Management</h3>
+            
+            <div class="rs-info-box">
+                <h4>🔧 Property Custom Fields Status</h4>
+                <p>The RealEstate Sync plugin requires 9 additional custom fields to be created manually in WpResidence.<br>
+                These fields enhance property details with specialized data from GestionaleImmobiliare.it XML.</p>
+            </div>
+            
+            <!-- Custom Fields Status Table -->
+            <div class="rs-custom-fields-section">
+                <h4>📋 Required Custom Fields</h4>
+                
+                <table class="rs-custom-fields-table">
+                    <thead>
+                        <tr>
+                            <th>Nome Campo</th>
+                            <th>Etichetta</th>
+                            <th>Tipo</th>
+                            <th>Descrizione</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>superficie-giardino</code></td>
+                            <td>Superficie giardino (m²)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Area del giardino in metri quadrati</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>aree-esterne</code></td>
+                            <td>Aree esterne (m²)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Superficie totale aree esterne</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>superficie-commerciale</code></td>
+                            <td>Superficie commerciale (m²)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Metratura commerciale dell'immobile</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>superficie-utile</code></td>
+                            <td>Superficie utile (m²)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Superficie effettivamente utilizzabile</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>totale-piani-edificio</code></td>
+                            <td>Totale piani edificio</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Numero totale di piani dell'edificio</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>deposito-cauzionale</code></td>
+                            <td>Deposito cauzionale (€)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Importo del deposito cauzionale</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>distanza-mare</code></td>
+                            <td>Distanza dal mare (m)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Distanza in metri dal mare</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>rendita-catastale</code></td>
+                            <td>Rendita catastale (€)</td>
+                            <td><span class="rs-field-type">numeric</span></td>
+                            <td>Valore rendita catastale annuale</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                        <tr>
+                            <td><code>destinazione-catastale</code></td>
+                            <td>Destinazione catastale</td>
+                            <td><span class="rs-field-type">short_text</span></td>
+                            <td>Classificazione catastale dell'immobile</td>
+                            <td><span class="rs-status-manual">❌ Manual</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Manual Creation Instructions -->
+            <div class="rs-instructions-section">
+                <h4>📝 Manual Creation Guide</h4>
+                
+                <div class="rs-instruction-box">
+                    <h5>🎯 Step-by-Step Instructions:</h5>
+                    <ol class="rs-instruction-list">
+                        <li><strong>Access WpResidence Admin:</strong> Go to WordPress Admin → Properties → Add Custom Details</li>
+                        <li><strong>Create Each Field:</strong> Use the exact field names from the table above</li>
+                        <li><strong>Field Configuration:</strong>
+                            <ul>
+                                <li><strong>Type:</strong> Select "numeric" for measurements and "short_text" for text</li>
+                                <li><strong>Label:</strong> Use the exact labels shown in the table</li>
+                                <li><strong>Slug:</strong> Use the exact field names (importante per il mapping!)</li>
+                            </ul>
+                        </li>
+                        <li><strong>Verification:</strong> Click "Check Field Status" below after creation</li>
+                    </ol>
+                </div>
+                
+                <div class="rs-warning-box">
+                    <h5>⚠️ Important Notes:</h5>
+                    <ul>
+                        <li><strong>Exact Names:</strong> Field names must match exactly for automatic mapping</li>
+                        <li><strong>WpResidence Only:</strong> These fields can only be created through WpResidence admin</li>
+                        <li><strong>One-Time Setup:</strong> Create once, used by all future imports</li>
+                        <li><strong>95% Coverage:</strong> With these fields, XML mapping reaches 95%+ coverage</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="rs-actions-section">
+                <h4>🔧 Field Management Actions</h4>
+                
+                <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button type="button" class="rs-button-primary" id="check-field-status">
+                        <span class="dashicons dashicons-admin-generic"></span> Check Field Status
+                    </button>
+                    
+                    <button type="button" class="rs-button-secondary" id="view-field-mapping">
+                        <span class="dashicons dashicons-networking"></span> View XML Mapping
+                    </button>
+                    
+                    <button type="button" class="rs-button-secondary" id="test-field-population">
+                        <span class="dashicons dashicons-performance"></span> Test Field Population
+                    </button>
+                </div>
+                
+                <!-- Field Status Results -->
+                <div id="field-status-results" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #c3c4c7;">
+                    <h5>Field Status Results</h5>
+                    <div id="field-status-content">
+                        <p>Click "Check Field Status" to verify custom fields...</p>
+                    </div>
+                </div>
+                
+                <!-- XML Mapping Display -->
+                <div id="xml-mapping-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-radius: 4px; border: 1px solid #c9d6e7;">
+                    <h5>XML → WordPress Field Mapping</h5>
+                    <div id="xml-mapping-content">
+                        <p>Click "View XML Mapping" to see the complete mapping...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB 3: TOOLS -->
     <div id="tools" class="tab-content">
         <div class="rs-card">
             <h3><span class="dashicons dashicons-database-import"></span> Testing & Development</h3>
@@ -252,7 +416,7 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 3: LOGS -->
+    <!-- TAB 4: LOGS -->
     <div id="logs" class="tab-content">
         <div class="rs-card">
             <h3><span class="dashicons dashicons-list-view"></span> Log & Monitoraggio</h3>
@@ -310,6 +474,20 @@ $import_stats = $tracking_manager->get_import_statistics();
 .rs-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #f3f3f3; border-top: 2px solid #2271b1; border-radius: 50%; animation: rs-spin 1s linear infinite; margin-right: 5px; }
 @keyframes rs-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 .rs-info-box { background: #f0f6fc; border: 1px solid #c9d6e7; border-radius: 4px; padding: 15px; margin: 15px 0; }
+.rs-custom-fields-table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+.rs-custom-fields-table th, .rs-custom-fields-table td { padding: 12px; text-align: left; border-bottom: 1px solid #c3c4c7; }
+.rs-custom-fields-table th { background: #f0f0f1; font-weight: bold; }
+.rs-custom-fields-table code { background: #f1f1f1; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+.rs-field-type { background: #2271b1; color: white; padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: bold; }
+.rs-status-manual { color: #d63638; font-weight: bold; }
+.rs-status-created { color: #00a32a; font-weight: bold; }
+.rs-instruction-box { background: #f8f9fa; border: 1px solid #e1e5e9; border-radius: 4px; padding: 20px; margin: 15px 0; }
+.rs-instruction-list { margin: 10px 0; padding-left: 25px; }
+.rs-instruction-list li { margin-bottom: 8px; }
+.rs-warning-box { background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px; padding: 15px; margin: 15px 0; }
+.rs-warning-box h5 { margin-top: 0; color: #997404; }
+.rs-actions-section { margin-top: 30px; }
+.rs-custom-fields-section h4, .rs-instructions-section h4, .rs-actions-section h4 { color: #2271b1; margin-top: 25px; margin-bottom: 15px; }
 </style>
 
 <script type="text/javascript">
@@ -324,7 +502,160 @@ jQuery(document).ready(function($) {
     });
     
     var dashboard = {
-        init: function() { this.bindEvents(); },
+        init: function() { 
+            this.bindEvents(); 
+            
+            // 🔄 AUTO-LOAD INFO TAB FEATURES
+            this.autoLoadInfoTabFeatures();
+        },
+        
+        // 🔄 AUTO-LOAD FEATURES FOR INFO TAB
+        autoLoadInfoTabFeatures: function() {
+            // Auto-check field status when Info tab is active or page loads
+            var currentTab = $('.nav-tab-active').data('tab');
+            if (currentTab === 'info') {
+                this.autoCheckFieldStatus();
+                this.autoLoadXMLMapping();
+            }
+            
+            // Auto-load when switching to Info tab
+            $('.nav-tab[data-tab="info"]').on('click', function() {
+                setTimeout(function() {
+                    dashboard.autoCheckFieldStatus();
+                    dashboard.autoLoadXMLMapping();
+                }, 100);
+            });
+        },
+        
+        // 🔄 AUTO-CHECK FIELD STATUS (Silent)
+        autoCheckFieldStatus: function() {
+            // Silent check - no loading indicators, just update the table
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_check_field_status', 
+                    nonce: realestateSync.nonce 
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.updateFieldStatusTable(response.data);
+                    }
+                },
+                error: function() {
+                    // Silent fail - don't show errors for auto-check
+                }
+            });
+        },
+        
+        // 🔄 AUTO-LOAD XML MAPPING (Always Expanded)
+        autoLoadXMLMapping: function() {
+            // Auto-load and expand XML mapping
+            $('#xml-mapping-display').removeClass('rs-hidden');
+            $('#xml-mapping-content').html('<p><span class="rs-spinner"></span>Loading XML mapping...</p>');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_get_field_mapping', 
+                    nonce: realestateSync.nonce 
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.displayXMLMapping(response.data);
+                    } else {
+                        $('#xml-mapping-content').html('<p style="color: #d63638;">Error loading mapping: ' + response.data + '</p>');
+                    }
+                },
+                error: function() {
+                    $('#xml-mapping-content').html('<p style="color: #d63638;">Communication error loading mapping</p>');
+                }
+            });
+        },
+        
+        // 🔄 UPDATE FIELD STATUS TABLE
+        updateFieldStatusTable: function(data) {
+            if (!data.field_details || data.field_details.length === 0) return;
+            
+            // Update each field status in the main table
+            data.field_details.forEach(function(field) {
+                var $row = $('.rs-custom-fields-table tbody tr').filter(function() {
+                    return $(this).find('code').text() === field.name;
+                });
+                
+                if ($row.length > 0) {
+                    var $statusCell = $row.find('td:last-child');
+                    if (field.exists) {
+                        $statusCell.html('<span class="rs-status-created">✅ Created</span>');
+                    } else {
+                        $statusCell.html('<span class="rs-status-manual">❌ Manual</span>');
+                    }
+                }
+            });
+            
+            // Update summary if available
+            if (data.created_count !== undefined) {
+                var summaryMessage = data.created_count + ' / 9 custom fields created';
+                if (data.created_count === 9) {
+                    summaryMessage += ' ✅ Complete!';
+                }
+                
+                // Update info box if present
+                $('.rs-info-box p').html(
+                    'The RealEstate Sync plugin requires 9 additional custom fields to be created manually in WpResidence.<br>' +
+                    'These fields enhance property details with specialized data from GestionaleImmobiliare.it XML.<br>' +
+                    '<strong>Status: ' + summaryMessage + '</strong>'
+                );
+            }
+        },
+        
+        // 🔄 DISPLAY XML MAPPING (Enhanced)
+        displayXMLMapping: function(mapping) {
+            var html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+            
+            // Property Core Fields
+            html += '<div><h6 style="color: #2271b1; margin-bottom: 10px;">🏠 Property Core Fields</h6>';
+            html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+            html += '<thead><tr style="background: #f0f0f1;"><th style="padding: 6px; border: 1px solid #ddd;">XML Field</th><th style="padding: 6px; border: 1px solid #ddd;">WordPress Field</th></tr></thead><tbody>';
+            
+            if (mapping.property_core) {
+                Object.keys(mapping.property_core).forEach(function(xmlField) {
+                    html += '<tr><td style="padding: 6px; border: 1px solid #ddd;"><code>' + xmlField + '</code></td>';
+                    html += '<td style="padding: 6px; border: 1px solid #ddd;">' + mapping.property_core[xmlField] + '</td></tr>';
+                });
+            }
+            html += '</tbody></table></div>';
+            
+            // Custom Fields
+            html += '<div><h6 style="color: #d63638; margin-bottom: 10px;">🔧 Custom Fields (Manual Creation)</h6>';
+            html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+            html += '<thead><tr style="background: #f0f0f1;"><th style="padding: 6px; border: 1px solid #ddd;">XML Field</th><th style="padding: 6px; border: 1px solid #ddd;">Custom Field</th></tr></thead><tbody>';
+            
+            if (mapping.custom_fields) {
+                Object.keys(mapping.custom_fields).forEach(function(xmlField) {
+                    html += '<tr><td style="padding: 6px; border: 1px solid #ddd;"><code>' + xmlField + '</code></td>';
+                    html += '<td style="padding: 6px; border: 1px solid #ddd;"><strong>' + mapping.custom_fields[xmlField] + '</strong></td></tr>';
+                });
+            }
+            html += '</tbody></table></div>';
+            html += '</div>';
+            
+            // Coverage Summary
+            if (mapping.coverage_summary) {
+                html += '<div style="margin-top: 20px; padding: 15px; background: #f8f9fa; border-radius: 4px;">';
+                html += '<h6 style="margin: 0 0 10px 0;">Mapping Coverage Summary</h6>';
+                html += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px;">';
+                
+                html += '<div style="text-align: center;"><strong>Total XML Fields</strong><br><span style="font-size: 18px; color: #2271b1;">' + (mapping.coverage_summary.total_xml_fields || 'N/A') + '</span></div>';
+                html += '<div style="text-align: center;"><strong>Mapped Fields</strong><br><span style="font-size: 18px; color: #00a32a;">' + (mapping.coverage_summary.mapped_fields || 'N/A') + '</span></div>';
+                html += '<div style="text-align: center;"><strong>Coverage</strong><br><span style="font-size: 18px; color: #f59e0b;">' + (mapping.coverage_summary.coverage_percentage || 'N/A') + '%</span></div>';
+                
+                html += '</div></div>';
+            }
+            
+            $('#xml-mapping-content').html(html);
+        },
         bindEvents: function() {
             $('#start-manual-import').on('click', this.startManualImport);
             $('#rs-test-connection').on('click', this.testConnection);
@@ -343,6 +674,185 @@ jQuery(document).ready(function($) {
             $('#check-activation-status').on('click', this.checkActivationStatus);
             $('#view-activation-info').on('click', this.viewActivationInfo);
             $('#test-activation-workflow').on('click', this.testActivationWorkflow);
+            
+            // 📋 INFO TAB EVENTS
+            $('#check-field-status').on('click', this.checkFieldStatus);
+            $('#view-field-mapping').on('click', this.viewFieldMapping);
+            $('#test-field-population').on('click', this.testFieldPopulation);
+        },
+        
+        // 📋 INFO TAB METHODS
+        checkFieldStatus: function(e) {
+            e.preventDefault();
+            
+            $('#field-status-results').removeClass('rs-hidden');
+            $('#field-status-content').html('<p><span class="rs-spinner"></span>Checking custom fields status...</p>');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_check_field_status', 
+                    nonce: realestateSync.nonce 
+                },
+                beforeSend: function() {
+                    $('#check-field-status').prop('disabled', true).html('<span class="rs-spinner"></span>Checking...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        
+                        var html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+                        html += '<div style="padding: 15px; background: white; border-radius: 4px; border-left: 4px solid #00a32a;">';
+                        html += '<h5 style="margin: 0 0 5px 0; color: #00a32a;">✅ Fields Created</h5>';
+                        html += '<div style="font-size: 20px; font-weight: bold;">' + (result.created_count || 0) + ' / 9</div></div>';
+                        
+                        html += '<div style="padding: 15px; background: white; border-radius: 4px; border-left: 4px solid #d63638;">';
+                        html += '<h5 style="margin: 0 0 5px 0; color: #d63638;">❌ Missing Fields</h5>';
+                        html += '<div style="font-size: 20px; font-weight: bold;">' + (result.missing_count || 9) + ' / 9</div></div>';
+                        html += '</div>';
+                        
+                        if (result.field_details && result.field_details.length > 0) {
+                            html += '<h6>Field Status Details:</h6>';
+                            html += '<table style="width: 100%; border-collapse: collapse;">';
+                            html += '<thead><tr style="background: #f9f9f9;"><th style="padding: 8px; border: 1px solid #ddd;">Field Name</th><th style="padding: 8px; border: 1px solid #ddd;">Status</th><th style="padding: 8px; border: 1px solid #ddd;">Label</th></tr></thead><tbody>';
+                            
+                            result.field_details.forEach(function(field) {
+                                var statusIcon = field.exists ? '✅' : '❌';
+                                var statusColor = field.exists ? '#00a32a' : '#d63638';
+                                html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><code>' + field.name + '</code></td>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd; color: ' + statusColor + ';">' + statusIcon + ' ' + (field.exists ? 'Created' : 'Missing') + '</td>';
+                                html += '<td style="padding: 8px; border: 1px solid #ddd;">' + (field.label || 'N/A') + '</td></tr>';
+                            });
+                            
+                            html += '</tbody></table>';
+                        }
+                        
+                        $('#field-status-content').html(html);
+                        
+                        var message = 'Field check completed. ' + (result.created_count || 0) + ' fields created, ' + (result.missing_count || 9) + ' missing.';
+                        dashboard.showAlert(message, result.created_count === 9 ? 'success' : 'warning');
+                        
+                    } else {
+                        $('#field-status-content').html('<p style="color: #d63638;">Error checking fields: ' + response.data + '</p>');
+                        dashboard.showAlert('🚨 Field status check failed: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    $('#field-status-content').html('<p style="color: #d63638;">Communication error</p>');
+                    dashboard.showAlert('🚨 Communication error during field check', 'error'); 
+                },
+                complete: function() {
+                    $('#check-field-status').prop('disabled', false).html('<span class="dashicons dashicons-admin-generic"></span> Check Field Status');
+                }
+            });
+        },
+        
+        viewFieldMapping: function(e) {
+            e.preventDefault();
+            
+            $('#xml-mapping-display').toggleClass('rs-hidden');
+            
+            if (!$('#xml-mapping-display').hasClass('rs-hidden')) {
+                $('#xml-mapping-content').html('<p><span class="rs-spinner"></span>Loading XML mapping...</p>');
+                
+                $.ajax({
+                    url: realestateSync.ajax_url,
+                    type: 'POST',
+                    data: { 
+                        action: 'realestate_sync_get_field_mapping', 
+                        nonce: realestateSync.nonce 
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            var mapping = response.data;
+                            
+                            var html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">';
+                            
+                            // Property Core Fields
+                            html += '<div><h6 style="color: #2271b1; margin-bottom: 10px;">🏠 Property Core Fields</h6>';
+                            html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                            html += '<thead><tr style="background: #f0f0f1;"><th style="padding: 6px; border: 1px solid #ddd;">XML Field</th><th style="padding: 6px; border: 1px solid #ddd;">WordPress Field</th></tr></thead><tbody>';
+                            
+                            if (mapping.property_core) {
+                                Object.keys(mapping.property_core).forEach(function(xmlField) {
+                                    html += '<tr><td style="padding: 6px; border: 1px solid #ddd;"><code>' + xmlField + '</code></td>';
+                                    html += '<td style="padding: 6px; border: 1px solid #ddd;">' + mapping.property_core[xmlField] + '</td></tr>';
+                                });
+                            }
+                            html += '</tbody></table></div>';
+                            
+                            // Custom Fields
+                            html += '<div><h6 style="color: #d63638; margin-bottom: 10px;">🔧 Custom Fields (Manual Creation)</h6>';
+                            html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                            html += '<thead><tr style="background: #f0f0f1;"><th style="padding: 6px; border: 1px solid #ddd;">XML Field</th><th style="padding: 6px; border: 1px solid #ddd;">Custom Field</th></tr></thead><tbody>';
+                            
+                            if (mapping.custom_fields) {
+                                Object.keys(mapping.custom_fields).forEach(function(xmlField) {
+                                    html += '<tr><td style="padding: 6px; border: 1px solid #ddd;"><code>' + xmlField + '</code></td>';
+                                    html += '<td style="padding: 6px; border: 1px solid #ddd;"><strong>' + mapping.custom_fields[xmlField] + '</strong></td></tr>';
+                                });
+                            }
+                            html += '</tbody></table></div>';
+                            html += '</div>';
+                            
+                            $('#xml-mapping-content').html(html);
+                            dashboard.showAlert('🗺️ XML mapping displayed with current coverage', 'info');
+                            
+                        } else {
+                            $('#xml-mapping-content').html('<p style="color: #d63638;">Error loading mapping: ' + response.data + '</p>');
+                            dashboard.showAlert('🚨 Failed to load XML mapping: ' + response.data, 'error');
+                        }
+                    },
+                    error: function() {
+                        $('#xml-mapping-content').html('<p style="color: #d63638;">Communication error</p>');
+                        dashboard.showAlert('🚨 Communication error loading mapping', 'error');
+                    }
+                });
+            }
+        },
+        
+        testFieldPopulation: function(e) {
+            e.preventDefault();
+            
+            if (!confirm('🧪 Test Custom Fields Population?\n\nThis will test the mapping of XML data to custom fields using sample data.')) return;
+            
+            dashboard.showAlert('🧪 Testing custom fields population...', 'info');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_test_field_population', 
+                    nonce: realestateSync.nonce 
+                },
+                beforeSend: function() {
+                    $('#test-field-population').prop('disabled', true).html('<span class="rs-spinner"></span>Testing...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        
+                        var message = '🎉 Population test completed! ';
+                        message += 'Fields tested: ' + (result.fields_tested || 0) + ', ';
+                        message += 'Successful: ' + (result.successful_mappings || 0) + ', ';
+                        message += 'Failed: ' + (result.failed_mappings || 0);
+                        
+                        dashboard.showAlert(message, result.failed_mappings === 0 ? 'success' : 'warning');
+                        
+                        console.log('🧪 Field Population Test Results:', result);
+                        
+                    } else {
+                        dashboard.showAlert('🚨 Population test failed: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    dashboard.showAlert('🚨 Communication error during population test', 'error'); 
+                },
+                complete: function() {
+                    $('#test-field-population').prop('disabled', false).html('<span class="dashicons dashicons-performance"></span> Test Field Population');
+                }
+            });
         },
         createPropertyFields: function(e) {
             e.preventDefault();

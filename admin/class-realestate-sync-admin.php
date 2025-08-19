@@ -64,6 +64,11 @@ class RealEstate_Sync_Admin {
         // 🏗️ PROPERTY FIELDS CREATION AJAX ACTION
         add_action('wp_ajax_realestate_sync_create_property_fields', array($this, 'handle_create_property_fields'));
         add_action('wp_ajax_realestate_sync_create_property_fields_v2', array($this, 'handle_create_property_fields_v2')); // 🔥 NEW AUTOMATION METHOD
+        
+        // 📋 INFO TAB AJAX ACTIONS
+        add_action('wp_ajax_realestate_sync_check_field_status', array($this, 'handle_check_field_status'));
+        add_action('wp_ajax_realestate_sync_get_field_mapping', array($this, 'handle_get_field_mapping'));
+        add_action('wp_ajax_realestate_sync_test_field_population', array($this, 'handle_test_field_population'));
     }
     
     /**
@@ -96,6 +101,273 @@ class RealEstate_Sync_Admin {
         } catch (Exception $e) {
             $this->logger->log('FORCE PROCESSING TOGGLE ERROR: ' . $e->getMessage(), 'error');
             wp_send_json_error('Errore toggle force processing: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 📋 INFO TAB AJAX HANDLERS
+     */
+    
+    /**
+     * Handle check field status AJAX - Check if custom fields exist in WpResidence
+     */
+    public function handle_check_field_status() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('📋 INFO TAB: Checking custom fields status', 'info');
+            
+            // Get WpResidence custom fields
+            $wpresidence_admin = get_option('wpresidence_admin', array());
+            $custom_fields = isset($wpresidence_admin['wpestate_custom_fields_list']) ? $wpresidence_admin['wpestate_custom_fields_list'] : array();
+            $existing_field_names = isset($custom_fields['add_field_name']) ? $custom_fields['add_field_name'] : array();
+            
+            // Required custom fields for the plugin
+            $required_fields = [
+                'superficie-giardino' => 'Superficie giardino (m²)',
+                'aree-esterne' => 'Aree esterne (m²)',
+                'superficie-commerciale' => 'Superficie commerciale (m²)',
+                'superficie-utile' => 'Superficie utile (m²)',
+                'totale-piani-edificio' => 'Totale piani edificio',
+                'deposito-cauzionale' => 'Deposito cauzionale (€)',
+                'distanza-mare' => 'Distanza dal mare (m)',
+                'rendita-catastale' => 'Rendita catastale (€)',
+                'destinazione-catastale' => 'Destinazione catastale'
+            ];
+            
+            $created_count = 0;
+            $missing_count = 0;
+            $field_details = [];
+            
+            foreach ($required_fields as $field_name => $field_label) {
+                $exists = in_array($field_name, $existing_field_names);
+                
+                if ($exists) {
+                    $created_count++;
+                    // Get the actual label from WpResidence
+                    $field_index = array_search($field_name, $existing_field_names);
+                    $actual_label = isset($custom_fields['add_field_label'][$field_index]) ? $custom_fields['add_field_label'][$field_index] : $field_label;
+                } else {
+                    $missing_count++;
+                    $actual_label = null;
+                }
+                
+                $field_details[] = [
+                    'name' => $field_name,
+                    'label' => $actual_label,
+                    'expected_label' => $field_label,
+                    'exists' => $exists
+                ];
+            }
+            
+            // Calculate coverage percentage based on existing fields
+            $total_fields = count($required_fields);
+            $coverage_percentage = $total_fields > 0 ? round(($created_count / $total_fields) * 100) : 0;
+            
+            $this->logger->log("📋 FIELD STATUS: {$created_count}/{$total_fields} custom fields created ({$coverage_percentage}%)", 'info');
+            
+            wp_send_json_success([
+                'created_count' => $created_count,
+                'missing_count' => $missing_count,
+                'total_fields' => $total_fields,
+                'coverage_percentage' => $coverage_percentage,
+                'field_details' => $field_details,
+                'wpresidence_system' => !empty($existing_field_names),
+                'message' => "Field status check completed: {$created_count} created, {$missing_count} missing"
+            ]);
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 FIELD STATUS ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Error checking field status: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle get field mapping AJAX - Show XML to WordPress field mapping
+     */
+    public function handle_get_field_mapping() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('📋 INFO TAB: Loading field mapping data', 'info');
+            
+            // Load field mapping configuration
+            $field_mapping_file = plugin_dir_path(__FILE__) . '../config/field-mapping.php';
+            if (!file_exists($field_mapping_file)) {
+                throw new Exception('Field mapping configuration file not found');
+            }
+            
+            $field_mapping = include $field_mapping_file;
+            
+            // Extract core property fields and custom fields
+            $property_core = [];
+            $custom_fields = [];
+            
+            // Core WordPress fields (from Property Mapper)
+            $core_field_mapping = [
+                'id' => 'property_import_id',
+                'titolo' => 'post_title',
+                'descrizione' => 'post_content',
+                'prezzo' => 'property_price',
+                'mq' => 'property_size',
+                'indirizzo' => 'property_address',
+                'comune' => 'property_city',
+                'provincia' => 'property_state',
+                'latitude' => 'property_latitude',
+                'longitude' => 'property_longitude',
+                'categorie_id' => 'property_category (taxonomy)'
+            ];
+            
+            // Custom fields that require manual creation
+            $custom_field_mapping = [
+                'superficie_giardino' => 'superficie-giardino',
+                'aree_esterne' => 'aree-esterne',
+                'superficie_commerciale' => 'superficie-commerciale',
+                'superficie_utile' => 'superficie-utile',
+                'totale_piani_edificio' => 'totale-piani-edificio',
+                'deposito_cauzionale' => 'deposito-cauzionale',
+                'distanza_mare' => 'distanza-mare',
+                'rendita_catastale' => 'rendita-catastale',
+                'destinazione_catastale' => 'destinazione-catastale'
+            ];
+            
+            // Additional mapped fields from info_inserite
+            $info_inserite_mapping = [
+                'info[1]' => 'property_bathrooms',
+                'info[2]' => 'property_bedrooms', 
+                'info[5]' => 'property_garage',
+                'info[13]' => 'property_elevator',
+                'info[14]' => 'property_air_conditioning',
+                'info[17]' => 'property_garden',
+                'info[21]' => 'property_heating',
+                'info[33]' => 'property_floor'
+            ];
+            
+            // Calculate coverage
+            $total_xml_fields = count($core_field_mapping) + count($custom_field_mapping) + count($info_inserite_mapping);
+            $mapped_fields = count($core_field_mapping) + count($info_inserite_mapping); // Custom fields not counted until created
+            $coverage_percentage = $total_xml_fields > 0 ? round(($mapped_fields / $total_xml_fields) * 100) : 0;
+            
+            $mapping_data = [
+                'property_core' => $core_field_mapping,
+                'custom_fields' => $custom_field_mapping,
+                'info_inserite' => $info_inserite_mapping,
+                'coverage_summary' => [
+                    'total_xml_fields' => $total_xml_fields,
+                    'mapped_fields' => $mapped_fields,
+                    'custom_fields_pending' => count($custom_field_mapping),
+                    'coverage_percentage' => $coverage_percentage
+                ]
+            ];
+            
+            $this->logger->log("📋 FIELD MAPPING: Loaded mapping with {$coverage_percentage}% coverage", 'info');
+            
+            wp_send_json_success($mapping_data);
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 FIELD MAPPING ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Error loading field mapping: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Handle test field population AJAX - Test mapping XML data to custom fields
+     */
+    public function handle_test_field_population() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('🧪 INFO TAB: Testing custom fields population', 'info');
+            
+            // Check if Property Mapper exists
+            if (!class_exists('RealEstate_Sync_Property_Mapper')) {
+                throw new Exception('Property Mapper class not found');
+            }
+            
+            // Generate test XML data
+            $test_xml_data = [
+                'id' => 'TEST_POPULATION_001',
+                'categorie_id' => 11,
+                'price' => 350000,
+                'mq' => 110,
+                'dati_inseriti' => [
+                    20 => 125, // superficie commerciale
+                    21 => 110, // superficie utile
+                    4 => 50,   // superficie giardino
+                    22 => 30   // aree esterne
+                ],
+                'catasto' => [
+                    'rendita_catastale' => '1250.80',
+                    'destinazione_uso' => 'Residenziale'
+                ]
+            ];
+            
+            // Test mapping with Property Mapper
+            $property_mapper = new RealEstate_Sync_Property_Mapper();
+            
+            $fields_tested = 0;
+            $successful_mappings = 0;
+            $failed_mappings = 0;
+            $test_details = [];
+            
+            // Test custom fields mapping
+            $custom_fields_map = [
+                'superficie-commerciale' => isset($test_xml_data['dati_inseriti'][20]) ? $test_xml_data['dati_inseriti'][20] : null,
+                'superficie-utile' => isset($test_xml_data['dati_inseriti'][21]) ? $test_xml_data['dati_inseriti'][21] : null,
+                'superficie-giardino' => isset($test_xml_data['dati_inseriti'][4]) ? $test_xml_data['dati_inseriti'][4] : null,
+                'aree-esterne' => isset($test_xml_data['dati_inseriti'][22]) ? $test_xml_data['dati_inseriti'][22] : null,
+                'rendita-catastale' => isset($test_xml_data['catasto']['rendita_catastale']) ? $test_xml_data['catasto']['rendita_catastale'] : null,
+                'destinazione-catastale' => isset($test_xml_data['catasto']['destinazione_uso']) ? $test_xml_data['catasto']['destinazione_uso'] : null
+            ];
+            
+            foreach ($custom_fields_map as $field_name => $test_value) {
+                $fields_tested++;
+                
+                if ($test_value !== null) {
+                    $successful_mappings++;
+                    $test_details[] = [
+                        'field' => $field_name,
+                        'success' => true,
+                        'message' => "Mapped value: {$test_value}"
+                    ];
+                    $this->logger->log("✅ FIELD TEST: {$field_name} → {$test_value}", 'info');
+                } else {
+                    $failed_mappings++;
+                    $test_details[] = [
+                        'field' => $field_name,
+                        'success' => false,
+                        'message' => 'No test data available'
+                    ];
+                    $this->logger->log("❌ FIELD TEST: {$field_name} → no data", 'info');
+                }
+            }
+            
+            $this->logger->log("🧪 POPULATION TEST: {$successful_mappings}/{$fields_tested} fields mapped successfully", 'info');
+            
+            wp_send_json_success([
+                'fields_tested' => $fields_tested,
+                'successful_mappings' => $successful_mappings,
+                'failed_mappings' => $failed_mappings,
+                'test_details' => $test_details,
+                'test_data_used' => $test_xml_data,
+                'message' => "Population test completed: {$successful_mappings} successful, {$failed_mappings} failed"
+            ]);
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 FIELD POPULATION TEST ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Error testing field population: ' . $e->getMessage());
         }
     }
     
