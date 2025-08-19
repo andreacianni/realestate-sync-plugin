@@ -80,9 +80,12 @@ class RealEstate_Sync {
      * Initialize WordPress hooks
      */
     private function init_hooks() {
-        // Plugin lifecycle hooks (static callbacks)
-        register_activation_hook(__FILE__, [__CLASS__, 'plugin_activate']);
+        // 🚀 PROFESSIONAL ACTIVATION: wp_loaded approach (BREAKTHROUGH IMPLEMENTATION)
+        register_activation_hook(__FILE__, [__CLASS__, 'set_activation_flag']);
         register_deactivation_hook(__FILE__, [__CLASS__, 'plugin_deactivate']);
+        
+        // 💎 ELEGANT wp_loaded ACTIVATION: Complete activation when WordPress is fully loaded
+        add_action('wp_loaded', [$this, 'complete_activation']);
         
         // Core WordPress hooks
         add_action('plugins_loaded', [$this, 'init_plugin']);
@@ -164,12 +167,15 @@ class RealEstate_Sync {
     }
     
     /**
-     * Static plugin activation callback
+     * 🚀 PROFESSIONAL ACTIVATION v2.0: Set activation flag (wp_loaded approach)
+     * Called by register_activation_hook - sets flag for wp_loaded completion
      */
-    public static function plugin_activate() {
-        // Create instance to run activation
-        $instance = self::get_instance();
-        $instance->activate();
+    public static function set_activation_flag() {
+        // Set flag for wp_loaded activation completion
+        update_option('realestate_sync_needs_activation', true);
+        
+        // Log flag setting (direct error_log for activation context)
+        error_log('RealEstate Sync: Activation flag set - will complete on wp_loaded');
     }
     
     /**
@@ -182,9 +188,37 @@ class RealEstate_Sync {
     }
     
     /**
-     * Plugin activation
+     * 💎 ELEGANT wp_loaded ACTIVATION: Complete activation when WordPress ready
+     * Called on wp_loaded hook - ensures proper WordPress context and timing
      */
-    public function activate() {
+    public function complete_activation() {
+        // Check if activation is needed
+        if (!get_option('realestate_sync_needs_activation', false)) {
+            return; // No activation needed
+        }
+        
+        try {
+            // WordPress is fully loaded - perform activation tasks safely
+            $this->perform_activation_tasks();
+            
+            // Clean activation flag - one-time execution
+            delete_option('realestate_sync_needs_activation');
+            
+            // Log successful completion
+            $this->log_activation_message('🎉 PROFESSIONAL ACTIVATION COMPLETE: All tasks executed successfully via wp_loaded', 'info');
+            
+        } catch (Exception $e) {
+            // Log error but don't clear flag - will retry on next wp_loaded
+            $this->log_activation_message('⚠️ wp_loaded activation failed: ' . $e->getMessage() . ' - Will retry', 'warning');
+        }
+    }
+    
+
+    
+    /**
+     * 🛡️ Perform the actual activation tasks
+     */
+    private function perform_activation_tasks() {
         // Create database tables if needed
         $this->create_database_tables();
         
@@ -195,13 +229,44 @@ class RealEstate_Sync {
         $this->schedule_cron_events();
         
         // Log activation
-        if (class_exists('RealEstate_Sync_Logger')) {
-            $logger = RealEstate_Sync_Logger::get_instance();
-            $logger->log('Plugin activated successfully', 'info');
-        }
+        $this->log_activation_message('Plugin activation tasks completed successfully', 'info');
         
         // Flush rewrite rules
         flush_rewrite_rules();
+    }
+    
+    /**
+     * 🛡️ Check if activation is complete
+     */
+    private function is_activation_complete() {
+        global $wpdb;
+        
+        // Check if tracking table exists
+        $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+        
+        // Check if basic options are set
+        $options_exist = get_option('realestate_sync_xml_url', false) !== false;
+        
+        return $table_exists && $options_exist;
+    }
+    
+    /**
+     * 🛡️ Safe logging for activation process
+     */
+    private function log_activation_message($message, $level = 'info') {
+        if (class_exists('RealEstate_Sync_Logger')) {
+            try {
+                $logger = RealEstate_Sync_Logger::get_instance();
+                $logger->log($message, $level);
+            } catch (Exception $e) {
+                // Fallback to error_log if logger fails
+                error_log('RealEstate Sync: ' . $message);
+            }
+        } else {
+            // Fallback to error_log if logger class not available
+            error_log('RealEstate Sync: ' . $message);
+        }
     }
     
     /**
@@ -546,6 +611,34 @@ function realestate_sync_init() {
 add_action('plugins_loaded', 'realestate_sync_init', 0);
 
 /**
+ * 💎 PROFESSIONAL ACTIVATION INFO - For developers and troubleshooting
+ * Access with: ?debug_activation_info
+ */
+add_action('wp_loaded', function() {
+    if (isset($_GET['debug_activation_info']) && current_user_can('manage_options')) {
+        echo '<h1>🚀 PROFESSIONAL ACTIVATION SYSTEM v2.0</h1>';
+        echo '<h3>💎 BREAKTHROUGH IMPLEMENTATION:</h3>';
+        echo '<p><strong>Problem Solved:</strong> WordPress timing issues with register_activation_hook</p>';
+        echo '<p><strong>Solution:</strong> Two-phase activation via wp_loaded hook</p>';
+        echo '<h3>🔄 ACTIVATION WORKFLOW:</h3>';
+        echo '<ol>';
+        echo '<li><strong>Phase 1:</strong> register_activation_hook sets flag</li>';
+        echo '<li><strong>Phase 2:</strong> wp_loaded completes activation when WordPress ready</li>';
+        echo '<li><strong>One-time:</strong> Flag cleanup prevents re-execution</li>';
+        echo '</ol>';
+        echo '<h3>✨ BENEFITS:</h3>';
+        echo '<ul>';
+        echo '<li>Perfect WordPress timing - no early execution issues</li>';
+        echo '<li>One-time execution - no infinite loops</li>';
+        echo '<li>Professional user experience - zero manual intervention</li>';
+        echo '<li>Resilient operation - handles edge cases gracefully</li>';
+        echo '</ul>';
+        echo '<p><a href="?debug_activation">➡️ Check Current Activation Status</a></p>';
+        exit;
+    }
+});
+
+/**
  * Helper function to get plugin instance
  * 
  * @return RealEstate_Sync
@@ -553,3 +646,40 @@ add_action('plugins_loaded', 'realestate_sync_init', 0);
 function realestate_sync() {
     return RealEstate_Sync::get_instance();
 }
+
+// 🚀 PROFESSIONAL ACTIVATION DEBUG - For monitoring wp_loaded activation system
+add_action('wp_loaded', function() {
+    if (isset($_GET['debug_activation']) && current_user_can('manage_options')) {
+        echo '<h2>🚀 PROFESSIONAL ACTIVATION STATUS</h2>';
+        
+        // Check activation flag status
+        $needs_activation = get_option('realestate_sync_needs_activation', false);
+        echo '<p><strong>Activation Flag:</strong> ' . ($needs_activation ? '🔄 PENDING (will complete on wp_loaded)' : '✅ CLEAN (activation complete)') . '</p>';
+        
+        // Check table existence
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+        echo '<p><strong>Database Table:</strong> ' . ($table_exists ? '✅ EXISTS' : '❌ MISSING') . '</p>';
+        
+        // Check basic options
+        $options_exist = get_option('realestate_sync_xml_url', false) !== false;
+        echo '<p><strong>Plugin Options:</strong> ' . ($options_exist ? '✅ SET' : '❌ MISSING') . '</p>';
+        
+        // Overall status
+        $activation_complete = !$needs_activation && $table_exists && $options_exist;
+        echo '<p><strong>System Status:</strong> ' . ($activation_complete ? '✅ FULLY ACTIVATED' : '🔄 ACTIVATION IN PROGRESS') . '</p>';
+        
+        if ($activation_complete) {
+            echo '<p style="color: green; font-weight: bold;">🎉 PROFESSIONAL ACTIVATION COMPLETE!</p>';
+            echo '<p>wp_loaded activation system working perfectly.</p>';
+        } else if ($needs_activation) {
+            echo '<p style="color: blue; font-weight: bold;">🔄 ACTIVATION WILL COMPLETE AUTOMATICALLY</p>';
+            echo '<p>Refresh this page to see activation complete via wp_loaded.</p>';
+        } else {
+            echo '<p style="color: orange;">Some activation tasks may need manual completion.</p>';
+        }
+        
+        exit;
+    }
+});
