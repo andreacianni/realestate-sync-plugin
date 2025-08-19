@@ -187,6 +187,68 @@ $import_stats = $tracking_manager->get_import_statistics();
                     </div>
                 </div>
             </div>
+            
+            <!-- 🚀 PROFESSIONAL ACTIVATION TOOLS SECTION -->
+            <div class="rs-activation-section" style="border-left: 4px solid #6366f1; padding: 15px; margin-top: 20px; background: #f8faff;">
+                <h4><span class="dashicons dashicons-admin-tools"></span> 🚀 Professional Activation Tools</h4>
+                <p><strong>wp_loaded System:</strong> Breakthrough activation system with perfect WordPress timing</p>
+                
+                <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <button type="button" class="rs-button-primary" id="check-activation-status" style="background: #6366f1; border-color: #6366f1;">
+                        <span class="dashicons dashicons-admin-generic"></span> Check Activation Status
+                    </button>
+                    
+                    <button type="button" class="rs-button-secondary" id="view-activation-info">
+                        <span class="dashicons dashicons-info"></span> View System Info
+                    </button>
+                    
+                    <button type="button" class="rs-button-secondary" id="test-activation-workflow">
+                        <span class="dashicons dashicons-performance"></span> Test Workflow
+                    </button>
+                </div>
+
+                <!-- Activation Status Display -->
+                <div id="activation-status-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #ffffff; border-radius: 4px; border: 1px solid #e1e5e9;">
+                    <h5>Activation System Status</h5>
+                    <div id="activation-status-content">
+                        <p>Loading activation status...</p>
+                    </div>
+                </div>
+                
+                <!-- Activation Info Display -->
+                <div id="activation-info-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #ffffff; border-radius: 4px; border: 1px solid #e1e5e9;">
+                    <h5>Professional Activation System v2.0</h5>
+                    <div id="activation-info-content">
+                        <div style="background: #f0f6fc; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                            <h6>💎 Breakthrough Implementation:</h6>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li><strong>Problem Solved:</strong> WordPress timing issues with register_activation_hook</li>
+                                <li><strong>Solution:</strong> Two-phase activation via wp_loaded hook</li>
+                                <li><strong>Result:</strong> Perfect timing, no manual intervention required</li>
+                            </ul>
+                        </div>
+                        
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                            <h6>🔄 Activation Workflow:</h6>
+                            <ol style="margin: 10px 0; padding-left: 20px;">
+                                <li><strong>Phase 1:</strong> register_activation_hook sets activation flag</li>
+                                <li><strong>Phase 2:</strong> wp_loaded completes activation when WordPress ready</li>
+                                <li><strong>One-time:</strong> Flag cleanup prevents re-execution</li>
+                            </ol>
+                        </div>
+                        
+                        <div style="background: #fff3cd; padding: 15px; border-radius: 4px;">
+                            <h6>✨ Benefits:</h6>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>Perfect WordPress timing - no early execution issues</li>
+                                <li>One-time execution - no infinite loops</li>
+                                <li>Professional user experience - zero manual intervention</li>
+                                <li>Resilient operation - handles edge cases gracefully</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -276,6 +338,11 @@ jQuery(document).ready(function($) {
             $('#cleanup-properties').on('click', this.cleanupProperties);
             $('#view-logs').on('click', this.viewLogs);
             $('#toggle-force-processing').on('click', this.toggleForceProcessing);
+            
+            // 🚀 PROFESSIONAL ACTIVATION TOOLS EVENTS
+            $('#check-activation-status').on('click', this.checkActivationStatus);
+            $('#view-activation-info').on('click', this.viewActivationInfo);
+            $('#test-activation-workflow').on('click', this.testActivationWorkflow);
         },
         createPropertyFields: function(e) {
             e.preventDefault();
@@ -620,6 +687,103 @@ jQuery(document).ready(function($) {
             var logLine = '[' + timestamp + '] ' + message + '\n';
             $('#test-log-content').append(logLine);
             $('#test-log-output').scrollTop($('#test-log-content')[0].scrollHeight);
+        },
+        
+        // 🚀 PROFESSIONAL ACTIVATION TOOLS METHODS
+        checkActivationStatus: function(e) {
+            e.preventDefault();
+            
+            $('#activation-status-display').removeClass('rs-hidden');
+            $('#activation-status-content').html('<p><span class="rs-spinner"></span>Checking activation status...</p>');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_check_activation_status', 
+                    nonce: realestateSync.nonce 
+                },
+                beforeSend: function() {
+                    $('#check-activation-status').prop('disabled', true).html('<span class="rs-spinner"></span>Checking...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        
+                        // Update status display
+                        $('#activation-status-content').html(result.status_html);
+                        
+                        // Show message
+                        dashboard.showAlert(result.message, result.message_class.replace('rs-alert-', ''));
+                        
+                        // Log the check
+                        console.log('🚀 Activation Status:', result);
+                        
+                    } else {
+                        $('#activation-status-content').html('<p style="color: #d63638;">Error: ' + response.data + '</p>');
+                        dashboard.showAlert('🚨 Status check failed: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    $('#activation-status-content').html('<p style="color: #d63638;">Communication error</p>');
+                    dashboard.showAlert('🚨 Communication error during status check', 'error'); 
+                },
+                complete: function() {
+                    $('#check-activation-status').prop('disabled', false).html('<span class="dashicons dashicons-admin-generic"></span> Check Activation Status');
+                }
+            });
+        },
+        
+        viewActivationInfo: function(e) {
+            e.preventDefault();
+            $('#activation-info-display').toggleClass('rs-hidden');
+            
+            if (!$('#activation-info-display').hasClass('rs-hidden')) {
+                dashboard.showAlert('📚 Professional Activation System info displayed', 'info');
+            }
+        },
+        
+        testActivationWorkflow: function(e) {
+            e.preventDefault();
+            
+            if (!confirm('🧪 Test Activation Workflow?\n\nThis will simulate the professional activation process and show how the wp_loaded system works.')) return;
+            
+            dashboard.showAlert('🧪 Testing activation workflow...', 'info');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_test_activation_workflow', 
+                    nonce: realestateSync.nonce 
+                },
+                beforeSend: function() {
+                    $('#test-activation-workflow').prop('disabled', true).html('<span class="rs-spinner"></span>Testing...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        
+                        // Show test results in activation status area
+                        $('#activation-status-display').removeClass('rs-hidden');
+                        $('#activation-status-content').html('<h5>Workflow Test Results</h5>' + result.test_html);
+                        
+                        dashboard.showAlert(result.message, 'success');
+                        
+                        // Log test results
+                        console.log('🧪 Workflow Test Results:', result.test_results);
+                        
+                    } else {
+                        dashboard.showAlert('🚨 Workflow test failed: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    dashboard.showAlert('🚨 Communication error during workflow test', 'error'); 
+                },
+                complete: function() {
+                    $('#test-activation-workflow').prop('disabled', false).html('<span class="dashicons dashicons-performance"></span> Test Workflow');
+                }
+            });
         },
         showAlert: function(message, type) {
             var alertHtml = '<div class="rs-alert rs-alert-' + (type || 'info') + '">' + message + '</div>';

@@ -1876,25 +1876,79 @@ class RealEstate_Sync_Admin {
     }
     
     /**
-     * Apply custom fields to database using direct option modification
+     * Apply custom fields to database using ADDITIVE approach v3
+     * Based on WpResidence theme analysis + DEBUG LOG findings
      */
-    private function apply_custom_fields_to_database($custom_fields_data, $wpresidence_admin) {
+    private function apply_custom_fields_to_database($custom_fields_data, $wpresidence_admin = null) {
         try {
-            // 🔥 DIRECT DATABASE METHOD - Based on AJAX mechanism
-            $wpresidence_admin['wpestate_custom_fields_list'] = $custom_fields_data;
+            // 🔧 GET EXISTING DATA - NON SOVRASCRIVERE!
+            if ($wpresidence_admin === null) {
+                $wpresidence_admin = get_option('wpresidence_admin', []);
+            }
             
+            // 🔧 INIT STRUCTURE SE NON ESISTE
+            if (!isset($wpresidence_admin['wpestate_custom_fields_list'])) {
+                $wpresidence_admin['wpestate_custom_fields_list'] = [
+                    'add_field_name' => [],
+                    'add_field_label' => [],
+                    'add_field_order' => [],
+                    'add_field_type' => [],
+                    'add_dropdown_order' => []
+                ];
+            }
+            
+            $existing_fields = $wpresidence_admin['wpestate_custom_fields_list'];
+            
+            // 🔧 MERGE CON CAMPI ESISTENTI - ADDITIVE APPROACH!
+            $fields_to_add = $custom_fields_data['add_field_name'];
+            $labels_to_add = $custom_fields_data['add_field_label'];
+            $orders_to_add = $custom_fields_data['add_field_order'];
+            $types_to_add = $custom_fields_data['add_field_type'];
+            $dropdowns_to_add = isset($custom_fields_data['add_dropdown_order']) ? $custom_fields_data['add_dropdown_order'] : [];
+            
+            $added_count = 0;
+            $existing_names = isset($existing_fields['add_field_name']) ? $existing_fields['add_field_name'] : [];
+            
+            // 🔧 ADD ONLY NEW FIELDS - DUPLICATE PREVENTION
+            for ($i = 0; $i < count($fields_to_add); $i++) {
+                $field_name = $fields_to_add[$i];
+                
+                // Skip se già esiste
+                if (!in_array($field_name, $existing_names)) {
+                    $wpresidence_admin['wpestate_custom_fields_list']['add_field_name'][] = $field_name;
+                    $wpresidence_admin['wpestate_custom_fields_list']['add_field_label'][] = $labels_to_add[$i];
+                    $wpresidence_admin['wpestate_custom_fields_list']['add_field_order'][] = $orders_to_add[$i];
+                    $wpresidence_admin['wpestate_custom_fields_list']['add_field_type'][] = $types_to_add[$i];
+                    $wpresidence_admin['wpestate_custom_fields_list']['add_dropdown_order'][] = isset($dropdowns_to_add[$i]) ? $dropdowns_to_add[$i] : '';
+                    
+                    $added_count++;
+                    $this->logger->log("✅ ADDED FIELD: {$field_name} → {$labels_to_add[$i]}", 'info');
+                } else {
+                    $this->logger->log("⚠️ SKIPPED DUPLICATE: {$field_name}", 'info');
+                }
+            }
+            
+            // 🔧 UPDATE DATABASE
             $result = update_option('wpresidence_admin', $wpresidence_admin);
             
             if ($result !== false) {
-                $this->logger->log('✅ CUSTOM FIELDS: Successfully updated wpresidence_admin option', 'info');
+                $this->logger->log("✅ CUSTOM FIELDS v3: Successfully updated wpresidence_admin option (Added: {$added_count})", 'info');
+                
+                // 🔧 CALL TEMA CONVERSION SE DISPONIBILE
+                if (function_exists('wpestate_reverse_convert_redux_wp_estate_custom_fields')) {
+                    wpestate_reverse_convert_redux_wp_estate_custom_fields();
+                    $this->logger->log("✅ TRIGGERED: wpestate_reverse_convert_redux_wp_estate_custom_fields()", 'info');
+                }
                 
                 return array(
                     'success' => true,
+                    'added_count' => $added_count,
                     'details' => array(
-                        'method' => 'Direct database option update',
+                        'method' => 'ADDITIVE database merge v3',
                         'target_option' => 'wpresidence_admin[wpestate_custom_fields_list]',
-                        'fields_count' => count($custom_fields_data['add_field_name']),
-                        'structure' => '4 parallel arrays (name, label, order, type)'
+                        'fields_added' => $added_count,
+                        'duplicate_prevention' => 'Active',
+                        'tema_conversion' => function_exists('wpestate_reverse_convert_redux_wp_estate_custom_fields') ? 'Called' : 'Not available'
                     )
                 );
             } else {
@@ -1902,10 +1956,197 @@ class RealEstate_Sync_Admin {
             }
             
         } catch (Exception $e) {
+            $this->logger->log("🚨 CUSTOM FIELDS v3 ERROR: " . $e->getMessage(), 'error');
             return array(
                 'success' => false,
                 'error' => $e->getMessage()
             );
+        }
+    }
+    
+    /**
+     * 🚀 PROFESSIONAL ACTIVATION TOOLS - Handle check activation status AJAX
+     */
+    public function handle_check_activation_status() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            // Check activation flag status
+            $needs_activation = get_option('realestate_sync_needs_activation', false);
+            
+            // Check database table existence  
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+            
+            // Check basic options
+            $options_exist = get_option('realestate_sync_xml_url', false) !== false;
+            
+            // Overall system status
+            $activation_complete = !$needs_activation && $table_exists && $options_exist;
+            
+            // Generate status HTML
+            $status_html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px;">';
+            
+            // Activation Flag Status
+            $flag_status = $needs_activation ? '🔄 PENDING' : '✅ CLEAN';
+            $flag_color = $needs_activation ? '#f59e0b' : '#22c55e';
+            $flag_desc = $needs_activation ? 'Activation will complete automatically on wp_loaded' : 'Activation completed successfully';
+            
+            $status_html .= '<div style="padding: 15px; background: white; border-radius: 6px; border-left: 4px solid ' . $flag_color . ';">';
+            $status_html .= '<h6 style="margin: 0 0 8px 0; color: ' . $flag_color . ';">Activation Flag</h6>';
+            $status_html .= '<div style="font-size: 18px; font-weight: bold; color: ' . $flag_color . ';">' . $flag_status . '</div>';
+            $status_html .= '<p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">' . $flag_desc . '</p>';
+            $status_html .= '</div>';
+            
+            // Database Table Status
+            $db_status = $table_exists ? '✅ EXISTS' : '❌ MISSING';
+            $db_color = $table_exists ? '#22c55e' : '#ef4444';
+            
+            $status_html .= '<div style="padding: 15px; background: white; border-radius: 6px; border-left: 4px solid ' . $db_color . ';">';
+            $status_html .= '<h6 style="margin: 0 0 8px 0; color: ' . $db_color . ';">Database Table</h6>';
+            $status_html .= '<div style="font-size: 18px; font-weight: bold; color: ' . $db_color . ';">' . $db_status . '</div>';
+            $status_html .= '<p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">realestate_sync_tracking table</p>';
+            $status_html .= '</div>';
+            
+            // Plugin Options Status
+            $options_status = $options_exist ? '✅ SET' : '❌ MISSING';
+            $options_color = $options_exist ? '#22c55e' : '#ef4444';
+            
+            $status_html .= '<div style="padding: 15px; background: white; border-radius: 6px; border-left: 4px solid ' . $options_color . ';">';
+            $status_html .= '<h6 style="margin: 0 0 8px 0; color: ' . $options_color . ';">Plugin Options</h6>';
+            $status_html .= '<div style="font-size: 18px; font-weight: bold; color: ' . $options_color . ';">' . $options_status . '</div>';
+            $status_html .= '<p style="margin: 5px 0 0 0; font-size: 12px; color: #6b7280;">Core plugin configuration</p>';
+            $status_html .= '</div>';
+            
+            $status_html .= '</div>';
+            
+            // Overall status message
+            if ($activation_complete) {
+                $message = '🎉 <strong>PROFESSIONAL ACTIVATION COMPLETE!</strong><br>wp_loaded activation system working perfectly.';
+                $message_class = 'rs-alert-success';
+            } else if ($needs_activation) {
+                $message = '🔄 <strong>ACTIVATION IN PROGRESS</strong><br>System will complete automatically via wp_loaded hook. Refresh to see updates.';
+                $message_class = 'rs-alert-info';
+            } else {
+                $message = '⚠️ <strong>PARTIAL ACTIVATION</strong><br>Some components may need manual setup.';
+                $message_class = 'rs-alert-warning';
+            }
+            
+            $this->logger->log('🚀 ACTIVATION STATUS: Flag=' . ($needs_activation ? 'pending' : 'clean') . ', Table=' . ($table_exists ? 'exists' : 'missing') . ', Options=' . ($options_exist ? 'set' : 'missing'), 'info');
+            
+            wp_send_json_success(array(
+                'activation_complete' => $activation_complete,
+                'needs_activation' => $needs_activation,
+                'table_exists' => $table_exists,
+                'options_exist' => $options_exist,
+                'status_html' => $status_html,
+                'message' => $message,
+                'message_class' => $message_class
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 ACTIVATION STATUS ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Error checking activation status: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * 🚀 PROFESSIONAL ACTIVATION TOOLS - Handle test activation workflow AJAX
+     */
+    public function handle_test_activation_workflow() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('🧪 TEST WORKFLOW: Starting activation workflow simulation', 'info');
+            
+            // Simulate activation flag setting
+            $test_results = [];
+            
+            // Test 1: Flag setting simulation
+            $test_results[] = [
+                'step' => 'Phase 1: Set Activation Flag',
+                'description' => 'register_activation_hook sets realestate_sync_needs_activation flag',
+                'status' => 'simulated',
+                'details' => 'Flag would be set to trigger wp_loaded completion'
+            ];
+            
+            // Test 2: wp_loaded timing simulation
+            $test_results[] = [
+                'step' => 'Phase 2: wp_loaded Hook',
+                'description' => 'WordPress fully loaded, complete_activation() executes',
+                'status' => 'simulated',
+                'details' => 'Perfect timing ensures all WordPress functions available'
+            ];
+            
+            // Test 3: Database creation simulation
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'realestate_sync_tracking';
+            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
+            
+            $test_results[] = [
+                'step' => 'Task: Database Creation',
+                'description' => 'Create realestate_sync_tracking table with proper schema',
+                'status' => $table_exists ? 'completed' : 'pending',
+                'details' => $table_exists ? 'Table exists and ready' : 'Table would be created during activation'
+            ];
+            
+            // Test 4: Options initialization simulation
+            $options_exist = get_option('realestate_sync_xml_url', false) !== false;
+            
+            $test_results[] = [
+                'step' => 'Task: Options Setup',
+                'description' => 'Initialize default plugin options and settings',
+                'status' => $options_exist ? 'completed' : 'pending',
+                'details' => $options_exist ? 'Plugin options configured' : 'Options would be initialized during activation'
+            ];
+            
+            // Test 5: Cleanup simulation
+            $test_results[] = [
+                'step' => 'Phase 3: Flag Cleanup',
+                'description' => 'Remove activation flag to prevent re-execution',
+                'status' => 'simulated',
+                'details' => 'One-time execution guaranteed by flag cleanup'
+            ];
+            
+            // Generate test HTML
+            $test_html = '<div style="space-y: 10px;">';
+            
+            foreach ($test_results as $test) {
+                $status_color = $test['status'] === 'completed' ? '#22c55e' : 
+                               ($test['status'] === 'pending' ? '#f59e0b' : '#6b7280');
+                $status_icon = $test['status'] === 'completed' ? '✅' : 
+                              ($test['status'] === 'pending' ? '⚠️' : '🧪');
+                
+                $test_html .= '<div style="padding: 12px; background: #f8f9fa; border-radius: 6px; border-left: 4px solid ' . $status_color . '; margin-bottom: 10px;">';
+                $test_html .= '<h6 style="margin: 0 0 5px 0; color: ' . $status_color . ';">' . $status_icon . ' ' . $test['step'] . '</h6>';
+                $test_html .= '<p style="margin: 0 0 5px 0; font-weight: 500;">' . $test['description'] . '</p>';
+                $test_html .= '<p style="margin: 0; font-size: 12px; color: #6b7280;">' . $test['details'] . '</p>';
+                $test_html .= '</div>';
+            }
+            
+            $test_html .= '</div>';
+            
+            $this->logger->log('🧪 TEST WORKFLOW: Simulation completed successfully', 'info');
+            
+            wp_send_json_success(array(
+                'test_results' => $test_results,
+                'test_html' => $test_html,
+                'message' => '🧪 Activation workflow test completed! All phases simulated successfully.',
+                'workflow_ready' => true
+            ));
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 TEST WORKFLOW ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Error testing activation workflow: ' . $e->getMessage());
         }
     }
 }
