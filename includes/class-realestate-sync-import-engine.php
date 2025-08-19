@@ -526,35 +526,22 @@ class RealEstate_Sync_Import_Engine {
                 return;
             }
             
-            // 🔥 FORCE PROCESSING MODE for debugging media/agency workflow
-            $force_processing = get_option('realestate_sync_force_processing', false);
+            // 🎯 NORMAL PROCESSING: Always process properties, update if different
+            $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
+            $property_id = intval($property_data['id']);
             
-            if ($force_processing) {
-                $this->logger->log("🚀 FORCE PROCESSING MODE ENABLED - bypassing change detection", 'info');
-                
-                // Force create change status for testing
-                $change_status = [
-                    'has_changed' => true,
-                    'action' => 'insert', // Force insert to test complete workflow
-                    'reason' => 'force_processing_debug'
-                ];
-                $property_hash = 'debug_hash_' . time();
-                
-            } else {
-                // Normal change detection workflow
-                $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
-                $property_id = intval($property_data['id']);
-                
-                // Check changes
-                $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
-                
-                $this->logger->log("DEBUG: Property {$property_id} change_status: " . print_r($change_status, true), 'info');
-                
-                if (!$change_status['has_changed']) {
-                    $this->stats['skipped_properties']++;
-                    $this->logger->log("DEBUG: Property {$property_id} skipped - no changes detected", 'info');
-                    return;
-                }
+            // Check changes
+            $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
+            
+            $this->logger->log("DEBUG: Property {$property_id} change_status: " . print_r($change_status, true), 'info');
+            
+            // 📋 OPTIONAL SKIP MODE: Skip only if explicitly enabled AND no changes
+            $skip_unchanged_mode = get_option('realestate_sync_skip_unchanged_mode', false);
+            
+            if ($skip_unchanged_mode && !$change_status['has_changed']) {
+                $this->stats['skipped_properties']++;
+                $this->logger->log("DEBUG: Property {$property_id} skipped - skip unchanged mode enabled and no changes detected", 'info');
+                return;
             }
             
             $this->logger->log("DEBUG: Property {$property_id} will be processed - action: {$change_status['action']}", 'info');
@@ -608,9 +595,9 @@ class RealEstate_Sync_Import_Engine {
             $this->logger->log("🏢 Property ID $property_id has no agency - will not be linked to any agency", 'info');
         }
         
-        // Full debug only in force processing mode
-        $force_processing = get_option('realestate_sync_force_processing', false);
-        if ($force_processing) {
+        // Optional full debug mode (can be enabled via admin if needed)
+        $debug_mode = get_option('realestate_sync_debug_mode', false);
+        if ($debug_mode) {
             $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
             $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
         }

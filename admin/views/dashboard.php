@@ -336,26 +336,21 @@ $import_stats = $tracking_manager->get_import_statistics();
                 </div>
             </div>
             
-            <!-- 🚀 FORCE PROCESSING MODE SECTION -->
-            <div class="rs-force-processing-section" style="border-left: 4px solid #dc3545; padding: 15px; margin-top: 20px; background: #fef2f2;">
-                <h4><span class="dashicons dashicons-admin-generic"></span> 🚀 Force Processing Mode (DEBUG)</h4>
-                <p><strong>Debug Mode:</strong> Bypassa change detection per testare conversion v3.0 + media/agency extraction</p>
+            <!-- 🔄 PROCESSING MODE INFO SECTION -->
+            <div class="rs-processing-info-section" style="border-left: 4px solid #10b981; padding: 15px; margin-top: 20px; background: #f0fdf4;">
+                <h4><span class="dashicons dashicons-yes"></span> 🎯 Normal Processing Mode</h4>
+                <p><strong>Standard Behavior:</strong> All properties are processed and updated if different from XML data.</p>
                 
                 <div style="margin: 15px 0;">
-                    <?php $force_enabled = get_option('realestate_sync_force_processing', false); ?>
-                    <button type="button" class="<?php echo $force_enabled ? 'rs-button-danger' : 'rs-button-primary'; ?>" id="toggle-force-processing">
-                        <span class="dashicons dashicons-<?php echo $force_enabled ? 'dismiss' : 'yes'; ?>"></span>
-                        <?php echo $force_enabled ? 'DISABILITA Force Processing' : 'ABILITA Force Processing'; ?>
-                    </button>
-                    
-                    <div id="force-processing-status" style="margin-top: 10px; padding: 10px; border-radius: 4px; <?php echo $force_enabled ? 'background: #fecaca; color: #7f1d1d;' : 'background: #e5e7eb; color: #374151;'; ?>">
-                        <strong>Status:</strong> Force Processing <?php echo $force_enabled ? 'ENABLED 🚀' : 'DISABLED'; ?>
-                        <?php if ($force_enabled): ?>
-                            <br><small>⚠️ Change detection bypassed - tutti gli XML properties verranno processati</small>
-                        <?php else: ?>
-                            <br><small>Normal mode - properties skipped if no changes detected</small>
-                        <?php endif; ?>
+                    <div style="padding: 10px; border-radius: 4px; background: #dcfce7; color: #15803d;">
+                        <strong>Current Mode:</strong> Normal Processing ✅<br>
+                        <small>ℹ️ Properties are always processed and updated when XML data differs from WordPress data</small>
                     </div>
+                </div>
+                
+                <div style="margin-top: 15px; font-size: 13px; color: #6b7280;">
+                    <strong>Note:</strong> This is the correct behavior for production. 
+                    Properties are efficiently processed and only updated when necessary.
                 </div>
             </div>
             
@@ -1004,7 +999,7 @@ jQuery(document).ready(function($) {
             $('#cleanup-test-data').on('click', this.cleanupTestData);
             $('#cleanup-properties').on('click', this.cleanupProperties);
             $('#view-logs').on('click', this.viewLogs);
-            $('#toggle-force-processing').on('click', this.toggleForceProcessing);
+            // Force processing toggle removed - now using normal processing mode
             
             // 🚀 PROFESSIONAL ACTIVATION TOOLS EVENTS
             $('#check-activation-status').on('click', this.checkActivationStatus);
@@ -1400,45 +1395,7 @@ jQuery(document).ready(function($) {
                     });
                     }
                     },
-        toggleForceProcessing: function(e) {
-            e.preventDefault();
-            
-            var isCurrentlyEnabled = $('#toggle-force-processing').hasClass('rs-button-danger');
-            var confirmMessage = isCurrentlyEnabled ? 
-                'Disabilitare Force Processing Mode?\n\nTornerà alla normale change detection.' :
-                'Abilitare Force Processing Mode?\n\nBypasserà change detection per testare media/agency conversion.';
-            
-            if (!confirm(confirmMessage)) return;
-            
-            dashboard.showAlert('Aggiornamento Force Processing Mode...', 'warning');
-            
-            $.ajax({
-                url: realestateSync.ajax_url,
-                type: 'POST',
-                data: { 
-                    action: 'realestate_sync_toggle_force_processing', 
-                    nonce: realestateSync.nonce 
-                },
-                beforeSend: function() {
-                    $('#toggle-force-processing').prop('disabled', true).html('<span class="rs-spinner"></span>Aggiornando...');
-                },
-                success: function(response) {
-                    if (response.success) {
-                        dashboard.showAlert(response.data.message, 'success');
-                        // Reload page to update UI status
-                        setTimeout(function() { location.reload(); }, 1500);
-                    } else {
-                        dashboard.showAlert('Errore toggle: ' + response.data, 'error');
-                    }
-                },
-                error: function() { 
-                    dashboard.showAlert('Errore comunicazione toggle', 'error'); 
-                },
-                complete: function() {
-                    $('#toggle-force-processing').prop('disabled', false);
-                }
-            });
-        },
+        // toggleForceProcessing method removed - normal processing is now default behavior
         onFileSelect: function(e) {
             var file = e.target.files[0];
             if (file && file.name.endsWith('.xml')) {
