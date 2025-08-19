@@ -159,7 +159,7 @@ $import_stats = $tracking_manager->get_import_statistics();
                 
                 <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                     <button type="button" class="rs-button-primary" id="create-property-fields" style="background: #6366f1; border-color: #6366f1;">
-                        <span class="dashicons dashicons-plus-alt"></span> Create Property Fields
+                        <span class="dashicons dashicons-plus-alt"></span> 🔥 Create Property Fields (NEW)
                     </button>
                     
                     <button type="button" class="rs-button-primary" id="create-properties-from-sample" style="background: #00a32a; border-color: #00a32a;">
@@ -280,51 +280,57 @@ jQuery(document).ready(function($) {
         createPropertyFields: function(e) {
             e.preventDefault();
             
-            if (!confirm('Create 9 Property Details custom fields?\n\nThis will add the Property Details fields according to KB Field Mapping v3.0.')) return;
+            if (!confirm('🔥 CREATE CUSTOM FIELDS with NEW AUTOMATION METHOD?\n\nThis will create 9 Property Details fields using the AJAX mechanism discovered from cURL analysis.\n\n⚠️ SAFE TESTING: Will create test field first for validation.')) return;
             
-            dashboard.showAlert('Creating Property Details custom fields...', 'warning');
+            dashboard.showAlert('🚀 Creating Property Details with NEW automation method...', 'warning');
             
             $.ajax({
                 url: realestateSync.ajax_url,
                 type: 'POST',
                 data: { 
-                    action: 'realestate_sync_create_property_fields', 
-                    nonce: realestateSync.nonce 
+                    action: 'realestate_sync_create_property_fields_v2', 
+                    nonce: realestateSync.nonce,
+                    test_mode: true  // Start with test field first
                 },
                 beforeSend: function() {
-                    $('#create-property-fields').prop('disabled', true).html('<span class="rs-spinner"></span>Creating Fields...');
+                    $('#create-property-fields').prop('disabled', true).html('<span class="rs-spinner"></span>🔥 Creating with NEW Method...');
                 },
                 success: function(response) {
                     if (response.success) {
                         var result = response.data;
-                        var message = result.summary_message || 'Property fields operation completed!';
+                        var message = result.summary_message || 'Custom fields automation completed!';
                         
-                        // Detailed breakdown in alert
-                        if (result.created_count > 0 || result.existing_count > 0) {
-                            var details = [];
-                            if (result.created_count > 0) details.push(result.created_count + ' fields created');
-                            if (result.existing_count > 0) details.push(result.existing_count + ' already existed');
-                            if (result.error_count > 0) details.push(result.error_count + ' errors');
-                            
-                            message = 'Property Fields: ' + details.join(', ');
+                        // Enhanced success message with automation details
+                        if (result.created_count > 0) {
+                            message = '🎉 AUTOMATION SUCCESS: ' + result.created_count + ' custom fields created automatically!';
+                            if (result.test_mode) {
+                                message += ' (Test mode - validate and run again for full automation)';
+                            }
                         }
                         
-                        dashboard.showAlert(message, result.error_count > 0 ? 'warning' : 'success');
+                        dashboard.showAlert(message, 'success');
                         
-                        // Show field details in console for debugging
-                        if (result.field_details) {
-                            console.log('Property Fields Details:', result.field_details);
+                        // Show automation details in console
+                        if (result.automation_details) {
+                            console.log('🔥 Custom Fields Automation Details:', result.automation_details);
+                        }
+                        
+                        // Show next steps if test mode
+                        if (result.test_mode && result.created_count > 0) {
+                            setTimeout(function() {
+                                dashboard.showAlert('✅ Test field created successfully! Click again to create all 9 fields.', 'info');
+                            }, 3000);
                         }
                         
                     } else {
-                        dashboard.showAlert('Error creating fields: ' + response.data, 'error');
+                        dashboard.showAlert('🚨 NEW METHOD ERROR: ' + response.data, 'error');
                     }
                 },
                 error: function() { 
-                    dashboard.showAlert('Communication error during field creation', 'error'); 
+                    dashboard.showAlert('🚨 Communication error with new automation method', 'error'); 
                 },
                 complete: function() {
-                    $('#create-property-fields').prop('disabled', false).html('<span class="dashicons dashicons-plus-alt"></span> Create Property Fields');
+                    $('#create-property-fields').prop('disabled', false).html('<span class="dashicons dashicons-plus-alt"></span> 🔥 Create Property Fields (NEW)');
                 }
             });
         },

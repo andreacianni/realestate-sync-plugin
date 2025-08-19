@@ -63,6 +63,7 @@ class RealEstate_Sync_Admin {
         
         // 🏗️ PROPERTY FIELDS CREATION AJAX ACTION
         add_action('wp_ajax_realestate_sync_create_property_fields', array($this, 'handle_create_property_fields'));
+        add_action('wp_ajax_realestate_sync_create_property_fields_v2', array($this, 'handle_create_property_fields_v2')); // 🔥 NEW AUTOMATION METHOD
     }
     
     /**
@@ -1757,6 +1758,155 @@ class RealEstate_Sync_Admin {
         );
         
         return $property_id ? intval($property_id) : null;
+    }
+    
+    /**
+     * Handle create property fields AJAX v2 - 🔥 NEW AUTOMATION METHOD
+     * Based on cURL analysis and AJAX mechanism discovery
+     */
+    public function handle_create_property_fields_v2() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $test_mode = isset($_POST['test_mode']) && $_POST['test_mode'];
+            
+            $this->logger->log('🔥 CUSTOM FIELDS AUTOMATION v2: Starting with method from cURL analysis', 'info');
+            
+            // 📊 Get current WpResidence admin option
+            $wpresidence_admin = get_option('wpresidence_admin', array());
+            $current_fields = isset($wpresidence_admin['wpestate_custom_fields_list']) ? $wpresidence_admin['wpestate_custom_fields_list'] : array();
+            
+            $this->logger->log('CURRENT FIELDS: ' . print_r($current_fields, true), 'debug');
+            
+            // 🎯 CUSTOM FIELDS DATA - Based on cURL payload structure
+            $new_custom_fields = $this->get_custom_fields_definition();
+            
+            if ($test_mode) {
+                // 🧪 SAFE TEST: Create only test field first
+                $test_field = array(
+                    'add_field_name' => array('test-campo-prova'),
+                    'add_field_label' => array('Test Campo Prova'),
+                    'add_field_order' => array(1),
+                    'add_field_type' => array('short_text')
+                );
+                
+                $this->logger->log('🧪 TEST MODE: Creating test field only', 'info');
+                $result = $this->apply_custom_fields_to_database($test_field, $wpresidence_admin);
+                
+                if ($result['success']) {
+                    wp_send_json_success(array(
+                        'created_count' => 1,
+                        'test_mode' => true,
+                        'summary_message' => '🧪 TEST FIELD CREATED: Ready for full automation',
+                        'automation_details' => $result['details']
+                    ));
+                } else {
+                    throw new Exception($result['error']);
+                }
+                
+            } else {
+                // 🚀 FULL AUTOMATION: Create all 9 custom fields
+                $this->logger->log('🚀 FULL MODE: Creating all 9 custom fields', 'info');
+                
+                $result = $this->apply_custom_fields_to_database($new_custom_fields, $wpresidence_admin);
+                
+                if ($result['success']) {
+                    wp_send_json_success(array(
+                        'created_count' => 9,
+                        'test_mode' => false,
+                        'summary_message' => '🎉 AUTOMATION COMPLETE: 9 custom fields created',
+                        'automation_details' => $result['details']
+                    ));
+                } else {
+                    throw new Exception($result['error']);
+                }
+            }
+            
+        } catch (Exception $e) {
+            $this->logger->log('🚨 CUSTOM FIELDS AUTOMATION ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Automation failed: ' . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Get custom fields definition based on cURL analysis
+     */
+    private function get_custom_fields_definition() {
+        // 📊 Exact structure from cURL payload analysis
+        return array(
+            'add_field_name' => array(
+                'superficie-giardino',
+                'aree-esterne', 
+                'superficie-commerciale',
+                'superficie-utile',
+                'totale-piani-edificio',
+                'deposito-cauzionale',
+                'distanza-mare',
+                'rendita-catastale',
+                'destinazione-catastale'
+            ),
+            'add_field_label' => array(
+                'Superficie giardino (m²)',
+                'Aree esterne (m²)',
+                'Superficie commerciale (m²)',
+                'Superficie utile (m²)',
+                'Totale piani edificio',
+                'Deposito cauzionale (€)',
+                'Distanza dal mare (m)',
+                'Rendita catastale (€)',
+                'Destinazione catastale'
+            ),
+            'add_field_order' => array(5, 4, 6, 7, 3, 8, 9, 10, 11),
+            'add_field_type' => array(
+                'numeric',
+                'numeric', 
+                'numeric',
+                'numeric',
+                'numeric',
+                'numeric',
+                'numeric',
+                'numeric',
+                'short_text'
+            )
+        );
+    }
+    
+    /**
+     * Apply custom fields to database using direct option modification
+     */
+    private function apply_custom_fields_to_database($custom_fields_data, $wpresidence_admin) {
+        try {
+            // 🔥 DIRECT DATABASE METHOD - Based on AJAX mechanism
+            $wpresidence_admin['wpestate_custom_fields_list'] = $custom_fields_data;
+            
+            $result = update_option('wpresidence_admin', $wpresidence_admin);
+            
+            if ($result !== false) {
+                $this->logger->log('✅ CUSTOM FIELDS: Successfully updated wpresidence_admin option', 'info');
+                
+                return array(
+                    'success' => true,
+                    'details' => array(
+                        'method' => 'Direct database option update',
+                        'target_option' => 'wpresidence_admin[wpestate_custom_fields_list]',
+                        'fields_count' => count($custom_fields_data['add_field_name']),
+                        'structure' => '4 parallel arrays (name, label, order, type)'
+                    )
+                );
+            } else {
+                throw new Exception('Failed to update wpresidence_admin option');
+            }
+            
+        } catch (Exception $e) {
+            return array(
+                'success' => false,
+                'error' => $e->getMessage()
+            );
+        }
     }
 }
 
