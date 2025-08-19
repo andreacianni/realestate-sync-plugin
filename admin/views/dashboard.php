@@ -105,20 +105,17 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 2: INFO - CUSTOM FIELDS MANAGEMENT -->
+    <!-- TAB 2: INFO - REFINED LAYOUT WITH COLLAPSIBLE SECTIONS -->
     <div id="info" class="tab-content">
-        <div class="rs-card">
-            <h3><span class="dashicons dashicons-info"></span> Custom Fields Management</h3>
+        
+        <!-- CARD 1: Required Custom Fields (Always Visible) -->
+        <div class="rs-card rs-info-card-fixed">
+            <h3><span class="dashicons dashicons-info"></span> 📋 Required Custom Fields</h3>
             
             <div class="rs-info-box">
-                <h4>🔧 Property Custom Fields Status</h4>
                 <p>The RealEstate Sync plugin requires 9 additional custom fields to be created manually in WpResidence.<br>
                 These fields enhance property details with specialized data from GestionaleImmobiliare.it XML.</p>
             </div>
-            
-            <!-- Custom Fields Status Table -->
-            <div class="rs-custom-fields-section">
-                <h4>📋 Required Custom Fields</h4>
                 
                 <table class="rs-custom-fields-table">
                     <thead>
@@ -196,71 +193,116 @@ $import_stats = $tracking_manager->get_import_statistics();
                         </tr>
                     </tbody>
                 </table>
-            </div>
+        </div>
+        
+        <!-- CARD 2: Manual Creation Guide (Collapsible Sections) -->
+        <div class="rs-card rs-info-card-collapsible">
+            <h3 class="rs-collapsible-header">
+                <span class="dashicons dashicons-admin-generic"></span> 📝 Manual Creation Guide
+                <span class="rs-collapsible-toggle">Click to expand sections below</span>
+            </h3>
             
-            <!-- Manual Creation Instructions -->
-            <div class="rs-instructions-section">
-                <h4>📝 Manual Creation Guide</h4>
-                
-                <div class="rs-instruction-box">
-                    <h5>🎯 Step-by-Step Instructions:</h5>
-                    <ol class="rs-instruction-list">
-                        <li><strong>Access WpResidence Admin:</strong> Go to WordPress Admin → Properties → Add Custom Details</li>
-                        <li><strong>Create Each Field:</strong> Use the exact field names from the table above</li>
-                        <li><strong>Field Configuration:</strong>
-                            <ul>
-                                <li><strong>Type:</strong> Select "numeric" for measurements and "short_text" for text</li>
-                                <li><strong>Label:</strong> Use the exact labels shown in the table</li>
-                                <li><strong>Slug:</strong> Use the exact field names (importante per il mapping!)</li>
-                            </ul>
-                        </li>
-                        <li><strong>Verification:</strong> Click "Check Field Status" below after creation</li>
-                    </ol>
-                </div>
-                
-                <div class="rs-warning-box">
-                    <h5>⚠️ Important Notes:</h5>
-                    <ul>
-                        <li><strong>Exact Names:</strong> Field names must match exactly for automatic mapping</li>
-                        <li><strong>WpResidence Only:</strong> These fields can only be created through WpResidence admin</li>
-                        <li><strong>One-Time Setup:</strong> Create once, used by all future imports</li>
-                        <li><strong>95% Coverage:</strong> With these fields, XML mapping reaches 95%+ coverage</li>
-                    </ul>
+            <!-- Collapsible Section 1: Field Status -->
+            <div class="rs-collapsible-section">
+                <h4 class="rs-collapsible-trigger" data-section="field-status">
+                    <span class="rs-toggle-icon">▶</span> 🔧 Property Custom Fields Status
+                </h4>
+                <div class="rs-collapsible-content" id="section-field-status">
+                    <div id="field-status-auto-display" class="rs-auto-status-display">
+                        <p><span class="rs-spinner"></span> Checking field status...</p>
+                    </div>
                 </div>
             </div>
             
-            <!-- Action Buttons -->
-            <div class="rs-actions-section">
-                <h4>🔧 Field Management Actions</h4>
-                
-                <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-                    <button type="button" class="rs-button-primary" id="check-field-status">
-                        <span class="dashicons dashicons-admin-generic"></span> Check Field Status
-                    </button>
-                    
-                    <button type="button" class="rs-button-secondary" id="view-field-mapping">
-                        <span class="dashicons dashicons-networking"></span> View XML Mapping
-                    </button>
-                    
-                    <button type="button" class="rs-button-secondary" id="test-field-population">
-                        <span class="dashicons dashicons-performance"></span> Test Field Population
+            <!-- Collapsible Section 2: Step-by-Step Instructions -->
+            <div class="rs-collapsible-section">
+                <h4 class="rs-collapsible-trigger" data-section="step-instructions">
+                    <span class="rs-toggle-icon">▶</span> 🎯 Step-by-Step Instructions
+                </h4>
+                <div class="rs-collapsible-content" id="section-step-instructions">
+                    <div class="rs-instruction-box">
+                        <ol class="rs-instruction-list">
+                            <li><strong>Access WpResidence Admin:</strong> Go to WordPress Admin → Properties → Add Custom Details</li>
+                            <li><strong>Create Each Field:</strong> Use the exact field names from the table above</li>
+                            <li><strong>Field Configuration:</strong>
+                                <ul>
+                                    <li><strong>Type:</strong> Select "numeric" for measurements and "short_text" for text</li>
+                                    <li><strong>Label:</strong> Use the exact labels shown in the table</li>
+                                    <li><strong>Slug:</strong> Use the exact field names (importante per il mapping!)</li>
+                                </ul>
+                            </li>
+                            <li><strong>Verification:</strong> Sections below auto-update when fields are created</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Collapsible Section 3: Important Notes -->
+            <div class="rs-collapsible-section">
+                <h4 class="rs-collapsible-trigger" data-section="important-notes">
+                    <span class="rs-toggle-icon">▶</span> ⚠️ Important Notes
+                </h4>
+                <div class="rs-collapsible-content" id="section-important-notes">
+                    <div class="rs-warning-box">
+                        <ul>
+                            <li><strong>Exact Names:</strong> Field names must match exactly for automatic mapping</li>
+                            <li><strong>WpResidence Only:</strong> These fields can only be created through WpResidence admin</li>
+                            <li><strong>One-Time Setup:</strong> Create once, used by all future imports</li>
+                            <li><strong>95% Coverage:</strong> With these fields, XML mapping reaches 95%+ coverage</li>
+                            <li><strong>Auto-Update:</strong> Status and mapping update automatically on this page</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- CARD 3: XML Mapping (Always Expanded Table) -->
+        <div class="rs-card rs-info-card-expanded">
+            <h3><span class="dashicons dashicons-networking"></span> 🗺️ XML Mapping Coverage</h3>
+            
+            <div class="rs-info-box">
+                <p><strong>Always Expanded:</strong> Complete XML → WordPress field mapping with real-time status</p>
+            </div>
+            
+            <div id="xml-mapping-always-expanded" class="rs-mapping-table-container">
+                <table class="rs-mapping-table">
+                    <thead>
+                        <tr>
+                            <th>XML Field</th>
+                            <th>WpResidence Field</th>
+                            <th>Status</th>
+                            <th>Notes</th>
+                        </tr>
+                    </thead>
+                    <tbody id="mapping-table-body">
+                        <tr>
+                            <td colspan="4" style="text-align: center; padding: 20px;">
+                                <span class="rs-spinner"></span> Loading XML mapping data...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- CARD 4: Field Management Actions (Streamlined) -->
+        <div class="rs-card rs-info-card-actions">
+            <h3><span class="dashicons dashicons-admin-tools"></span> 🔧 Field Management</h3>
+            
+            <div class="rs-streamlined-actions">
+                <div class="rs-action-item">
+                    <div class="rs-action-info">
+                        <h4>🧪 Test Field Population</h4>
+                        <p>Test custom fields mapping with sample XML data to verify correct population</p>
+                    </div>
+                    <button type="button" class="rs-button-primary" id="test-field-population-enhanced">
+                        <span class="dashicons dashicons-performance"></span> Run Test
                     </button>
                 </div>
                 
-                <!-- Field Status Results -->
-                <div id="field-status-results" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 4px; border: 1px solid #c3c4c7;">
-                    <h5>Field Status Results</h5>
-                    <div id="field-status-content">
-                        <p>Click "Check Field Status" to verify custom fields...</p>
-                    </div>
-                </div>
-                
-                <!-- XML Mapping Display -->
-                <div id="xml-mapping-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-radius: 4px; border: 1px solid #c9d6e7;">
-                    <h5>XML → WordPress Field Mapping</h5>
-                    <div id="xml-mapping-content">
-                        <p>Click "View XML Mapping" to see the complete mapping...</p>
-                    </div>
+                <div class="rs-test-results" id="test-results-display" style="display: none;">
+                    <h5>🧪 Test Results</h5>
+                    <div id="test-results-content"></div>
                 </div>
             </div>
         </div>
@@ -488,6 +530,99 @@ $import_stats = $tracking_manager->get_import_statistics();
 .rs-warning-box h5 { margin-top: 0; color: #997404; }
 .rs-actions-section { margin-top: 30px; }
 .rs-custom-fields-section h4, .rs-instructions-section h4, .rs-actions-section h4 { color: #2271b1; margin-top: 25px; margin-bottom: 15px; }
+
+/* INFO TAB REFINEMENT - NEW STYLES */
+.rs-info-card-fixed { border-left: 4px solid #2271b1; }
+.rs-info-card-collapsible { border-left: 4px solid #f59e0b; }
+.rs-info-card-expanded { border-left: 4px solid #10b981; }
+.rs-info-card-actions { border-left: 4px solid #6366f1; }
+
+.rs-collapsible-header { position: relative; cursor: pointer; }
+.rs-collapsible-toggle { float: right; font-size: 12px; color: #666; font-weight: normal; }
+
+.rs-collapsible-trigger { 
+    cursor: pointer; 
+    padding: 10px 15px; 
+    margin: 10px 0; 
+    background: #f8f9fa; 
+    border: 1px solid #e1e5e9; 
+    border-radius: 4px; 
+    transition: background 0.2s; 
+}
+.rs-collapsible-trigger:hover { background: #e9ecef; }
+.rs-collapsible-trigger.active { background: #e7f3ff; border-color: #2271b1; }
+
+.rs-toggle-icon { 
+    display: inline-block; 
+    transition: transform 0.2s; 
+    margin-right: 8px; 
+    color: #2271b1; 
+}
+.rs-toggle-icon.expanded { transform: rotate(90deg); }
+
+.rs-collapsible-content { 
+    display: none; 
+    padding: 15px; 
+    background: #fafbfc; 
+    border-radius: 4px; 
+    margin-top: 10px; 
+}
+.rs-collapsible-content.expanded { display: block; }
+
+.rs-auto-status-display { 
+    background: white; 
+    padding: 15px; 
+    border-radius: 4px; 
+    border: 1px solid #e1e5e9; 
+}
+
+.rs-mapping-table-container { 
+    background: white; 
+    border-radius: 4px; 
+    border: 1px solid #e1e5e9; 
+    overflow: hidden; 
+}
+
+.rs-mapping-table { 
+    width: 100%; 
+    border-collapse: collapse; 
+    margin: 0; 
+}
+.rs-mapping-table th, 
+.rs-mapping-table td { 
+    padding: 12px; 
+    text-align: left; 
+    border-bottom: 1px solid #e1e5e9; 
+    font-size: 13px; 
+}
+.rs-mapping-table th { 
+    background: #f8f9fa; 
+    font-weight: bold; 
+    color: #374151; 
+}
+.rs-mapping-table tbody tr:hover { background: #f9fafb; }
+
+.rs-streamlined-actions { margin-top: 20px; }
+.rs-action-item { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 20px; 
+    background: #f8f9fa; 
+    border-radius: 4px; 
+    border: 1px solid #e1e5e9; 
+}
+.rs-action-info h4 { margin: 0 0 5px 0; color: #374151; }
+.rs-action-info p { margin: 0; color: #6b7280; font-size: 14px; }
+
+.rs-test-results { 
+    margin-top: 20px; 
+    padding: 15px; 
+    background: white; 
+    border-radius: 4px; 
+    border: 1px solid #e1e5e9; 
+}
+.rs-test-results h5 { margin: 0 0 10px 0; color: #374151; }
 </style>
 
 <script type="text/javascript">
@@ -507,22 +642,222 @@ jQuery(document).ready(function($) {
             
             // 🔄 AUTO-LOAD INFO TAB FEATURES
             this.autoLoadInfoTabFeatures();
+            
+            // 🆕 INIT COLLAPSIBLE SECTIONS
+            this.initCollapsibleSections();
         },
         
-        // 🔄 AUTO-LOAD FEATURES FOR INFO TAB
+        // 🧪 TEST FIELD POPULATION ENHANCED
+        testFieldPopulationEnhanced: function(e) {
+            e.preventDefault();
+            
+            // Show test results area
+            $('#test-results-display').show();
+            $('#test-results-content').html('<p><span class="rs-spinner"></span> Running enhanced field population test...</p>');
+            
+            dashboard.showAlert('🧪 Testing custom fields population with enhanced validation...', 'info');
+            
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_test_field_population', 
+                    nonce: realestateSync.nonce,
+                    enhanced: true  // Enhanced mode flag
+                },
+                beforeSend: function() {
+                    $('#test-field-population-enhanced').prop('disabled', true).html('<span class="rs-spinner"></span>Testing...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        var result = response.data;
+                        
+                        // Enhanced results display
+                        var html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; margin-bottom: 15px;">';
+                        html += '<div style="text-align: center; padding: 10px; background: #f0f6fc; border-radius: 4px;"><strong>Fields Tested</strong><br><span style="font-size: 18px; color: #2271b1;">' + (result.fields_tested || 0) + '</span></div>';
+                        html += '<div style="text-align: center; padding: 10px; background: #f0fdf4; border-radius: 4px;"><strong>Successful</strong><br><span style="font-size: 18px; color: #00a32a;">' + (result.successful_mappings || 0) + '</span></div>';
+                        html += '<div style="text-align: center; padding: 10px; background: #fef2f2; border-radius: 4px;"><strong>Failed</strong><br><span style="font-size: 18px; color: #d63638;">' + (result.failed_mappings || 0) + '</span></div>';
+                        html += '</div>';
+                        
+                        if (result.test_details && result.test_details.length > 0) {
+                            html += '<h6>Test Details:</h6>';
+                            html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+                            html += '<thead><tr style="background: #f9f9f9;"><th style="padding: 6px; border: 1px solid #ddd;">Field</th><th style="padding: 6px; border: 1px solid #ddd;">XML Value</th><th style="padding: 6px; border: 1px solid #ddd;">Status</th></tr></thead><tbody>';
+                            
+                            result.test_details.forEach(function(detail) {
+                                var statusColor = detail.success ? '#00a32a' : '#d63638';
+                                var statusIcon = detail.success ? '✅' : '❌';
+                                html += '<tr><td style="padding: 6px; border: 1px solid #ddd;"><code>' + detail.field + '</code></td>';
+                                html += '<td style="padding: 6px; border: 1px solid #ddd;">' + (detail.xml_value || 'N/A') + '</td>';
+                                html += '<td style="padding: 6px; border: 1px solid #ddd; color: ' + statusColor + ';">' + statusIcon + ' ' + (detail.success ? 'OK' : 'Failed') + '</td></tr>';
+                            });
+                            
+                            html += '</tbody></table>';
+                        }
+                        
+                        $('#test-results-content').html(html);
+                        
+                        var message = '🎉 Enhanced test completed! Fields tested: ' + (result.fields_tested || 0) + ', Successful: ' + (result.successful_mappings || 0);
+                        dashboard.showAlert(message, result.failed_mappings === 0 ? 'success' : 'warning');
+                        
+                    } else {
+                        $('#test-results-content').html('<p style="color: #d63638;">Enhanced test failed: ' + response.data + '</p>');
+                        dashboard.showAlert('😨 Enhanced population test failed: ' + response.data, 'error');
+                    }
+                },
+                error: function() { 
+                    $('#test-results-content').html('<p style="color: #d63638;">Communication error during enhanced test</p>');
+                    dashboard.showAlert('😨 Communication error during enhanced test', 'error'); 
+                },
+                complete: function() {
+                    $('#test-field-population-enhanced').prop('disabled', false).html('<span class="dashicons dashicons-performance"></span> Run Test');
+                }
+            });
+        },
+        
+        // 🆕 UPDATE COLLAPSIBLE FIELD STATUS
+        updateCollapsibleFieldStatus: function(data) {
+            if (!data.field_details || data.field_details.length === 0) return;
+            
+            var html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">';
+            html += '<div style="padding: 15px; background: white; border-radius: 4px; border-left: 4px solid #00a32a;">';
+            html += '<h5 style="margin: 0 0 5px 0; color: #00a32a;">✅ Fields Created</h5>';
+            html += '<div style="font-size: 20px; font-weight: bold;">' + (data.created_count || 0) + ' / 9</div></div>';
+            
+            html += '<div style="padding: 15px; background: white; border-radius: 4px; border-left: 4px solid #d63638;">';
+            html += '<h5 style="margin: 0 0 5px 0; color: #d63638;">❌ Missing Fields</h5>';
+            html += '<div style="font-size: 20px; font-weight: bold;">' + (data.missing_count || 9) + ' / 9</div></div>';
+            html += '</div>';
+            
+            if (data.field_details && data.field_details.length > 0) {
+                html += '<h6>Field Status Details:</h6>';
+                html += '<table style="width: 100%; border-collapse: collapse;">';
+                html += '<thead><tr style="background: #f9f9f9;"><th style="padding: 8px; border: 1px solid #ddd;">Field Name</th><th style="padding: 8px; border: 1px solid #ddd;">Status</th><th style="padding: 8px; border: 1px solid #ddd;">Label</th></tr></thead><tbody>';
+                
+                data.field_details.forEach(function(field) {
+                    var statusIcon = field.exists ? '✅' : '❌';
+                    var statusColor = field.exists ? '#00a32a' : '#d63638';
+                    html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><code>' + field.name + '</code></td>';
+                    html += '<td style="padding: 8px; border: 1px solid #ddd; color: ' + statusColor + ';">' + statusIcon + ' ' + (field.exists ? 'Created' : 'Missing') + '</td>';
+                    html += '<td style="padding: 8px; border: 1px solid #ddd;">' + (field.label || 'N/A') + '</td></tr>';
+                });
+                
+                html += '</tbody></table>';
+            }
+            
+            $('#field-status-auto-display').html(html);
+        },
+        
+        // 🆕 INIT COLLAPSIBLE SECTIONS
+        initCollapsibleSections: function() {
+            // Bind collapsible triggers
+            $('.rs-collapsible-trigger').on('click', function() {
+                var $trigger = $(this);
+                var section = $trigger.data('section');
+                var $content = $('#section-' + section);
+                var $icon = $trigger.find('.rs-toggle-icon');
+                
+                // Toggle content
+                $content.toggleClass('expanded');
+                $trigger.toggleClass('active');
+                $icon.toggleClass('expanded');
+            });
+        },
+        
+        // 🔄 AUTO-LOAD XML MAPPING FOR ALWAYS EXPANDED TABLE
+        autoLoadXMLMappingTable: function() {
+            // Load mapping data into the always-expanded table
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: { 
+                    action: 'realestate_sync_get_field_mapping_table', 
+                    nonce: realestateSync.nonce 
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.displayMappingTable(response.data);
+                    } else {
+                        $('#mapping-table-body').html('<tr><td colspan="4" style="text-align: center; color: #d63638;">Error loading mapping: ' + response.data + '</td></tr>');
+                    }
+                },
+                error: function() {
+                    $('#mapping-table-body').html('<tr><td colspan="4" style="text-align: center; color: #d63638;">Communication error loading mapping</td></tr>');
+                }
+            });
+        },
+        
+        // 📊 DISPLAY MAPPING TABLE DATA
+        displayMappingTable: function(mapping) {
+            var html = '';
+            
+            // Property Core Fields
+            if (mapping.property_core) {
+                Object.keys(mapping.property_core).forEach(function(xmlField) {
+                    html += '<tr>';
+                    html += '<td><code>' + xmlField + '</code></td>';
+                    html += '<td>' + mapping.property_core[xmlField] + '</td>';
+                    html += '<td><span style="color: #10b981; font-weight: bold;">✅ Mappato</span></td>';
+                    html += '<td>Core property field</td>';
+                    html += '</tr>';
+                });
+            }
+            
+            // Custom Fields
+            if (mapping.custom_fields) {
+                Object.keys(mapping.custom_fields).forEach(function(xmlField) {
+                    html += '<tr>';
+                    html += '<td><code>' + xmlField + '</code></td>';
+                    html += '<td><strong>' + mapping.custom_fields[xmlField] + '</strong></td>';
+                    html += '<td><span style="color: #f59e0b; font-weight: bold;">⚠️ Manual</span></td>';
+                    html += '<td>Requires manual field creation</td>';
+                    html += '</tr>';
+                });
+            }
+            
+            // Taxonomy Fields
+            if (mapping.taxonomies) {
+                Object.keys(mapping.taxonomies).forEach(function(xmlField) {
+                    html += '<tr>';
+                    html += '<td><code>' + xmlField + '</code></td>';
+                    html += '<td>' + mapping.taxonomies[xmlField] + '</td>';
+                    html += '<td><span style="color: #10b981; font-weight: bold;">✅ Mappato</span></td>';
+                    html += '<td>Taxonomy mapping</td>';
+                    html += '</tr>';
+                });
+            }
+            
+            // Media Fields
+            if (mapping.media) {
+                Object.keys(mapping.media).forEach(function(xmlField) {
+                    html += '<tr>';
+                    html += '<td><code>' + xmlField + '</code></td>';
+                    html += '<td>' + mapping.media[xmlField] + '</td>';
+                    html += '<td><span style="color: #10b981; font-weight: bold;">✅ Mappato</span></td>';
+                    html += '<td>Media processing</td>';
+                    html += '</tr>';
+                });
+            }
+            
+            if (html === '') {
+                html = '<tr><td colspan="4" style="text-align: center; padding: 20px;">No mapping data available</td></tr>';
+            }
+            
+            $('#mapping-table-body').html(html);
+        },
         autoLoadInfoTabFeatures: function() {
             // Auto-check field status when Info tab is active or page loads
             var currentTab = $('.nav-tab-active').data('tab');
             if (currentTab === 'info') {
                 this.autoCheckFieldStatus();
-                this.autoLoadXMLMapping();
+                this.autoLoadXMLMappingTable();
             }
             
             // Auto-load when switching to Info tab
             $('.nav-tab[data-tab="info"]').on('click', function() {
                 setTimeout(function() {
                     dashboard.autoCheckFieldStatus();
-                    dashboard.autoLoadXMLMapping();
+                    dashboard.autoLoadXMLMappingTable();
                 }, 100);
             });
         },
@@ -540,6 +875,7 @@ jQuery(document).ready(function($) {
                 success: function(response) {
                     if (response.success) {
                         dashboard.updateFieldStatusTable(response.data);
+                        dashboard.updateCollapsibleFieldStatus(response.data);
                     }
                 },
                 error: function() {
@@ -679,6 +1015,7 @@ jQuery(document).ready(function($) {
             $('#check-field-status').on('click', this.checkFieldStatus);
             $('#view-field-mapping').on('click', this.viewFieldMapping);
             $('#test-field-population').on('click', this.testFieldPopulation);
+            $('#test-field-population-enhanced').on('click', this.testFieldPopulationEnhanced);
         },
         
         // 📋 INFO TAB METHODS

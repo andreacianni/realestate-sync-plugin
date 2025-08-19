@@ -68,9 +68,78 @@ class RealEstate_Sync_Admin {
         // 📋 INFO TAB AJAX ACTIONS
         add_action('wp_ajax_realestate_sync_check_field_status', array($this, 'handle_check_field_status'));
         add_action('wp_ajax_realestate_sync_get_field_mapping', array($this, 'handle_get_field_mapping'));
+        add_action('wp_ajax_realestate_sync_get_field_mapping_table', array($this, 'handle_get_field_mapping_table'));
         add_action('wp_ajax_realestate_sync_test_field_population', array($this, 'handle_test_field_population'));
     }
     
+    /**
+     * Handle get field mapping table AJAX - For always-expanded XML mapping table
+     */
+    public function handle_get_field_mapping_table() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+        
+        try {
+            $this->logger->log('🗺️ INFO TAB: Loading field mapping for always-expanded table', 'info');
+            
+            // Load field mapping configuration
+            $field_mapping_file = plugin_dir_path(__FILE__) . '../config/field-mapping.php';
+            if (!file_exists($field_mapping_file)) {
+                throw new Exception('Field mapping configuration file not found');
+            }
+            
+            $field_mapping = include $field_mapping_file;
+            
+            // Build enhanced mapping data for table format
+            $mapping_data = [
+                'property_core' => [
+                    'id' => 'property_import_id',
+                    'titolo' => 'post_title',
+                    'descrizione' => 'post_content',
+                    'prezzo' => 'property_price',
+                    'mq' => 'property_size',
+                    'indirizzo' => 'property_address',
+                    'comune' => 'property_city',
+                    'provincia' => 'property_state',
+                    'latitude' => 'property_latitude',
+                    'longitude' => 'property_longitude'
+                ],
+                'custom_fields' => [
+                    'superficie_giardino' => 'superficie-giardino',
+                    'aree_esterne' => 'aree-esterne',
+                    'superficie_commerciale' => 'superficie-commerciale',
+                    'superficie_utile' => 'superficie-utile',
+                    'totale_piani_edificio' => 'totale-piani-edificio',
+                    'deposito_cauzionale' => 'deposito-cauzionale',
+                    'distanza_mare' => 'distanza-mare',
+                    'rendita_catastale' => 'rendita-catastale',
+                    'destinazione_catastale' => 'destinazione-catastale'
+                ],
+                'taxonomies' => [
+                    'categorie_id' => 'property_category',
+                    'provincia' => 'property_state',
+                    'comune' => 'property_city'
+                ],
+                'media' => [
+                    'file_allegati[image]' => 'property_gallery',
+                    'file_allegati[planimetria]' => 'property_planimetria',
+                    'featured_image' => 'post_thumbnail'
+                ]
+            ];
+            
+            $this->logger->log('🗺️ TABLE MAPPING: Generated enhanced mapping data for table display', 'info');
+            
+            wp_send_json_success($mapping_data);
+            
+        } catch (Exception $e) {
+            $this->logger->log('😨 TABLE MAPPING ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Error loading table mapping: ' . $e->getMessage());
+        }
+    }
+
     /**
      * Handle toggle force processing mode AJAX
      */
