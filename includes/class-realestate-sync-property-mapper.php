@@ -1,6 +1,6 @@
 <?php
 /**
- * RealEstate Sync Plugin - Property Mapper v3.1
+* RealEstate Sync Plugin - Property Mapper v3.2
  * 
  * MAPPING COMPLETO basato su database analysis reale
  * ENHANCED: Custom Fields Property Details Integration
@@ -30,7 +30,7 @@ class RealEstate_Sync_Property_Mapper {
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.1 initialized with Agency Manager integration + Custom Fields', 'info');
+        $this->logger->log('Property Mapper v3.2 initialized with Agency Manager + Custom Fields + Enhanced Action Categories', 'info');
     }
     
     private function init_mappings() {
@@ -231,14 +231,16 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map taxonomies v3.0
+     * Map taxonomies v3.1 - ENHANCED: Property Action Category with multiple terms
      */
     private function map_taxonomies_v3($xml_property) {
         $taxonomies = [];
         
-        // Property action category
-        $action = $this->determine_action_category($xml_property);
-        $taxonomies['property_action_category'] = [$action];
+        // Property action category - Enhanced logic v3.1
+        $action_terms = $this->determine_action_categories_v31($xml_property);
+        if (!empty($action_terms)) {
+            $taxonomies['property_action_category'] = $action_terms;
+        }
         
         // Property category - WordPress native handling
         $categoria_id = strval($xml_property['categorie_id'] ?? 0);
@@ -673,15 +675,104 @@ class RealEstate_Sync_Property_Mapper {
         return implode(' ', $parts);
     }
     
-    private function determine_action_category($xml_property) {
-        $is_vendita = $this->get_feature_value($xml_property, 9);
-        $is_affitto = $this->get_feature_value($xml_property, 10);
+    /**
+     * Determine Property Action Categories v3.1
+     * 
+     * Enhanced logic based on XML specification:
+     * - info[9] = vendita (0/1)
+     * - info[10] = affitto (0/1)  
+     * - info[6] = asta (0/1)
+     * 
+     * Multiple terms support:
+     * - Vendita normale: ['Vendita']
+     * - Vendita asta: ['Vendita', 'Asta']
+     * - Affitto: ['Affitto']
+     * - Default logic: price-based fallback
+     * 
+     * @param array $xml_property XML property data
+     * @return array Array of action category term names for wp_set_post_terms
+     */
+    private function determine_action_categories_v31($xml_property) {
+        $action_terms = [];
         
-        if ($is_vendita) return 'Vendita';
-        if ($is_affitto) return 'Affitto';
+        // Get XML values
+        $vendita = $this->get_feature_value($xml_property, 9);   // info[9] - vendita
+        $affitto = $this->get_feature_value($xml_property, 10);  // info[10] - affitto
+        $asta = $this->get_feature_value($xml_property, 6);      // info[6] - asta
+        $prezzo = floatval($xml_property['price'] ?? 0);
         
-        $price = floatval($xml_property['price'] ?? 0);
-        return $price > 50000 ? 'Vendita' : 'Affitto';
+        // Logic implementation per specifiche XML
+        if ($affitto == 1) {
+            // Affitto
+            $action_terms[] = 'Affitto';
+            
+        } else if ($vendita == 1) {
+            // Vendita (con o senza asta)
+            $action_terms[] = 'Vendita';
+            
+            if ($asta == 1) {
+                // Vendita + Asta
+                $action_terms[] = 'Asta';
+            }
+            
+        } else {
+            // Default logic da specifiche XML:
+            // "nessun contratto indicato E nessun prezzo indicato? » vendita"
+            // "nessun contratto indicato E prezzo indicato <=1000 € ? » affitto"
+            
+            if ($prezzo == 0) {
+                // Nessun prezzo indicato → vendita
+                $action_terms[] = 'Vendita';
+            } else if ($prezzo <= 1000) {
+                // Prezzo <= 1000€ → affitto
+                $action_terms[] = 'Affitto';
+            } else {
+                // Prezzo > 1000€ → vendita (default)
+                $action_terms[] = 'Vendita';
+            }
+        }
+        
+        // Logging per debug
+        $this->logger->log('🎯 Property Action Category v3.1 mapping', 'debug', [
+            'property_id' => $xml_property['id'] ?? 'unknown',
+            'xml_vendita' => $vendita,
+            'xml_affitto' => $affitto,
+            'xml_asta' => $asta,
+            'prezzo' => $prezzo,
+            'assigned_terms' => $action_terms,
+            'logic_used' => $this->get_action_logic_description($vendita, $affitto, $asta, $prezzo)
+        ]);
+        
+        return array_unique($action_terms);
+    }
+    
+    /**
+     * Get action logic description for debugging
+     * 
+     * @param int $vendita
+     * @param int $affitto  
+     * @param int $asta
+     * @param float $prezzo
+     * @return string Logic description
+     */
+    private function get_action_logic_description($vendita, $affitto, $asta, $prezzo) {
+        if ($affitto == 1) {
+            return 'affitto=1 → Affitto';
+        } else if ($vendita == 1) {
+            if ($asta == 1) {
+                return 'vendita=1 + asta=1 → Vendita + Asta';
+            } else {
+                return 'vendita=1 → Vendita';
+            }
+        } else {
+            if ($prezzo == 0) {
+                return 'default: no_price → Vendita';
+            } else if ($prezzo <= 1000) {
+                return 'default: price<=1000 → Affitto';
+            } else {
+                return 'default: price>1000 → Vendita';
+            }
+        }
     }
     
     private function add_computed_features($xml_property, &$features) {
@@ -835,7 +926,7 @@ class RealEstate_Sync_Property_Mapper {
         
         return [
             'success' => true,
-            'version' => '3.1.0',
+            'version' => '3.2.0',
             'mapping_stats' => $validation,
             'features' => [
                 'database_analysis_based' => true,
@@ -843,14 +934,15 @@ class RealEstate_Sync_Property_Mapper {
                 'gallery_support' => true,
                 'catasto_support' => true,
                 'target_page_compliance' => true,
-                'custom_fields_property_details' => true
+                'custom_fields_property_details' => true,
+                'property_action_category_enhanced' => true
             ]
         ];
     }
     
     public function get_mapping_stats() {
         return [
-            'version' => '3.1.0',
+            'version' => '3.2.0',
             'total_categories' => count($this->gi_categories),
             'total_features' => count($this->gi_features),
             'supported_provinces' => ['TN', 'BZ'],
