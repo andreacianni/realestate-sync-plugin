@@ -34,23 +34,8 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     private function init_mappings() {
-        // GI Categories → WpResidence Categories
-        $this->gi_categories = [
-            1 => 'Case singole',
-            2 => 'Case singole', 
-            11 => 'Appartamenti',
-            12 => 'Appartamenti',
-            18 => 'Ville',
-            19 => 'Terreni',
-            14 => 'Uffici e Commerciali',
-            17 => 'Uffici e Commerciali',
-            8 => 'Garage e Posti auto',
-            28 => 'Camere e Posti letto',
-            23 => 'Loft e Mansarde',
-            13 => 'Rustici e Case rurali',
-            22 => 'Case vacanza',
-            25 => 'Case vacanza'
-        ];
+        // Official GI Categories mapping - Dynamic taxonomy creation
+        $this->gi_categories = $this->get_category_mapping();
         
         // GI Features → WpResidence Features
         $this->gi_features = [
@@ -255,10 +240,19 @@ class RealEstate_Sync_Property_Mapper {
         $action = $this->determine_action_category($xml_property);
         $taxonomies['property_action_category'] = [$action];
         
-        // Property category
-        $categoria_id = intval($xml_property['categorie_id'] ?? 0);
-        if (isset($this->gi_categories[$categoria_id])) {
-            $taxonomies['property_category'] = [$this->gi_categories[$categoria_id]];
+        // Property category - Dynamic taxonomy creation
+        $categoria_id = strval($xml_property['categorie_id'] ?? 0);
+        if ($categoria_id && $categoria_id !== '0') {
+            $term_id = $this->ensure_property_category($categoria_id);
+            if ($term_id) {
+                $taxonomies['property_category'] = [$term_id];
+                $this->logger->log('✅ Property category assigned dynamically', 'debug', [
+                    'property_id' => $xml_property['id'] ?? 'unknown',
+                    'xml_category_id' => $categoria_id,
+                    'wp_term_id' => $term_id,
+                    'category_name' => $this->gi_categories[$categoria_id] ?? 'Unknown'
+                ]);
+            }
         }
         
         // Geographic taxonomies
@@ -490,6 +484,86 @@ class RealEstate_Sync_Property_Mapper {
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+    
+    // DYNAMIC TAXONOMY METHODS v3.2
+    
+    /**
+     * Get official category mapping from GestionaleImmobiliare specifications
+     * Maps XML category IDs to proper Italian names with capital first letter
+     * 
+     * @return array Mapping of XML category ID => Category name
+     */
+    private function get_category_mapping() {
+        return [
+            '1' => 'Casa singola',
+            '2' => 'Bifamiliare',
+            '3' => 'Trifamiliare',
+            '4' => 'Casa a schiera',
+            '5' => 'Monolocale',
+            '7' => 'Cantina',
+            '8' => 'Garage',
+            '9' => 'Magazzino',
+            '10' => 'Attivita commerciale',
+            '11' => 'Appartamento',
+            '12' => 'Attico',
+            '13' => 'Rustico',
+            '14' => 'Negozio',
+            '15' => 'Quadrifamiliare',
+            '16' => 'Capannone',
+            '17' => 'Ufficio',
+            '18' => 'Villa',
+            '19' => 'Terreno',
+            '20' => 'Laboratorio',
+            '21' => 'Posto auto',
+            '22' => 'Bed and breakfast',
+            '23' => 'Loft',
+            '24' => 'Multiproprietà',
+            '25' => 'Agriturismo',
+            '26' => 'Palazzo',
+            '27' => 'Hotel - albergo',
+            '28' => 'Stanze'
+        ];
+    }
+    
+    /**
+     * Ensure property category exists in WordPress taxonomy
+     * Creates taxonomy term dynamically if it doesn't exist
+     * 
+     * @param string $xml_category_id XML category ID
+     * @return int|false WordPress term ID or false on failure
+     */
+    private function ensure_property_category($xml_category_id) {
+        $category_name = $this->gi_categories[$xml_category_id] ?? "Categoria {$xml_category_id}";
+        
+        // Check if term exists
+        $term = term_exists($category_name, 'property_category');
+        
+        if (!$term) {
+            // Create new taxonomy term
+            $term = wp_insert_term($category_name, 'property_category', [
+                'description' => "Categoria immobiliare da GestionaleImmobiliare.it (ID: {$xml_category_id})",
+                'slug' => sanitize_title($category_name)
+            ]);
+            
+            if (is_wp_error($term)) {
+                $this->logger->log('ERROR: Failed to create property category', 'error', [
+                    'category_id' => $xml_category_id,
+                    'category_name' => $category_name,
+                    'error' => $term->get_error_message()
+                ]);
+                return false;
+            }
+            
+            $this->logger->log('✅ Property category created dynamically', 'info', [
+                'category_id' => $xml_category_id,
+                'category_name' => $category_name,
+                'term_id' => $term['term_id'],
+                'slug' => sanitize_title($category_name)
+            ]);
+        }
+        
+        return is_array($term) ? $term['term_id'] : $term;
     }
     
     // HELPER METHODS
