@@ -80,6 +80,9 @@ class RealEstate_Sync {
      * Initialize WordPress hooks
      */
     private function init_hooks() {
+        // 🗨️ HEARTBEAT TEST: Temporary disable for loop debugging
+        add_action('init', array($this, 'disable_heartbeat_for_test'));
+        
         // 🚀 PROFESSIONAL ACTIVATION: wp_loaded approach (BREAKTHROUGH IMPLEMENTATION)
         register_activation_hook(__FILE__, [__CLASS__, 'set_activation_flag']);
         register_deactivation_hook(__FILE__, [__CLASS__, 'plugin_deactivate']);
@@ -105,6 +108,17 @@ class RealEstate_Sync {
         
         // Cron hooks
         add_action('realestate_sync_daily_import', [$this, 'run_scheduled_import']);
+    }
+    
+    /**
+     * 🗨️ TEMPORARY TEST: Disable heartbeat to test if it causes init loop
+     */
+    public function disable_heartbeat_for_test() {
+        // Disable heartbeat on admin pages
+        if (is_admin()) {
+            wp_deregister_script('heartbeat');
+            $this->instances['logger']->log('🗨️ HEARTBEAT DISABLED FOR LOOP TEST', 'info');
+        }
     }
     
     /**
