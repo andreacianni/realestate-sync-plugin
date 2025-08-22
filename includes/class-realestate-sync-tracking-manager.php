@@ -92,43 +92,34 @@ class RealEstate_Sync_Tracking_Manager {
     /**
      * Calcola hash MD5 per change detection
      * 
+     * UPDATED: Calcola hash su TUTTI i campi per rilevare qualsiasi modifica
+     * Risolve issue con info_inserite fields non tracciati
+     * 
      * @param array $property_data Dati property da XML
      * @return string MD5 hash
      */
     public function calculate_property_hash($property_data) {
-        // Campi critici per change detection
-        $critical_fields = array(
-            'price',
-            'mq',
-            'description',
-            'abstract',
-            'latitude',
-            'longitude',
-            'indirizzo',
-            'deleted',
-            'categorie_id',
-            'age'
-        );
+        // HASH SU TUTTI I CAMPI - Risolve change detection failed
+        $hash_data = $property_data;
         
-        $hash_data = array();
-        
-        // Estrai solo campi critici per hash
-        foreach ($critical_fields as $field) {
-            $hash_data[$field] = isset($property_data[$field]) ? $property_data[$field] : '';
+        // Normalizza array per consistency hash
+        if (isset($hash_data['features']) && is_array($hash_data['features'])) {
+            ksort($hash_data['features']);
         }
         
-        // Aggiungi features e dati numerici
-        if (isset($property_data['features'])) {
-            ksort($property_data['features']); // Sort per consistency
-            $hash_data['features'] = $property_data['features'];
+        if (isset($hash_data['numeric_data']) && is_array($hash_data['numeric_data'])) {
+            ksort($hash_data['numeric_data']);
         }
         
-        if (isset($property_data['numeric_data'])) {
-            ksort($property_data['numeric_data']); // Sort per consistency
-            $hash_data['numeric_data'] = $property_data['numeric_data'];
+        if (isset($hash_data['info_inserite']) && is_array($hash_data['info_inserite'])) {
+            ksort($hash_data['info_inserite']);
         }
         
-        // Genera hash MD5
+        if (isset($hash_data['dati_inseriti']) && is_array($hash_data['dati_inseriti'])) {
+            ksort($hash_data['dati_inseriti']);
+        }
+        
+        // Genera hash MD5 su tutti i dati
         $hash_string = serialize($hash_data);
         return md5($hash_string);
     }
