@@ -115,10 +115,81 @@ class RealEstate_Sync_WP_Importer {
         $this->load_config();
         $this->reset_stats();
         
+        // 🎯 WPRESIDENCE INTEGRATION: Hook JavaScript markers system
+        $this->init_wpresidence_integration_hooks();
+        
         $this->logger->log('WordPress Importer initialized', 'debug', [
             'post_type' => $this->post_type,
             'duplicate_action' => $this->config['duplicate_action'],
-            'batch_size' => $this->config['batch_size']
+            'batch_size' => $this->config['batch_size'],
+            'wpresidence_hooks' => 'enabled'
+        ]);
+    }
+    
+    /**
+     * Initialize WpResidence integration hooks for JavaScript markers
+     */
+    private function init_wpresidence_integration_hooks() {
+        // Hook to ensure imported properties appear in JavaScript markers
+        add_action('wp_enqueue_scripts', array($this, 'enhance_wpresidence_markers'), 15);
+        
+        // Hook to refresh cache after property import
+        add_action('realestate_sync_property_imported', array($this, 'refresh_property_cache'), 10, 2);
+        
+        $this->logger->log('WpResidence integration hooks initialized', 'debug');
+    }
+    
+    /**
+     * Enhance WpResidence markers for imported properties
+     * 
+     * Public method called by WordPress hook
+     */
+    public function enhance_wpresidence_markers() {
+        if (is_singular('estate_property')) {
+            global $post;
+            
+            // Check if this is an imported property
+            $property_source = get_post_meta($post->ID, 'property_import_id', true);
+            
+            if (!empty($property_source)) {
+                // Force cache refresh for this specific property
+                delete_transient('wpestate_markers_default_pins');
+                
+                // Ensure property is included in JavaScript markers
+                if (function_exists('wpestate_listing_pins')) {
+                    $selected_pins = wpestate_listing_pins('imported_single', 0, '', 1, '', $post->ID);
+                    
+                    if (!empty($selected_pins)) {
+                        wp_localize_script('googlecode_property', 'googlecode_property_vars2', array(
+                            'markers2' => $selected_pins
+                        ));
+                        
+                        $this->logger->log('Enhanced JavaScript markers for imported property', 'debug', [
+                            'property_id' => $post->ID,
+                            'markers_generated' => !empty($selected_pins)
+                        ]);
+                    }
+                }
+            }
+        }
+    }
+    
+    /**
+     * Refresh property cache after import
+     * 
+     * Public method called by WordPress action
+     * 
+     * @param int $post_id Property post ID
+     * @param string $action Import action (created/updated)
+     */
+    public function refresh_property_cache($post_id, $action) {
+        // Force refresh of JavaScript markers cache
+        delete_transient('wpestate_markers_default_pins');
+        delete_transient('wpestate_markers_imported_properties');
+        
+        $this->logger->log('Property cache refreshed after import', 'debug', [
+            'property_id' => $post_id,
+            'action' => $action
         ]);
     }
     
@@ -566,6 +637,9 @@ class RealEstate_Sync_WP_Importer {
             'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
         ]);
         
+        // 🎯 TRIGGER: WordPress action for WpResidence integration
+        do_action('realestate_sync_property_imported', $post_id, 'created');
+        
         return [
             'success' => true,
             'action' => 'created',
@@ -636,6 +710,9 @@ class RealEstate_Sync_WP_Importer {
             'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
         ]);
         
+        // 🎯 TRIGGER: WordPress action for WpResidence integration
+        do_action('realestate_sync_property_imported', $post_id, 'updated');
+        
         return [
             'success' => true,
             'action' => 'updated',
@@ -698,14 +775,14 @@ class RealEstate_Sync_WP_Importer {
     }
     
     /**
-     * Process gallery v3.0 - ENHANCED with Image Importer v1.0
+     * Process gallery v3.0 - ENHANCED with Dual WpResidence Gallery System
      */
     private function process_gallery_v3($post_id, $gallery) {
         if (empty($gallery)) {
             return;
         }
         
-        $this->logger->log('Processing gallery v3.0 with Image Importer', 'info', [
+        $this->logger->log('Processing gallery v3.0 with Dual WpResidence System', 'info', [
             'post_id' => $post_id,
             'image_count' => count($gallery)
         ]);
@@ -716,16 +793,16 @@ class RealEstate_Sync_WP_Importer {
         if ($image_result['success']) {
             $stats = $image_result['stats'];
             
-            // 🆕 GALLERY FIX: Set wpestate_property_gallery for frontend display
+            // 🎯 DUAL GALLERY SYSTEM: Complete WpResidence compatibility
             $attachment_ids = $image_result['attachment_ids'] ?? [];
             if (!empty($attachment_ids)) {
-                // Set both formats for maximum compatibility
-                update_post_meta($post_id, 'wpestate_property_gallery', implode(',', $attachment_ids));
+                $this->set_wpresidence_gallery_compatibility($post_id, $attachment_ids);
                 
-                $this->logger->log('✅ WpResidence gallery field set for frontend', 'info', [
+                $this->logger->log('✅ Dual WpResidence gallery system applied', 'info', [
                     'post_id' => $post_id,
                     'attachment_ids' => implode(',', $attachment_ids),
-                    'count' => count($attachment_ids)
+                    'count' => count($attachment_ids),
+                    'systems' => 'wpestate_property_gallery + image_to_attach + menu_order'
                 ]);
             }
             
@@ -894,6 +971,135 @@ class RealEstate_Sync_WP_Importer {
             'property_id' => $post_id,
             'agency_id' => $agency_id,
             'agency_name' => $agency_post->post_title
+        ]);
+    }
+    
+    /**
+     * Set complete WpResidence gallery compatibility - Dual System
+     * 
+     * Implements both WpResidence native gallery and WP All Import Add-On compatibility
+     * following patterns from KB wpresidence-integration-KB-Reference.md
+     * 
+     * @param int $post_id Property post ID
+     * @param array $attachment_ids Array of attachment IDs
+     */
+    private function set_wpresidence_gallery_compatibility($post_id, $attachment_ids) {
+        if (empty($attachment_ids)) {
+            return;
+        }
+        
+        // SYSTEM 1: WpResidence Theme native gallery
+        update_post_meta($post_id, 'wpestate_property_gallery', implode(',', $attachment_ids));
+        
+        // SYSTEM 2: WP All Import Add-On compatibility (frontend JavaScript markers)
+        $this->update_image_to_attach_field($post_id, $attachment_ids);
+        
+        // SYSTEM 3: Gallery menu order for proper sorting
+        $this->set_gallery_menu_order($post_id, $attachment_ids);
+        
+        // SYSTEM 4: Force cache refresh for JavaScript markers
+        $this->refresh_wpresidence_cache($post_id);
+        
+        $this->logger->log('Complete WpResidence gallery compatibility set', 'debug', [
+            'post_id' => $post_id,
+            'attachment_count' => count($attachment_ids),
+            'systems' => [
+                'wpestate_property_gallery' => 'theme_native',
+                'image_to_attach' => 'wp_all_import_compatibility',
+                'menu_order' => 'gallery_sorting',
+                'cache_refresh' => 'javascript_markers'
+            ]
+        ]);
+    }
+    
+    /**
+     * Update image_to_attach field for WP All Import Add-On compatibility
+     * 
+     * @param int $post_id Property post ID
+     * @param array $attachment_ids Array of attachment IDs
+     */
+    private function update_image_to_attach_field($post_id, $attachment_ids) {
+        // Get current images from image_to_attach field
+        $current_images = get_post_meta($post_id, 'image_to_attach', true);
+        $current_images = !empty($current_images) ? explode(",", $current_images) : array();
+        
+        // Add new images (avoid duplicates)
+        foreach ($attachment_ids as $attachment_id) {
+            if (!in_array($attachment_id, $current_images)) {
+                $current_images[] = $attachment_id;
+            }
+        }
+        
+        // Update field with clean comma-separated string
+        $current_images_string = implode(",", array_filter($current_images));
+        update_post_meta($post_id, 'image_to_attach', trim($current_images_string, ","));
+        
+        $this->logger->log('image_to_attach field updated for WP All Import compatibility', 'debug', [
+            'post_id' => $post_id,
+            'image_to_attach' => $current_images_string,
+            'total_images' => count($current_images)
+        ]);
+    }
+    
+    /**
+     * Set gallery menu order for proper image sorting
+     * 
+     * @param int $post_id Property post ID
+     * @param array $attachment_ids Array of attachment IDs
+     */
+    private function set_gallery_menu_order($post_id, $attachment_ids) {
+        $count = 1;
+        foreach ($attachment_ids as $attachment_id) {
+            $result = wp_update_post(array(
+                'ID' => $attachment_id,
+                'post_parent' => $post_id,
+                'menu_order' => $count,
+            ));
+            
+            if (is_wp_error($result)) {
+                $this->logger->log('Failed to set menu_order for attachment', 'warning', [
+                    'post_id' => $post_id,
+                    'attachment_id' => $attachment_id,
+                    'menu_order' => $count,
+                    'error' => $result->get_error_message()
+                ]);
+            }
+            
+            $count++;
+        }
+        
+        $this->logger->log('Gallery menu order set for proper sorting', 'debug', [
+            'post_id' => $post_id,
+            'attachments_ordered' => count($attachment_ids)
+        ]);
+    }
+    
+    /**
+     * Refresh WpResidence cache for JavaScript markers integration
+     * 
+     * @param int $post_id Property post ID
+     */
+    private function refresh_wpresidence_cache($post_id) {
+        // Clear transient caches for marker generation
+        delete_transient('wpestate_markers_default_pins');
+        delete_transient('wpestate_markers_imported_properties');
+        delete_transient('wpestate_pin_images');
+        
+        // Clear taxonomy cache (needed for hidden_address generation)
+        wp_cache_flush();
+        
+        // Clear specific property meta cache
+        wp_cache_delete($post_id, 'post_meta');
+        
+        $this->logger->log('WpResidence cache refreshed for JavaScript integration', 'debug', [
+            'post_id' => $post_id,
+            'cleared_caches' => [
+                'wpestate_markers_default_pins',
+                'wpestate_markers_imported_properties', 
+                'wpestate_pin_images',
+                'post_meta_cache',
+                'taxonomy_cache'
+            ]
         ]);
     }
     
