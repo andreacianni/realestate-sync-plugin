@@ -95,6 +95,10 @@ class RealEstate_Sync_Import_Engine {
             }
         }
         
+        // 🚨 PROBLEMA 1 DEBUG: XML TO V3 FORMAT CONVERSION
+        $property_id = $property_data['id'] ?? 'unknown';
+        $this->logger->log("🚨 PROBLEMA 1 DEBUG: XML TO V3 FORMAT CONVERSION | Context: {\"property_id\":\"$property_id\",\"original_features_field\":" . json_encode($property_data['features'] ?? null) . ",\"decoded_info_inserite\":" . json_encode($info_inserite) . ",\"info_inserite_count\":" . count($info_inserite) . "}", 'error');
+        
         // Extract numeric data from JSON if present
         $dati_inseriti = [];
         if (isset($property_data['numeric_data']) && is_string($property_data['numeric_data'])) {
@@ -611,6 +615,17 @@ class RealEstate_Sync_Import_Engine {
             $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
             $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
         }
+        
+        // 🚨 PROBLEMA 1 DEBUG: DATA TRANSMISSION TO PROPERTY MAPPER
+        $info_inserite_count = isset($v3_formatted_data['info_inserite']) ? count($v3_formatted_data['info_inserite']) : 0;
+        $this->logger->log("🚨 PROBLEMA 1 DEBUG: IMPORT ENGINE → PROPERTY MAPPER DATA TRANSMISSION | Context: {\"property_id\":\"$property_id\",\"info_inserite_count\":$info_inserite_count,\"info_inserite_data\":" . json_encode($v3_formatted_data['info_inserite'] ?? []) . "}", 'error');
+        
+        // Debug specific action category values that should be found
+        $info_inserite = $v3_formatted_data['info_inserite'] ?? [];
+        $vendita_info9 = isset($info_inserite[9]) ? (int)$info_inserite[9] : 0;
+        $affitto_info10 = isset($info_inserite[10]) ? (int)$info_inserite[10] : 0;
+        $asta_info6 = isset($info_inserite[6]) ? (int)$info_inserite[6] : 0;
+        $this->logger->log("🚨 PROBLEMA 1 DEBUG: IMPORT ENGINE EXTRACTED ACTION VALUES | Context: {\"property_id\":\"$property_id\",\"vendita_info9\":$vendita_info9,\"affitto_info10\":$affitto_info10,\"asta_info6\":$asta_info6}", 'error');
         
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);

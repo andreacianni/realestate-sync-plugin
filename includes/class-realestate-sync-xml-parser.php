@@ -253,28 +253,39 @@ class RealEstate_Sync_XML_Parser {
         }
         
         // Parse features da <info_inserite>
-        $features = array();
+        $info_inserite = array();
         $feature_nodes = $xpath->query('//info_inserite/info');
+        
+        // 🚨 CRITICAL DEBUG: Use plugin logger to ensure visibility
+        $this->logger->log('🚨 XML PARSER CRITICAL DEBUG: Found ' . $feature_nodes->length . ' info_inserite nodes', 'error');
+        
         foreach ($feature_nodes as $feature) {
             $feature_id = $feature->getAttribute('id');
             $feature_value = $xpath->query('valore_assegnato', $feature)->item(0);
             if ($feature_value) {
-                $features[$feature_id] = trim($feature_value->textContent);
+                $info_inserite[$feature_id] = trim($feature_value->textContent);
+                
+                // Debug critical action category fields
+                if (in_array($feature_id, ['6', '9', '10'])) {
+                    $this->logger->log('🚨 XML PARSER CRITICAL: info[' . $feature_id . '] = ' . $info_inserite[$feature_id], 'error');
+                }
             }
         }
-        $property_data['features'] = $features;
+        
+        $this->logger->log('🚨 XML PARSER CRITICAL DEBUG: Total info_inserite extracted: ' . count($info_inserite), 'error');
+        $property_data['info_inserite'] = $info_inserite;
         
         // Parse dati numerici da <dati_inseriti>
-        $numeric_data = array();
+        $dati_inseriti = array();
         $data_nodes = $xpath->query('//dati_inseriti/dati');
         foreach ($data_nodes as $data) {
             $data_id = $data->getAttribute('id');
             $data_value = $xpath->query('valore_assegnato', $data)->item(0);
             if ($data_value) {
-                $numeric_data[$data_id] = trim($data_value->textContent);
+                $dati_inseriti[$data_id] = trim($data_value->textContent);
             }
         }
-        $property_data['numeric_data'] = $numeric_data;
+        $property_data['dati_inseriti'] = $dati_inseriti;
         
         // Parse media files da <file_allegati>
         $media_files = array();
