@@ -47,19 +47,29 @@ class RealEstate_Sync_Import_Engine {
     private $agency_stats;
     
     /**
-     * Constructor
+     * Constructor - DEPENDENCY INJECTION APPROACH
+     * Accepts instances instead of creating new ones to prevent duplicate instantiation
+     * 
+     * @param RealEstate_Sync_Property_Mapper $property_mapper Shared Property Mapper instance
+     * @param RealEstate_Sync_WP_Importer $wp_importer Shared WP Importer instance  
+     * @param RealEstate_Sync_Logger $logger Shared Logger instance
      */
-    public function __construct() {
-        $this->logger = RealEstate_Sync_Logger::get_instance();
+    public function __construct($property_mapper = null, $wp_importer = null, $logger = null) {
+        // 🛡️ DEPENDENCY INJECTION: Use shared instances to prevent duplicate instantiation
+        $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
+        $this->property_mapper = $property_mapper ?: new RealEstate_Sync_Property_Mapper();
+        $this->wp_importer = $wp_importer ?: new RealEstate_Sync_WP_Importer();
+        
+        // Always create new instances for these (no shared state issues)
         $this->tracking_manager = new RealEstate_Sync_Tracking_Manager();
         $this->streaming_parser = new RealEstate_Sync_XML_Parser();
-        $this->property_mapper = new RealEstate_Sync_Property_Mapper();
-        $this->wp_importer = new RealEstate_Sync_WP_Importer();
         
         $this->init_default_config();
         $this->init_session_data();
         $this->init_stats();
         $this->init_agency_stats();
+        
+        $this->logger->log('🛡️ Import Engine initialized with dependency injection (prevents duplicate Property Mapper)', 'debug');
     }
     
     /**

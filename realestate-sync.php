@@ -148,7 +148,14 @@ class RealEstate_Sync {
         $this->instances['xml_parser'] = new RealEstate_Sync_XML_Parser();
         $this->instances['property_mapper'] = new RealEstate_Sync_Property_Mapper();
         $this->instances['wp_importer'] = new RealEstate_Sync_WP_Importer();
-        $this->instances['import_engine'] = new RealEstate_Sync_Import_Engine();
+        
+        // 🛡️ DEPENDENCY INJECTION: Pass shared instances to Import Engine
+        $this->instances['import_engine'] = new RealEstate_Sync_Import_Engine(
+            $this->instances['property_mapper'],
+            $this->instances['wp_importer'],
+            $this->instances['logger']
+        );
+        
         $this->instances['cron_manager'] = new RealEstate_Sync_Cron_Manager();
         $this->instances['tracking_manager'] = new RealEstate_Sync_Tracking_Manager();
         
