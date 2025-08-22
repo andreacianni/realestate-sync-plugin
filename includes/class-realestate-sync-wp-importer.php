@@ -716,6 +716,19 @@ class RealEstate_Sync_WP_Importer {
         if ($image_result['success']) {
             $stats = $image_result['stats'];
             
+            // 🆕 GALLERY FIX: Set wpestate_property_gallery for frontend display
+            $attachment_ids = $image_result['attachment_ids'] ?? [];
+            if (!empty($attachment_ids)) {
+                // Set both formats for maximum compatibility
+                update_post_meta($post_id, 'wpestate_property_gallery', implode(',', $attachment_ids));
+                
+                $this->logger->log('✅ WpResidence gallery field set for frontend', 'info', [
+                    'post_id' => $post_id,
+                    'attachment_ids' => implode(',', $attachment_ids),
+                    'count' => count($attachment_ids)
+                ]);
+            }
+            
             $this->logger->log('Gallery processed with Image Importer v1.0', 'info', [
                 'post_id' => $post_id,
                 'downloaded' => $stats['downloaded_images'],

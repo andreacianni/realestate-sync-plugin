@@ -607,13 +607,13 @@ class RealEstate_Sync_Import_Engine {
         $this->logger->log("   🏢 Agency: $agency_name", 'info');
         $this->logger->log("   📍 Location: " . ($v3_formatted_data['indirizzo'] ?? 'Unknown'), 'info');
         
-        // 🏢 TRACK AGENCY: Add to agency stats only if we found valid agency data
+        // 🏢 TRACK AGENCY: Get stats from Agency Manager instead of tracking here
         if (isset($v3_formatted_data['agency_data']) && !empty($agency_id) && $agency_id !== 'Unknown') {
-            if (!in_array($agency_id, $this->agency_stats['agencies_found'])) {
-                $this->agency_stats['agencies_found'][] = $agency_id;
-                $this->agency_stats['created']++; // Simple tracking for now
-                $this->logger->log("🏢 AGENCY TRACKED: New agency '$agency_name' (ID: $agency_id)", 'info');
-            }
+            // Agency stats are now handled by Agency Manager - no need to track here
+            $this->logger->log("🏢 Agency handled by Agency Manager", 'debug', [
+                'agency_id' => $agency_id,
+                'agency_name' => $agency_name
+            ]);
         } else {
             $this->logger->log("🏢 Property ID $property_id has no agency - will not be linked to any agency", 'info');
         }
@@ -769,6 +769,9 @@ class RealEstate_Sync_Import_Engine {
      * @return array Final results
      */
     private function generate_final_results($parse_results) {
+        // 🏢 GET REAL AGENCY STATS from Agency Manager session data
+        $real_agency_stats = $this->get_agency_manager_stats();
+        
         return array(
             'success' => true,
             'import_id' => $this->session_data['import_id'],
@@ -780,7 +783,7 @@ class RealEstate_Sync_Import_Engine {
             'duration_formatted' => $this->format_duration($this->stats['duration']),
             'memory_peak_mb' => $this->stats['memory_peak_mb'],
             'statistics' => $this->stats,
-            'agency_stats' => $this->agency_stats,
+            'agency_stats' => $real_agency_stats, // 🏢 Use real stats from Agency Manager
             'parser_results' => $parse_results,
             'config_used' => $this->config,
             'performance' => array(
@@ -789,6 +792,37 @@ class RealEstate_Sync_Import_Engine {
                 'average_chunk_size' => $this->stats['total_processed'] / max($this->stats['chunks_processed'], 1)
             )
         );
+    }
+    
+    /**
+     * Get real agency statistics from Agency Manager
+     * 
+     * @return array Agency statistics
+     */
+    private function get_agency_manager_stats() {
+        try {
+            // Check if Agency Manager has session stats
+            $agency_manager = new RealEstate_Sync_Agency_Manager();
+            
+            if (method_exists($agency_manager, 'get_session_stats')) {
+                $real_stats = $agency_manager->get_session_stats();
+                
+                $this->logger->log('🏢 Retrieved real agency stats from Agency Manager', 'debug', [
+                    'created' => $real_stats['created'] ?? 0,
+                    'updated' => $real_stats['updated'] ?? 0,
+                    'agencies_found' => count($real_stats['agencies_found'] ?? [])
+                ]);
+                
+                return $real_stats;
+            }
+            
+            // Fallback: return original stats
+            return $this->agency_stats;
+            
+        } catch (Exception $e) {
+            $this->logger->log('Error getting Agency Manager stats: ' . $e->getMessage(), 'error');
+            return $this->agency_stats; // Fallback
+        }
     }
     
     /**
