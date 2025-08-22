@@ -135,9 +135,15 @@ class RealEstate_Sync {
     
     /**
      * Initialize plugin after all plugins loaded
+     * SINGLETON PROTECTION: Prevents re-initialization loop
      */
     public function init_plugin() {
-        // Initialize core instances
+        // 🛡️ SINGLETON PROTECTION: Only initialize once
+        if (!empty($this->instances)) {
+            return; // Already initialized - prevent loop
+        }
+        
+        // Initialize core instances (ONE TIME ONLY)
         $this->instances['logger'] = RealEstate_Sync_Logger::get_instance();
         $this->instances['xml_parser'] = new RealEstate_Sync_XML_Parser();
         $this->instances['property_mapper'] = new RealEstate_Sync_Property_Mapper();
@@ -151,7 +157,7 @@ class RealEstate_Sync {
             $this->instances['admin'] = new RealEstate_Sync_Admin();
         }
         
-        // Log plugin initialization
+        // Log plugin initialization (ONE TIME ONLY)
         $this->instances['logger']->log('Plugin initialized successfully', 'info');
     }
     
