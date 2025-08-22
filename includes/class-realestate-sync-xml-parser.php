@@ -256,23 +256,18 @@ class RealEstate_Sync_XML_Parser {
         $info_inserite = array();
         $feature_nodes = $xpath->query('//info_inserite/info');
         
-        // 🚨 CRITICAL DEBUG: Use plugin logger to ensure visibility
-        $this->logger->log('🚨 XML PARSER CRITICAL DEBUG: Found ' . $feature_nodes->length . ' info_inserite nodes', 'error');
-        
         foreach ($feature_nodes as $feature) {
             $feature_id = $feature->getAttribute('id');
             $feature_value = $xpath->query('valore_assegnato', $feature)->item(0);
             if ($feature_value) {
                 $info_inserite[$feature_id] = trim($feature_value->textContent);
-                
-                // Debug critical action category fields
-                if (in_array($feature_id, ['6', '9', '10'])) {
-                    $this->logger->log('🚨 XML PARSER CRITICAL: info[' . $feature_id . '] = ' . $info_inserite[$feature_id], 'error');
-                }
             }
         }
         
-        $this->logger->log('🚨 XML PARSER CRITICAL DEBUG: Total info_inserite extracted: ' . count($info_inserite), 'error');
+        // ✅ Log extraction summary for verification
+        if (count($info_inserite) > 0) {
+            $this->logger->log('✅ XML Parser: Extracted ' . count($info_inserite) . ' info_inserite features', 'debug');
+        }
         $property_data['info_inserite'] = $info_inserite;
         
         // Parse dati numerici da <dati_inseriti>

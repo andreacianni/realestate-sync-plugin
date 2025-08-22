@@ -86,18 +86,27 @@ class RealEstate_Sync_Import_Engine {
         // 🏢 ENHANCED AGENCY EXTRACTION from XML (can be null if no agency found)
         $agency_data = $this->extract_agency_from_xml($property_data);
         
-        // Extract features from JSON if present
+        // 🚨 PROBLEMA 1 FIX: Extract info_inserite from correct XML Parser field
         $info_inserite = [];
-        if (isset($property_data['features']) && is_string($property_data['features'])) {
+        
+        // Method 1: Direct array from XML Parser (v3.0 format) - PRIMARY
+        if (isset($property_data['info_inserite']) && is_array($property_data['info_inserite'])) {
+            $info_inserite = $property_data['info_inserite'];
+        }
+        // Method 2: JSON encoded features (legacy compatibility)
+        elseif (isset($property_data['features']) && is_string($property_data['features'])) {
             $decoded_features = json_decode($property_data['features'], true);
             if (is_array($decoded_features)) {
                 $info_inserite = $decoded_features;
             }
         }
         
-        // 🚨 PROBLEMA 1 DEBUG: XML TO V3 FORMAT CONVERSION
+        // ✅ INFO INSERITE EXTRACTION COMPLETED
         $property_id = $property_data['id'] ?? 'unknown';
-        $this->logger->log("🚨 PROBLEMA 1 DEBUG: XML TO V3 FORMAT CONVERSION | Context: {\"property_id\":\"$property_id\",\"original_features_field\":" . json_encode($property_data['features'] ?? null) . ",\"decoded_info_inserite\":" . json_encode($info_inserite) . ",\"info_inserite_count\":" . count($info_inserite) . "}", 'error');
+        $info_inserite_count = count($info_inserite);
+        if ($info_inserite_count > 0) {
+            $this->logger->log("✅ Info inserite extracted for property $property_id: $info_inserite_count items", 'debug');
+        }
         
         // Extract numeric data from JSON if present
         $dati_inseriti = [];
@@ -616,16 +625,18 @@ class RealEstate_Sync_Import_Engine {
             $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
         }
         
-        // 🚨 PROBLEMA 1 DEBUG: DATA TRANSMISSION TO PROPERTY MAPPER
-        $info_inserite_count = isset($v3_formatted_data['info_inserite']) ? count($v3_formatted_data['info_inserite']) : 0;
-        $this->logger->log("🚨 PROBLEMA 1 DEBUG: IMPORT ENGINE → PROPERTY MAPPER DATA TRANSMISSION | Context: {\"property_id\":\"$property_id\",\"info_inserite_count\":$info_inserite_count,\"info_inserite_data\":" . json_encode($v3_formatted_data['info_inserite'] ?? []) . "}", 'error');
-        
-        // Debug specific action category values that should be found
+        // ✅ DATA TRANSMISSION TO PROPERTY MAPPER: Ready for mapping
         $info_inserite = $v3_formatted_data['info_inserite'] ?? [];
-        $vendita_info9 = isset($info_inserite[9]) ? (int)$info_inserite[9] : 0;
-        $affitto_info10 = isset($info_inserite[10]) ? (int)$info_inserite[10] : 0;
-        $asta_info6 = isset($info_inserite[6]) ? (int)$info_inserite[6] : 0;
-        $this->logger->log("🚨 PROBLEMA 1 DEBUG: IMPORT ENGINE EXTRACTED ACTION VALUES | Context: {\"property_id\":\"$property_id\",\"vendita_info9\":$vendita_info9,\"affitto_info10\":$affitto_info10,\"asta_info6\":$asta_info6}", 'error');
+        if (!empty($info_inserite)) {
+            // Log action category values for verification
+            $vendita_info9 = isset($info_inserite[9]) ? (int)$info_inserite[9] : 0;
+            $affitto_info10 = isset($info_inserite[10]) ? (int)$info_inserite[10] : 0;
+            $asta_info6 = isset($info_inserite[6]) ? (int)$info_inserite[6] : 0;
+            
+            if ($vendita_info9 || $affitto_info10 || $asta_info6) {
+                $this->logger->log("✅ Property $property_id action categories: Vendita($vendita_info9), Affitto($affitto_info10), Asta($asta_info6)", 'info');
+            }
+        }
         
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);

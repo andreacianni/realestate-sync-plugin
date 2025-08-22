@@ -154,10 +154,16 @@ class RealEstate_Sync_Property_Mapper {
             return null;
         }
         
-        // 🚨 PROBLEMA 1 DEBUG: DATA RECEPTION IN PROPERTY MAPPER
+        // ✅ Data reception verification
         $property_id = $xml_property['id'] ?? 'unknown';
         $info_inserite_received = $xml_property['info_inserite'] ?? [];
-        $this->logger->log("🚨 PROBLEMA 1 DEBUG: PROPERTY MAPPER DATA RECEPTION | Context: {\"property_id\":\"$property_id\",\"info_inserite_received\":" . json_encode($info_inserite_received) . ",\"info_inserite_count\":" . count($info_inserite_received) . "}", 'error');
+        
+        if (!empty($info_inserite_received)) {
+            $this->logger->log("✅ Property Mapper received info_inserite data", 'debug', [
+                'property_id' => $property_id,
+                'info_inserite_count' => count($info_inserite_received)
+            ]);
+        }
         
         // 🏢 AGENCY MANAGER v3.0: Process agency and get agency ID for direct association
         $agency_id = $this->process_agency_for_property($xml_property);
@@ -718,29 +724,30 @@ class RealEstate_Sync_Property_Mapper {
      * @return array Array of action category term names for wp_set_post_terms
      */
     private function determine_action_categories_v31($xml_property) {
-        // 🚨 CRITICAL DEBUG: Always log method execution
-        $this->logger->log('🚨 PROBLEMA 1 DEBUG: determine_action_categories_v31() METHOD CALLED', 'error', [
+        // Method execution logging  
+        $this->logger->log('determine_action_categories_v31() called', 'debug', [
             'property_id' => $xml_property['id'] ?? 'unknown',
             'has_info_inserite' => isset($xml_property['info_inserite']),
             'info_inserite_count' => is_array($xml_property['info_inserite'] ?? null) ? count($xml_property['info_inserite']) : 0
         ]);
         $action_terms = [];
         
-        // Get XML values
+        // XML values extraction and verification
         $vendita = $this->get_feature_value($xml_property, 9);   // info[9] - vendita
         $affitto = $this->get_feature_value($xml_property, 10);  // info[10] - affitto
         $asta = $this->get_feature_value($xml_property, 6);      // info[6] - asta
         $prezzo = floatval($xml_property['price'] ?? 0);
         
-        // 🚨 DEBUG XML VALUES
-        $this->logger->log('🚨 PROBLEMA 1 DEBUG: XML VALUES EXTRACTED', 'error', [
-            'property_id' => $xml_property['id'] ?? 'unknown',
-            'vendita_info9' => $vendita,
-            'affitto_info10' => $affitto,
-            'asta_info6' => $asta,
-            'prezzo' => $prezzo,
-            'info_inserite_keys' => array_keys($xml_property['info_inserite'] ?? [])
-        ]);
+        // Log extracted values for verification
+        if ($vendita || $affitto || $asta) {
+            $this->logger->log('Action category values extracted', 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'vendita_info9' => $vendita,
+                'affitto_info10' => $affitto,
+                'asta_info6' => $asta,
+                'prezzo' => $prezzo
+            ]);
+        }
         
         // Logic implementation per specifiche XML
         if ($affitto == 1) {
