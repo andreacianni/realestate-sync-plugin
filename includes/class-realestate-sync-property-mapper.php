@@ -25,6 +25,26 @@ class RealEstate_Sync_Property_Mapper {
     public function __construct($logger = null) {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
         
+        // 🕵️ DEBUG TRACE: Identify who is instantiating Property Mapper
+        $backtrace = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 5);
+        $caller_info = [];
+        
+        foreach ($backtrace as $i => $trace) {
+            if ($i === 0) continue; // Skip current constructor
+            $caller_info[] = [
+                'function' => $trace['function'] ?? 'unknown',
+                'class' => $trace['class'] ?? 'no_class',
+                'file' => basename($trace['file'] ?? 'unknown'),
+                'line' => $trace['line'] ?? 0
+            ];
+        }
+        
+        $this->logger->log('🕵️ PROPERTY MAPPER INSTANTIATION DEBUG', 'info', [
+            'timestamp' => date('H:i:s'),
+            'memory' => round(memory_get_usage() / 1024 / 1024, 2) . ' MB',
+            'callers' => $caller_info
+        ]);
+        
         // Initialize Agency Manager for direct property→agency mapping
         require_once dirname(__FILE__) . '/class-realestate-sync-agency-manager.php';
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
