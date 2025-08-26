@@ -102,62 +102,80 @@ class RealEstate_Sync_AddOn_Adapter {
     /**
      * Convert XML property data to Add-On expected format
      * 
-     * @param array $xml_property XML property data
+     * @param array|SimpleXMLElement $xml_data Complete XML annuncio data
      * @return array Add-On formatted data
      */
-    public function convert_xml_to_addon_format($xml_property) {
+    public function convert_xml_to_addon_format($xml_data) {
         $this->logger->log("Converting XML property to Add-On format", 'debug');
         
         $addon_data = [];
         
         try {
+            // Handle both array and XML input
+            if ($xml_data instanceof SimpleXMLElement) {
+                $info = $xml_data->info;
+                $agency = $xml_data->agenzia;
+                $features = $xml_data->info_inserite;
+                $images = $xml_data->file_allegati;
+            } else {
+                // Test data array format
+                $info = $xml_data;
+                $agency = $xml_data['agency_data'] ?? [];
+                $features = $xml_data['info_inserite'] ?? [];
+                $images = $xml_data['file_allegati'] ?? [];
+            }
+            
             // ==========================================
             // BASIC PROPERTY FIELDS
             // ==========================================
             
             // Price - ensure numeric format
-            $addon_data['property_price'] = $this->clean_price($xml_property['price'] ?? 0);
+            $addon_data['property_price'] = $this->clean_price($info['price'] ?? 0);
             
-            // Size - get best available surface area
-            $addon_data['property_size'] = $this->get_best_surface_area($xml_property);
+            // Size - use mq field from info section
+            $addon_data['property_size'] = floatval($info['mq'] ?? 0);
             
             // Property type - map GI category to WpResidence
-            $addon_data['property_category'] = $this->map_property_category($xml_property);
+            $addon_data['property_category'] = $this->map_property_category($info['categorie_id'] ?? 11);
             
             // Property status - default to sale unless rent
-            $addon_data['property_status'] = $this->map_property_status($xml_property);
+            $addon_data['property_status'] = 'sale'; // Default for now
             
             // ==========================================
             // ROOM COUNTS WITH SPECIAL HANDLING
             // ==========================================
             
-            // Bedrooms - handle special case -1 = "4 or more"
-            $addon_data['property_bedrooms'] = $this->get_room_count($xml_property, 2, 'bedrooms');
+            // Bedrooms (info id="1")
+            $addon_data['property_bedrooms'] = $this->get_room_count($features, 1, 'bedrooms');
             
-            // Bathrooms - handle special case -1 = "4 or more"  
-            $addon_data['property_bathrooms'] = $this->get_room_count($xml_property, 1, 'bathrooms');
+            // Bathrooms (info id="2")  
+            $addon_data['property_bathrooms'] = $this->get_room_count($features, 2, 'bathrooms');
             
-            // Total rooms - if available
-            $addon_data['property_rooms'] = $this->get_room_count($xml_property, 65, 'rooms');
+            // Total rooms (info id="65")
+            $addon_data['property_rooms'] = $this->get_room_count($features, 65, 'rooms');
             
             // ==========================================
             // LOCATION DATA
             // ==========================================
             
-            // Full address construction
-            $addon_data['property_address'] = $this->build_full_address($xml_property);
+            // Full address construction from info section
+            $address_parts = [];
+            if (!empty($info['indirizzo'])) $address_parts[] = (string)$info['indirizzo'];
+            if (!empty($info['zona'])) $address_parts[] = (string)$info['zona'];
+            $addon_data['property_address'] = implode(', ', $address_parts) ?: 'Trentino Alto Adige';
             
             // Location search preference
-            $addon_data['location_settings'] = $this->has_coordinates($xml_property) ? 'search_by_coordinates' : 'search_by_address';
+            $has_coords = !empty($info['latitude']) && !empty($info['longitude']);
+            $addon_data['location_settings'] = $has_coords ? 'search_by_coordinates' : 'search_by_address';
             
             // Coordinates
-            $addon_data['_property_latitude'] = floatval($xml_property['latitude'] ?? 0);
-            $addon_data['_property_longitude'] = floatval($xml_property['longitude'] ?? 0);
+            $addon_data['_property_latitude'] = floatval($info['latitude'] ?? 0);
+            $addon_data['_property_longitude'] = floatval($info['longitude'] ?? 0);
             
-            // Address components
-            $addon_data['property_city'] = $xml_property['comune'] ?? '';
-            $addon_data['property_state'] = $this->map_province($xml_property['provincia'] ?? '');
-            $addon_data['property_zip'] = $xml_property['cap'] ?? '';
+            // Address components - map from comune_istat to readable names
+            $addon_data['property_city'] = $this->map_comune_istat($info['comune_istat'] ?? '');
+            $addon_data['property_state'] = 'Trentino Alto Adige';
+            $addon_data['property_zip'] = '';
             $addon_data['property_country'] = 'Italy';
             
             // ==========================================
@@ -165,55 +183,44 @@ class RealEstate_Sync_AddOn_Adapter {
             // ==========================================
             
             // Convert XML features array to CSV string for Add-On
-            $addon_data['property_features'] = $this->convert_features_to_csv($xml_property);
+            $addon_data['property_features'] = $this->convert_features_to_csv($features);
             
             // ==========================================
             // AGENT/AGENCY SYSTEM
             // ==========================================
             
             // Agent name from agency data
-            $addon_data['property_agent'] = $xml_property['agency_data']['ragione_sociale'] ?? '';
+            $addon_data['property_agent'] = (string)($agency['ragione_sociale'] ?? '');
             $addon_data['property_agent_or_agency'] = 'estate_agency';
             
             // Agent contact info for profile creation
-            $addon_data['agent_email'] = $xml_property['agency_data']['email'] ?? '';
-            $addon_data['agent_phone'] = $xml_property['agency_data']['telefono'] ?? '';
-            $addon_data['agent_mobile'] = $xml_property['agency_data']['cellulare'] ?? '';
-            $addon_data['agent_website'] = $xml_property['agency_data']['sito_web'] ?? '';
-            $addon_data['agent_address'] = $this->build_agency_address($xml_property['agency_data'] ?? []);
+            $addon_data['agent_email'] = (string)($agency['email'] ?? '');
+            $addon_data['agent_phone'] = (string)($agency['telefono'] ?? '');
+            $addon_data['agent_mobile'] = (string)($agency['cellulare'] ?? '');
+            $addon_data['agent_website'] = (string)($agency['url'] ?? '');
+            $addon_data['agent_address'] = $this->build_agency_address($agency);
             
             // ==========================================
             // CUSTOM FIELDS (_custom_details_ pattern)
             // ==========================================
             
-            // Energy class
-            $addon_data['_custom_details_energy_class'] = $this->map_energy_class($xml_property);
+            // Energy class from APE data
+            $addon_data['_custom_details_energy_class'] = $this->map_energy_class($info);
             
-            // Property specific details
-            $addon_data['_custom_details_construction_year'] = $xml_property['anno_costruzione'] ?? '';
-            $addon_data['_custom_details_renovation_year'] = $xml_property['anno_ristrutturazione'] ?? '';
-            $addon_data['_custom_details_floor'] = $this->format_floor($xml_property);
-            $addon_data['_custom_details_total_floors'] = $xml_property['totale_piani'] ?? '';
-            $addon_data['_custom_details_heating'] = $this->map_heating_type($xml_property);
-            $addon_data['_custom_details_orientation'] = $xml_property['orientamento'] ?? '';
-            $addon_data['_custom_details_view'] = $xml_property['panorama_vista'] ?? '';
-            
-            // Surface areas
-            if (!empty($xml_property['superficie_commerciale'])) {
-                $addon_data['_custom_details_commercial_area'] = $xml_property['superficie_commerciale'] . ' mÂ²';
-            }
-            if (!empty($xml_property['superficie_giardino'])) {
-                $addon_data['_custom_details_garden_area'] = $xml_property['superficie_giardino'] . ' mÂ²';
-            }
-            if (!empty($xml_property['superficie_terrazza'])) {
-                $addon_data['_custom_details_terrace_area'] = $xml_property['superficie_terrazza'] . ' mÂ²';
-            }
+            // Construction year from age field
+            $addon_data['_custom_details_construction_year'] = (string)($info['age'] ?? '');
+            $addon_data['_custom_details_renovation_year'] = '';
+            $addon_data['_custom_details_floor'] = '';
+            $addon_data['_custom_details_total_floors'] = '';
+            $addon_data['_custom_details_heating'] = 'Centralizzato'; // Default
+            $addon_data['_custom_details_orientation'] = '';
+            $addon_data['_custom_details_view'] = '';
             
             // ==========================================
             // PROPERTY DESCRIPTION
             // ==========================================
             
-            $addon_data['property_description'] = $this->clean_description($xml_property['descrizione'] ?? '');
+            $addon_data['property_description'] = $this->clean_description((string)($info['description'] ?? ''));
             
             $this->logger->log("XML to Add-On conversion completed successfully", 'info');
             
@@ -259,29 +266,40 @@ class RealEstate_Sync_AddOn_Adapter {
     /**
      * Get room count with special handling for -1 values
      */
-    private function get_room_count($xml_property, $feature_id, $room_type) {
-        $count = $this->get_feature_value($xml_property, $feature_id);
+    private function get_room_count($features, $feature_id, $room_type) {
+        $count = $this->get_feature_value($features, $feature_id);
         
         // Handle special case: -1 means "4 or more" in GI system
         if ($count == -1) {
             $this->logger->log("Property has 4+ {$room_type} (GI value: -1)", 'debug');
-            return '4+';
+            return 4;
         }
         
         return max(0, intval($count));
     }
     
     /**
-     * Get feature value from XML caratteristiche array
+     * Get feature value from XML info_inserite section
      */
-    private function get_feature_value($xml_property, $feature_id) {
-        if (!isset($xml_property['caratteristiche']) || !is_array($xml_property['caratteristiche'])) {
+    private function get_feature_value($features, $feature_id) {
+        if (empty($features)) {
             return 0;
         }
         
-        foreach ($xml_property['caratteristiche'] as $feature) {
-            if (isset($feature['id']) && $feature['id'] == $feature_id) {
-                return $feature['valore'] ?? 0;
+        // Handle SimpleXMLElement
+        if ($features instanceof SimpleXMLElement) {
+            foreach ($features->info as $info) {
+                $id = (string)$info['id'];
+                if ($id == $feature_id) {
+                    return intval((string)$info->valore_assegnato);
+                }
+            }
+        } else {
+            // Handle array format
+            foreach ($features as $feature) {
+                if (isset($feature['id']) && $feature['id'] == $feature_id) {
+                    return intval($feature['valore_assegnato'] ?? 0);
+                }
             }
         }
         
@@ -310,6 +328,22 @@ class RealEstate_Sync_AddOn_Adapter {
     }
     
     /**
+     * Map comune ISTAT code to readable name
+     */
+    private function map_comune_istat($istat_code) {
+        // Sample mapping - can be expanded
+        $comune_mapping = [
+            '022034' => 'Caldonazzo',
+            '022117' => 'Mezzolombardo', 
+            '022183' => 'Storo',
+            '022205' => 'Trento',
+            '021008' => 'Bolzano'
+        ];
+        
+        return $comune_mapping[$istat_code] ?? 'Trentino Alto Adige';
+    }
+    
+    /**
      * Check if property has valid coordinates
      */
     private function has_coordinates($xml_property) {
@@ -322,26 +356,41 @@ class RealEstate_Sync_AddOn_Adapter {
      * Convert XML features array to CSV string for Add-On
      * This is CRITICAL for features system to work
      */
-    private function convert_features_to_csv($xml_property) {
-        $features = [];
+    private function convert_features_to_csv($features) {
+        $feature_names = [];
         
-        if (!isset($xml_property['caratteristiche']) || !is_array($xml_property['caratteristiche'])) {
+        if (empty($features)) {
             return '';
         }
         
-        foreach ($xml_property['caratteristiche'] as $feature) {
-            $feature_id = $feature['id'] ?? 0;
-            $feature_value = $feature['valore'] ?? 0;
-            
-            // Only include features that are active (value = 1)
-            if ($feature_value == 1 && isset($this->gi_features_mapping[$feature_id])) {
-                $feature_name = $this->gi_features_mapping[$feature_id];
-                $features[] = $feature_name;
-                $this->logger->log("Added feature: {$feature_name} (GI ID: {$feature_id})", 'debug');
+        // Handle SimpleXMLElement
+        if ($features instanceof SimpleXMLElement) {
+            foreach ($features->info as $info) {
+                $feature_id = intval((string)$info['id']);
+                $feature_value = intval((string)$info->valore_assegnato);
+                
+                // Only include features that are active (value >= 1)
+                if ($feature_value >= 1 && isset($this->gi_features_mapping[$feature_id])) {
+                    $feature_name = $this->gi_features_mapping[$feature_id];
+                    $feature_names[] = $feature_name;
+                    $this->logger->log("Added feature: {$feature_name} (GI ID: {$feature_id}, value: {$feature_value})", 'debug');
+                }
+            }
+        } else {
+            // Handle array format
+            foreach ($features as $feature) {
+                $feature_id = $feature['id'] ?? 0;
+                $feature_value = $feature['valore_assegnato'] ?? 0;
+                
+                if ($feature_value >= 1 && isset($this->gi_features_mapping[$feature_id])) {
+                    $feature_name = $this->gi_features_mapping[$feature_id];
+                    $feature_names[] = $feature_name;
+                    $this->logger->log("Added feature: {$feature_name} (GI ID: {$feature_id})", 'debug');
+                }
             }
         }
         
-        $csv_features = implode(',', $features);
+        $csv_features = implode(',', $feature_names);
         $this->logger->log("Features CSV: {$csv_features}", 'debug');
         
         return $csv_features;
@@ -350,9 +399,7 @@ class RealEstate_Sync_AddOn_Adapter {
     /**
      * Map GI property category to WpResidence category
      */
-    private function map_property_category($xml_property) {
-        $gi_category = $xml_property['tipologia'] ?? 0;
-        
+    private function map_property_category($gi_category) {
         $category_mapping = [
             1  => 'house',          // Casa singola
             2  => 'house',          // Bifamiliare  
@@ -395,8 +442,16 @@ class RealEstate_Sync_AddOn_Adapter {
     /**
      * Map energy class from GI to standard format
      */
-    private function map_energy_class($xml_property) {
-        $gi_class = strtolower($xml_property['classe_energetica'] ?? '');
+    private function map_energy_class($info) {
+        // Get energy class from ape attribute
+        if (isset($info['ape']) && isset($info['ape']['classe'])) {
+            $gi_class = strtolower((string)$info['ape']['classe']);
+        } else if (is_array($info) && isset($info['ape'])) {
+            $gi_class = strtolower($info['ape']);
+        } else {
+            $gi_class = 'nd';
+        }
+        
         return $this->energy_class_mapping[$gi_class] ?? 'NC';
     }
     
@@ -407,15 +462,15 @@ class RealEstate_Sync_AddOn_Adapter {
         $address_parts = [];
         
         if (!empty($agency_data['indirizzo'])) {
-            $address_parts[] = $agency_data['indirizzo'];
+            $address_parts[] = (string)$agency_data['indirizzo'];
         }
         
         if (!empty($agency_data['comune'])) {
-            $address_parts[] = $agency_data['comune'];
+            $address_parts[] = (string)$agency_data['comune'];
         }
         
         if (!empty($agency_data['provincia'])) {
-            $address_parts[] = $agency_data['provincia'];
+            $address_parts[] = (string)$agency_data['provincia'];
         }
         
         return implode(', ', $address_parts);
