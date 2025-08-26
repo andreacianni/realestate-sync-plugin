@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * RealEstate Sync Add-On Adapter
  * 
@@ -96,7 +96,7 @@ class RealEstate_Sync_AddOn_Adapter {
      * Constructor
      */
     public function __construct() {
-        $this->logger = new RealEstate_Sync_Logger();
+        $this->logger = RealEstate_Sync_Logger::get_instance();
     }
     
     /**
@@ -200,13 +200,13 @@ class RealEstate_Sync_AddOn_Adapter {
             
             // Surface areas
             if (!empty($xml_property['superficie_commerciale'])) {
-                $addon_data['_custom_details_commercial_area'] = $xml_property['superficie_commerciale'] . ' m²';
+                $addon_data['_custom_details_commercial_area'] = $xml_property['superficie_commerciale'] . ' mÂ²';
             }
             if (!empty($xml_property['superficie_giardino'])) {
-                $addon_data['_custom_details_garden_area'] = $xml_property['superficie_giardino'] . ' m²';
+                $addon_data['_custom_details_garden_area'] = $xml_property['superficie_giardino'] . ' mÂ²';
             }
             if (!empty($xml_property['superficie_terrazza'])) {
-                $addon_data['_custom_details_terrace_area'] = $xml_property['superficie_terrazza'] . ' m²';
+                $addon_data['_custom_details_terrace_area'] = $xml_property['superficie_terrazza'] . ' mÂ²';
             }
             
             // ==========================================
@@ -489,3 +489,4 @@ class RealEstate_Sync_AddOn_Adapter {
         return $addon_data;
     }
 }
+

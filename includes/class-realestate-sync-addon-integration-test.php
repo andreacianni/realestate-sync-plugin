@@ -1,9 +1,9 @@
-<?php
+﻿<?php
 /**
  * RealEstate Sync Add-On Integration Test Script
  * 
  * Test script per validare l'integrazione Add-On completa
- * Verifica tutte le funzionalità prima del deployment
+ * Verifica tutte le funzionalitÃ  prima del deployment
  * 
  * @package RealEstate_Sync
  * @subpackage Testing
@@ -21,7 +21,7 @@ class RealEstate_Sync_AddOn_Integration_Test {
     private $test_results;
     
     public function __construct() {
-        $this->logger = new RealEstate_Sync_Logger();
+        $this->logger = RealEstate_Sync_Logger::get_instance();
         $this->test_results = [
             'overall_status' => 'running',
             'timestamp' => current_time('mysql'),
@@ -38,7 +38,7 @@ class RealEstate_Sync_AddOn_Integration_Test {
      * @return array Test results
      */
     public function run_complete_test_suite() {
-        $this->logger->log("🧪 Starting Add-On Integration Test Suite", 'info');
+        $this->logger->log("ðŸ§ª Starting Add-On Integration Test Suite", 'info');
         
         try {
             // Test 1: File Existence
@@ -67,7 +67,7 @@ class RealEstate_Sync_AddOn_Integration_Test {
             $this->test_results['overall_status'] = 'failed';
         }
         
-        $this->logger->log("🧪 Add-On Integration Test Suite completed", 'info');
+        $this->logger->log("ðŸ§ª Add-On Integration Test Suite completed", 'info');
         return $this->test_results;
     }
     
@@ -173,7 +173,7 @@ class RealEstate_Sync_AddOn_Integration_Test {
             'timestamp' => current_time('mysql')
         ];
         
-        $this->logger->log("🧪 Test {$test_name}: {$status} - {$message}", $passed ? 'info' : 'warning');
+        $this->logger->log("ðŸ§ª Test {$test_name}: {$status} - {$message}", $passed ? 'info' : 'warning');
     }
 }
 
@@ -186,3 +186,4 @@ function run_addon_integration_test() {
     
     return $results;
 }
+
