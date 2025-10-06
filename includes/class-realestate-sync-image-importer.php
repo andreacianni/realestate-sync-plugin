@@ -156,7 +156,7 @@ class RealEstate_Sync_Image_Importer {
                         $attachment_ids[] = $existing_id;
                         $this->stats['skipped_images']++;
                         
-                        if ($image_data['is_featured'] ?? false) {
+                        if (!empty($image_data['is_featured'])) {
                             $featured_attachment_id = $existing_id;
                         }
                         
@@ -172,7 +172,7 @@ class RealEstate_Sync_Image_Importer {
                     $this->stats['downloaded_images']++;
                     $this->stats['created_attachments']++;
                     
-                    if ($image_data['is_featured'] ?? false) {
+                    if (!empty($image_data['is_featured'])) {
                         $featured_attachment_id = $result['attachment_id'];
                     }
                     
