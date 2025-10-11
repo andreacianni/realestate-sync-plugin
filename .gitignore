@@ -2,4 +2,7 @@ logs/
 logs/import-logs/
 includes/class-realestate-sync-property-mapper backup 18-8 18e50.php
 backups/
-*.backup.*
+*.backup.*DEBUG_*.md
+STATUS_*.md
+*_GUIDE.md
+.claude/settings.local.json
