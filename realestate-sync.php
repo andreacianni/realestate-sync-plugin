@@ -15,6 +15,10 @@
  * Requires PHP: 7.4
  * Network: false
  *
+ * GitHub Plugin URI: andreacianni/realestate-sync-plugin
+ * GitHub Branch: main
+ * Release Asset: true
+ *
  * @package RealEstateSync
  * @author Andrea Cianni <andrea@novacomitalia.com>
  * @copyright 2025 Novacom Italia
@@ -164,8 +168,8 @@ class RealEstate_Sync {
             $this->instances['admin'] = new RealEstate_Sync_Admin();
         }
         
-        // Log plugin initialization (ONE TIME ONLY)
-        $this->instances['logger']->log('Plugin initialized successfully', 'info');
+        // Log plugin initialization (ONE TIME ONLY) - now in debug mode to reduce noise
+        $this->instances['logger']->log('Plugin initialized successfully', 'debug');
     }
     
     /**
@@ -402,6 +406,15 @@ class RealEstate_Sync {
             'manage_options',
             'realestate-sync',
             [$this->instances['admin'], 'display_admin_page']
+        );
+
+        // 🔧 DEBUG: Pagina debug metafields (TEMPORANEO)
+        add_management_page(
+            __('RealEstate Debug DB', 'realestate-sync'),
+            __('Debug DB', 'realestate-sync'),
+            'manage_options',
+            'realestate-sync-debug-db',
+            [$this->instances['admin'], 'display_debug_metafields_page']
         );
     }
     

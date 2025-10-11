@@ -136,11 +136,21 @@ class RealEstate_Sync_Logger {
     private function setup_log_file() {
         $date = date('Y-m-d');
         $this->log_file = $this->log_dir . "realestate-sync-{$date}.log";
-        
+
         // Rotate log file if it's too large
         if (file_exists($this->log_file) && filesize($this->log_file) > $this->max_file_size) {
             $this->rotate_log_file();
         }
+    }
+
+    /**
+     * Set specific log file for import session
+     *
+     * @param string $import_id Import session ID
+     */
+    public function set_import_log_file($import_id) {
+        $datetime = date('Y-m-d_H-i-s');
+        $this->log_file = $this->log_dir . "import-{$datetime}-{$import_id}.log";
     }
     
     /**

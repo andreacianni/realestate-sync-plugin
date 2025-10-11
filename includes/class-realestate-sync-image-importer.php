@@ -574,10 +574,10 @@ class RealEstate_Sync_Image_Importer {
      * @param array $attachment_ids Attachment IDs
      */
     private function update_wpresidence_gallery($post_id, $attachment_ids) {
-        // 🔧 FIX: WpResidence uses serialized array format for property_gallery
-        $gallery_serialized = serialize(array_map('strval', $attachment_ids));
-        update_post_meta($post_id, 'property_gallery', $gallery_serialized);
-        
+        // 🚧 TEST: Commentato property_gallery per verificare conflitto con tema
+        // $gallery_serialized = serialize(array_map('strval', $attachment_ids));
+        // update_post_meta($post_id, 'property_gallery', $gallery_serialized);
+
         // BACKUP: Also store comma-separated for compatibility
         $gallery_string = implode(',', $attachment_ids);
         update_post_meta($post_id, 'property_gallery_backup', $gallery_string);
@@ -587,9 +587,8 @@ class RealEstate_Sync_Image_Importer {
             update_post_meta($post_id, 'property_image_' . $index, $attachment_id);
         }
         
-        $this->logger->log('WpResidence gallery updated - FIXED FORMAT', 'info', [
+        $this->logger->log('WpResidence gallery updated - TEST MODE (no property_gallery)', 'info', [
             'post_id' => $post_id,
-            'gallery_serialized' => $gallery_serialized,
             'gallery_string_backup' => $gallery_string,
             'image_count' => count($attachment_ids)
         ]);

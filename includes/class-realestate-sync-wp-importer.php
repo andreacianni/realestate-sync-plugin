@@ -53,12 +53,17 @@ class RealEstate_Sync_WP_Importer {
      * Image importer instance
      */
     private $image_importer;
-    
+
     /**
      * Agency manager instance
      */
     private $agency_manager;
-    
+
+    /**
+     * Hook logger instance (for debugging)
+     */
+    private $hook_logger;
+
     /**
      * Current import session ID
      */
@@ -84,7 +89,11 @@ class RealEstate_Sync_WP_Importer {
         
         // 🏢 INITIALIZE AGENCY MANAGER v1.0
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
-        
+
+        // 🔍 INITIALIZE HOOK LOGGER (for debugging)
+        require_once dirname(__FILE__) . '/class-realestate-sync-hook-logger.php';
+        $this->hook_logger = new RealEstate_Sync_Hook_Logger();
+
         $this->init_importer();
     }
     
@@ -120,9 +129,9 @@ class RealEstate_Sync_WP_Importer {
             'expected_attachments' => $expected_attachment_ids
         ]);
         
-        // Verify wpestate_property_gallery
+        // Verify wpestate_property_gallery (now stored as ARRAY, not string)
         $gallery_field = get_post_meta($post_id, 'wpestate_property_gallery', true);
-        $gallery_ids = !empty($gallery_field) ? explode(',', $gallery_field) : [];
+        $gallery_ids = is_array($gallery_field) ? $gallery_field : (!empty($gallery_field) ? explode(',', $gallery_field) : []);
         
         // Verify image_to_attach
         $attach_field = get_post_meta($post_id, 'image_to_attach', true);
@@ -150,6 +159,7 @@ class RealEstate_Sync_WP_Importer {
         // Test native WpResidence function if available
         $native_function_test = null;
         if (function_exists('wpestate_generate_property_slider_image_ids')) {
+            /** @phpstan-ignore-next-line Function from WpResidence theme */
             $native_function_test = wpestate_generate_property_slider_image_ids($post_id);
         }
         
@@ -295,7 +305,11 @@ class RealEstate_Sync_WP_Importer {
                         ]
                     ]);
                     
-                    $selected_pins = wpestate_listing_pins('imported_single', 0, '', 1, '', $post->ID);
+                    $selected_pins = '';
+                    if (function_exists('wpestate_listing_pins')) {
+                        /** @phpstan-ignore-next-line Function from WpResidence theme */
+                        $selected_pins = wpestate_listing_pins('imported_single', 0, '', 1, '', $post->ID);
+                    }
                     
                     $this->logger->log('🎯 DEBUG: wpestate_listing_pins result', 'debug', [
                         'post_id' => $post->ID,
@@ -702,42 +716,85 @@ class RealEstate_Sync_WP_Importer {
      */
     public function process_property_v3($mapped_property) {
         $import_id = $mapped_property['source_data']['id'] ?? 'unknown';
-        
+
+        $this->logger->log("  ┌─ WP IMPORTER: Starting process_property_v3", 'info', [
+            'import_id' => $import_id
+        ]);
+
         try {
             // Check for existing property
+            $this->logger->log("  │  ➤ Checking for existing property", 'info');
             $existing_post_id = $this->find_existing_property($import_id);
-            
+
             if ($existing_post_id) {
+                $this->logger->log("  │  ✅ Existing property found - will UPDATE", 'info', [
+                    'post_id' => $existing_post_id
+                ]);
                 $result = $this->update_existing_property_v3($existing_post_id, $mapped_property, $import_id);
                 $this->stats['updated_properties']++;
             } else {
+                $this->logger->log("  │  ✅ No existing property - will CREATE NEW", 'info');
                 $result = $this->create_new_property_v3($mapped_property, $import_id);
                 $this->stats['imported_properties']++;
             }
             
             if ($result['success']) {
+                $this->logger->log("  │  ➤ Processing agency data", 'info');
                 // 🏢 ENHANCED v3.0: Process agency data if present
                 $agency_result = $this->process_agency_v3($mapped_property);
-                
+
+                $this->logger->log("  │  ➤ Processing gallery images", 'info', [
+                    'gallery_count' => count($mapped_property['gallery'] ?? [])
+                ]);
                 // Process v3.0 specific features
                 $this->process_gallery_v3($result['post_id'], $mapped_property['gallery'] ?? []);
+
+                $this->logger->log("  │  ➤ Processing catasto data", 'info');
                 $this->process_catasto_v3($result['post_id'], $mapped_property['catasto'] ?? []);
                 
                 // 🔗 Agency association is handled by assign_agency_to_property in create/update methods
                 if ($agency_result['success']) {
-                    $this->logger->log('🔗 Agency association completed via property_agent field', 'info', [
+                    $this->logger->log("  │  ✅ Agency association completed", 'info', [
                         'property_id' => $result['post_id'],
-                        'agency_id' => $agency_result['agency_post_id'],
-                        'agency_name' => $agency_result['agency_name'] ?? 'Unknown'
+                        'agency_id' => $agency_result['agency_post_id']
                     ]);
                 } else {
-                    $this->logger->log('🔗 No agency associated with property', 'debug', [
-                        'property_id' => $result['post_id'],
-                        'reason' => $agency_result['reason'] ?? 'unknown'
+                    $this->logger->log("  │  ⚠ No agency associated", 'info');
+                }
+            }
+
+            // 🎯 CRITICAL: Simulate manual save by calling wp_update_post
+            // This must be the LAST operation after everything is set up
+            // It triggers all WordPress hooks exactly like clicking "Save" in the editor
+            if ($result['success'] && isset($result['post_id'])) {
+                $this->logger->log("  │  🎯 FINAL: Simulating manual save via wp_update_post", 'info', [
+                    'post_id' => $result['post_id']
+                ]);
+
+                // Call wp_update_post with minimal data to trigger hooks
+                // This will trigger: edit_post, post_updated, save_post_estate_property, save_post
+                $update_result = wp_update_post([
+                    'ID' => $result['post_id'],
+                    'post_type' => 'estate_property'
+                ], true);
+
+                if (is_wp_error($update_result)) {
+                    $this->logger->log("  │  ⚠️ wp_update_post failed", 'warning', [
+                        'post_id' => $result['post_id'],
+                        'error' => $update_result->get_error_message()
+                    ]);
+                } else {
+                    $this->logger->log("  │  ✅ FINAL: wp_update_post completed - hooks triggered", 'info', [
+                        'post_id' => $result['post_id']
                     ]);
                 }
             }
-            
+
+            $this->logger->log("  └─ WP IMPORTER: Process completed", 'info', [
+                'success' => $result['success'],
+                'action' => $result['action'] ?? 'unknown'
+            ]);
+
             return $result;
             
         } catch (Exception $e) {
@@ -764,13 +821,26 @@ class RealEstate_Sync_WP_Importer {
      * Create new property with v3.0 enhanced features
      */
     private function create_new_property_v3($mapped_property, $import_id) {
-        $this->logger->log('Creating new property v3.0', 'debug', [
-            'import_id' => $import_id,
-            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
-        ]);
-        
+        // 🔇 COMMENTED: Details logged in parent process_property_v3
+        // $this->logger->log('Creating new property v3.0', 'debug', [...]);
+
+        // 🔍 START HOOK MONITORING (programmatic creation)
+        $enable_hook_logging = defined('REALESTATE_SYNC_ENABLE_HOOK_LOGGING') && REALESTATE_SYNC_ENABLE_HOOK_LOGGING;
+        if (!$enable_hook_logging) {
+            $enable_hook_logging = get_option('realestate_sync_enable_hook_logging', false);
+        }
+
         // Insert post
         $post_id = wp_insert_post($mapped_property['post_data'], true);
+
+        // 🔍 START MONITORING AFTER POST CREATION
+        if ($enable_hook_logging && !is_wp_error($post_id)) {
+            $this->hook_logger->start_monitoring($post_id, 'programmatic_import_create');
+            $this->logger->log("🔍 Hook monitoring STARTED for post {$post_id}", 'info', [
+                'context' => 'programmatic_import_create',
+                'log_file' => $this->hook_logger->get_log_file_path()
+            ]);
+        }
         
         if (is_wp_error($post_id)) {
             return [
@@ -792,16 +862,22 @@ class RealEstate_Sync_WP_Importer {
         update_post_meta($post_id, 'property_import_hash', $mapped_property['content_hash'] ?? '');
         update_post_meta($post_id, 'property_last_sync', current_time('mysql'));
         update_post_meta($post_id, 'property_import_version', '3.0');
-        
-        $this->logger->log('Property created successfully v3.0', 'info', [
-            'import_id' => $import_id,
-            'post_id' => $post_id,
-            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
-        ]);
-        
-        // 🎯 TRIGGER: WordPress action for WpResidence integration
-        do_action('realestate_sync_property_imported', $post_id, 'created');
-        
+
+        // 🔇 COMMENTED: Success logged in parent process_property_v3
+        // $this->logger->log('Property created successfully v3.0', 'info', [...]);
+
+        // 🔍 STOP HOOK MONITORING BEFORE RETURNING
+        if ($enable_hook_logging) {
+            $hooks_log = $this->hook_logger->stop_monitoring();
+            $this->logger->log("🔍 Hook monitoring completed for CREATE", 'info', [
+                'post_id' => $post_id,
+                'total_hooks' => count($hooks_log),
+                'log_file' => $this->hook_logger->get_log_file_path()
+            ]);
+        }
+
+        // 🎯 TRIGGER: Moved after gallery processing for proper timing
+
         return [
             'success' => true,
             'action' => 'created',
@@ -818,13 +894,11 @@ class RealEstate_Sync_WP_Importer {
         if (isset($mapped_property['content_hash'])) {
             $existing_hash = get_post_meta($post_id, 'property_import_hash', true);
             if ($existing_hash === $mapped_property['content_hash']) {
-                $this->logger->log('Property content unchanged - skipping update v3.0', 'debug', [
-                    'import_id' => $import_id,
-                    'post_id' => $post_id
-                ]);
-                
+                // 🔇 COMMENTED: Unchanged logged in parent process_property_v3
+                // $this->logger->log('Property content unchanged - skipping update v3.0', 'debug', [...]);
+
                 update_post_meta($post_id, 'property_last_sync', current_time('mysql'));
-                
+
                 return [
                     'success' => true,
                     'action' => 'skipped',
@@ -833,12 +907,9 @@ class RealEstate_Sync_WP_Importer {
                 ];
             }
         }
-        
-        $this->logger->log('Updating existing property v3.0', 'debug', [
-            'import_id' => $import_id,
-            'post_id' => $post_id,
-            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
-        ]);
+
+        // 🔇 COMMENTED: Update details logged in parent process_property_v3
+        // $this->logger->log('Updating existing property v3.0', 'debug', [...]);
         
         // Update post data
         $post_data = $mapped_property['post_data'];
@@ -865,13 +936,10 @@ class RealEstate_Sync_WP_Importer {
         update_post_meta($post_id, 'property_import_hash', $mapped_property['content_hash'] ?? '');
         update_post_meta($post_id, 'property_last_sync', current_time('mysql'));
         update_post_meta($post_id, 'property_import_version', '3.0');
-        
-        $this->logger->log('Property updated successfully v3.0', 'info', [
-            'import_id' => $import_id,
-            'post_id' => $post_id,
-            'title' => $mapped_property['post_data']['post_title'] ?? 'Unknown'
-        ]);
-        
+
+        // 🔇 COMMENTED: Success logged in parent process_property_v3
+        // $this->logger->log('Property updated successfully v3.0', 'info', [...]);
+
         // 🎯 TRIGGER: WordPress action for WpResidence integration
         do_action('realestate_sync_property_imported', $post_id, 'updated');
         
@@ -943,11 +1011,9 @@ class RealEstate_Sync_WP_Importer {
         if (empty($gallery)) {
             return;
         }
-        
-        $this->logger->log('Processing gallery v3.0 with Dual WpResidence System', 'info', [
-            'post_id' => $post_id,
-            'image_count' => count($gallery)
-        ]);
+
+        // 🔇 COMMENTED: Gallery processing logged in parent process_property_v3
+        // $this->logger->log('Processing gallery v3.0 with Dual WpResidence System', 'info', [...]);
         
         // 🖼️ ENHANCED: Use Image Importer v1.0 for complete image processing
         $image_result = $this->image_importer->process_property_images($post_id, $gallery);
@@ -959,23 +1025,45 @@ class RealEstate_Sync_WP_Importer {
             $attachment_ids = $image_result['attachment_ids'] ?? [];
             if (!empty($attachment_ids)) {
                 $this->set_wpresidence_gallery_compatibility($post_id, $attachment_ids);
-                
-                $this->logger->log('✅ Dual WpResidence gallery system applied', 'info', [
-                    'post_id' => $post_id,
-                    'attachment_ids' => implode(',', $attachment_ids),
-                    'count' => count($attachment_ids),
-                    'systems' => 'wpestate_property_gallery + image_to_attach + menu_order'
-                ]);
+
+                // 🔇 COMMENTED: Gallery system logged in parent process_property_v3
+                // $this->logger->log('✅ Dual WpResidence gallery system applied', 'info', [...]);
             }
-            
-            $this->logger->log('Gallery processed with Image Importer v1.0', 'info', [
-                'post_id' => $post_id,
-                'downloaded' => $stats['downloaded_images'],
-                'skipped' => $stats['skipped_images'],
-                'failed' => $stats['failed_images'],
-                'featured_set' => $stats['featured_images_set'] > 0
-            ]);
-            
+
+            // 🔇 COMMENTED: Gallery stats logged in parent process_property_v3
+            // $this->logger->log('Gallery processed with Image Importer v1.0', 'info', [...]);
+
+            // 🎯 TRIGGER: WordPress action for WpResidence integration (AFTER gallery processing)
+            do_action('realestate_sync_property_imported', $post_id, 'created');
+            // 🔇 COMMENTED: Trigger details not needed in essential debug
+            // $this->logger->log('🎯 TRIGGER: realestate_sync_property_imported fired AFTER gallery', 'info', [...]);
+
+            // 🎯 TRIGGER: save_post hook to notify theme about property creation (AFTER gallery processing)
+            do_action('save_post', $post_id, get_post($post_id), false);
+            // 🔇 COMMENTED: Trigger details not needed in essential debug
+            // $this->logger->log('🎯 TRIGGER: save_post fired for theme integration AFTER gallery', 'info', [...]);
+
+            // 🔧 WPRESIDENCE: Additional theme-specific triggers and cache clearing
+            do_action('wp_insert_post', $post_id, get_post($post_id), false);
+            do_action('edit_post', $post_id, get_post($post_id));
+
+            // 🕐 DELAY: Allow theme to process triggers
+            usleep(500000); // 0.5 seconds delay
+
+            // 🔧 WPRESIDENCE: Final trigger after delay
+            do_action('wp_after_insert_post', $post_id, get_post($post_id), false, []);
+
+            // 🎯 FIXED: Gallery is now saved as ARRAY in set_wpresidence_gallery_compatibility()
+            // No need to trigger hooks manually - the data format is correct from the start
+
+            // Clear post cache for theme compatibility
+            clean_post_cache($post_id);
+            wp_cache_delete($post_id, 'posts');
+            wp_cache_flush();
+
+            // 🔇 COMMENTED: WpResidence integration details not needed in essential debug
+            // $this->logger->log('🔧 WPRESIDENCE: Additional triggers and cache clearing applied', 'info', [...]);
+
             // Update stats in main importer
             $this->stats['gallery_images_downloaded'] = ($this->stats['gallery_images_downloaded'] ?? 0) + $stats['downloaded_images'];
             $this->stats['gallery_images_failed'] = ($this->stats['gallery_images_failed'] ?? 0) + $stats['failed_images'];
@@ -1162,16 +1250,27 @@ class RealEstate_Sync_WP_Importer {
         }
         
         // SYSTEM 1: WpResidence Theme native gallery
-        $this->logger->log('🔧 DEBUG: Setting wpestate_property_gallery (System 1)', 'debug', [
+        // CRITICAL: Must save as ARRAY OF STRINGS (WordPress will serialize it automatically)
+        // Theme expects serialized array of STRINGS, not integers
+        // Convert all IDs to strings and re-index array to have consecutive keys (0,1,2,3...)
+        $gallery_array = array_values(array_map('strval', $attachment_ids));
+
+        $this->logger->log('🔧 DEBUG: Setting wpestate_property_gallery as ARRAY OF STRINGS (System 1)', 'debug', [
             'post_id' => $post_id,
-            'value' => implode(',', $attachment_ids)
+            'attachment_ids_original' => $attachment_ids,
+            'attachment_ids_as_strings' => $gallery_array,
+            'count' => count($gallery_array),
+            'array_keys' => array_keys($gallery_array)
         ]);
-        update_post_meta($post_id, 'wpestate_property_gallery', implode(',', $attachment_ids));
+        update_post_meta($post_id, 'wpestate_property_gallery', $gallery_array);
         $gallery_verify = get_post_meta($post_id, 'wpestate_property_gallery', true);
+        $is_array = is_array($gallery_verify);
         $this->logger->log('✅ DEBUG: wpestate_property_gallery verification', 'debug', [
             'post_id' => $post_id,
-            'saved_value' => $gallery_verify,
-            'success' => !empty($gallery_verify)
+            'is_array' => $is_array,
+            'is_serialized_in_db' => is_serialized(get_post_meta($post_id, 'wpestate_property_gallery', false)[0] ?? ''),
+            'count' => is_array($gallery_verify) ? count($gallery_verify) : 0,
+            'success' => !empty($gallery_verify) && $is_array
         ]);
         
         // SYSTEM 2: WP All Import Add-On compatibility (frontend JavaScript markers)
@@ -1483,6 +1582,7 @@ class RealEstate_Sync_WP_Importer {
         $js_marker_test = null;
         if (function_exists('wpestate_listing_pins')) {
             try {
+                /** @phpstan-ignore-next-line Function from WpResidence theme */
                 $js_marker_test = wpestate_listing_pins('debug_test', 0, '', 1, '', $post_id);
             } catch (Exception $e) {
                 $js_marker_test = 'ERROR: ' . $e->getMessage();

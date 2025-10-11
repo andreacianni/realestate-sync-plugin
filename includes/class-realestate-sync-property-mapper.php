@@ -39,18 +39,19 @@ class RealEstate_Sync_Property_Mapper {
             ];
         }
         
-        $this->logger->log('🕵️ PROPERTY MAPPER INSTANTIATION DEBUG', 'info', [
+        // DEBUG: Only log mapper instantiation in debug mode
+        $this->logger->log('🕵️ PROPERTY MAPPER INSTANTIATION DEBUG', 'debug', [
             'timestamp' => date('H:i:s'),
             'memory' => round(memory_get_usage() / 1024 / 1024, 2) . ' MB',
             'callers' => $caller_info
         ]);
-        
+
         // Initialize Agency Manager for direct property→agency mapping
         require_once dirname(__FILE__) . '/class-realestate-sync-agency-manager.php';
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
-        
+
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.2 initialized with Agency Manager + Custom Fields + Enhanced Action Categories', 'info');
+        $this->logger->log('Property Mapper v3.2 initialized with Agency Manager + Custom Fields + Enhanced Action Categories', 'debug');
     }
     
     private function init_mappings() {
@@ -90,55 +91,64 @@ class RealEstate_Sync_Property_Mapper {
      * Check if property is in enabled provinces
      */
     public function is_property_in_enabled_provinces($xml_property, $enabled_provinces = null) {
+        // 🚧 BYPASS TEMPORANEO: Accetta tutte le province per testing
+        return true;
+
+        /* CODICE ORIGINALE COMMENTATO PER RESTORE:
         $comune_istat = $xml_property['comune_istat'] ?? '';
-        
+
         if (empty($comune_istat)) {
             return false;
         }
-        
+
         if ($enabled_provinces === null) {
             $settings = get_option('realestate_sync_settings', []);
             $enabled_provinces = $settings['enabled_provinces'] ?? ['TN', 'BZ'];
         }
-        
+
         $is_trento = (substr($comune_istat, 0, 3) === '022');
         $is_bolzano = (substr($comune_istat, 0, 3) === '021');
-        
-        return ($is_trento && in_array('TN', $enabled_provinces)) || 
+
+        return ($is_trento && in_array('TN', $enabled_provinces)) ||
                ($is_bolzano && in_array('BZ', $enabled_provinces));
+        */
     }
     
     /**
      * Map properties v3.1 - ENHANCED: Custom Fields Integration
      */
     public function map_properties($xml_properties) {
-        $this->logger->log('Starting Property Mapper v3.1', 'info', [
+        $this->logger->log("    ┌─ PROPERTY MAPPER: Starting mapping v3.1", 'info', [
             'input_count' => count($xml_properties)
         ]);
-        
+
         $mapped_properties = [];
         $stats = ['success' => 0, 'skipped' => 0, 'errors' => 0];
-        
+
         foreach ($xml_properties as $xml_property) {
             try {
+                $property_id = $xml_property['id'] ?? 'unknown';
+                $this->logger->log("    │  ➤ Mapping property {$property_id}", 'info');
+
                 $mapped = $this->map_single_property_v3($xml_property);
                 if ($mapped) {
                     $mapped_properties[] = $mapped;
                     $stats['success']++;
+                    $this->logger->log("    │  ✅ Property {$property_id} mapped successfully", 'info');
                 } else {
                     $stats['skipped']++;
+                    $this->logger->log("    │  ⚠ Property {$property_id} skipped", 'info');
                 }
             } catch (Exception $e) {
                 $stats['errors']++;
-                $this->logger->log('Mapping error', 'error', [
-                    'property_id' => $xml_property['id'] ?? 'unknown',
+                $this->logger->log("    │  ❌ Mapping error for property {$property_id}", 'error', [
                     'error' => $e->getMessage()
                 ]);
             }
         }
         
-        $this->logger->log('Property Mapper v3.1 completed', 'info', $stats);
-        
+        $this->logger->log("    └─ PROPERTY MAPPER: Mapping completed", 'info', $stats);
+
         return [
             'success' => true,
             'properties' => $mapped_properties,
@@ -153,42 +163,48 @@ class RealEstate_Sync_Property_Mapper {
         if (empty($xml_property['id'])) {
             return null;
         }
-        
-        // ✅ Data reception verification
+
         $property_id = $xml_property['id'] ?? 'unknown';
-        $info_inserite_received = $xml_property['info_inserite'] ?? [];
-        
-        if (!empty($info_inserite_received)) {
-            $this->logger->log("✅ Property Mapper received info_inserite data", 'debug', [
-                'property_id' => $property_id,
-                'info_inserite_count' => count($info_inserite_received)
-            ]);
-        }
-        
+
+        $this->logger->log("    │    ➤ Mapping post data", 'info');
+        $post_data = $this->map_post_data_v3($xml_property);
+
+        $this->logger->log("    │    ➤ Mapping meta fields", 'info');
+        $meta_fields = $this->map_meta_fields_v3($xml_property);
+
+        $this->logger->log("    │    ➤ Mapping taxonomies", 'info');
+        $taxonomies = $this->map_taxonomies_v3($xml_property);
+
+        $this->logger->log("    │    ➤ Mapping features", 'info');
+        $features = $this->map_features_v3($xml_property);
+
+        $this->logger->log("    │    ➤ Mapping gallery", 'info');
+        $gallery = $this->map_gallery_v3($xml_property);
+
+        $this->logger->log("    │    ➤ Mapping catasto", 'info');
+        $catasto = $this->map_catasto_v3($xml_property);
+
         // 🏢 AGENCY MANAGER v3.0: Process agency and get agency ID for direct association
+        $this->logger->log("    │    ➤ Processing agency", 'info');
         $agency_id = $this->process_agency_for_property($xml_property);
         $source_data = $xml_property;
-        
+
         if ($agency_id) {
             $source_data['agency_id'] = $agency_id;
-            $this->logger->log('🏢 Property Mapper: Agency processed and ID assigned', 'debug', [
-                'property_id' => $xml_property['id'] ?? 'unknown',
+            $this->logger->log("    │    ✅ Agency processed and assigned", 'info', [
                 'agency_id' => $agency_id
             ]);
         } else {
-            // No agency processed - property will not be linked to any agency
-            $this->logger->log('🏢 Property Mapper: No agency processed for property', 'debug', [
-                'property_id' => $xml_property['id'] ?? 'unknown'
-            ]);
+            $this->logger->log("    │    ⚠ No agency for this property", 'info');
         }
-        
+
         return [
-            'post_data' => $this->map_post_data_v3($xml_property),
-            'meta_fields' => $this->map_meta_fields_v3($xml_property),
-            'taxonomies' => $this->map_taxonomies_v3($xml_property),
-            'features' => $this->map_features_v3($xml_property),
-            'gallery' => $this->map_gallery_v3($xml_property),
-            'catasto' => $this->map_catasto_v3($xml_property),
+            'post_data' => $post_data,
+            'meta_fields' => $meta_fields,
+            'taxonomies' => $taxonomies,
+            'features' => $features,
+            'gallery' => $gallery,
+            'catasto' => $catasto,
             'source_data' => $source_data,
             'content_hash_v3' => $this->generate_content_hash_v3($xml_property)
         ];

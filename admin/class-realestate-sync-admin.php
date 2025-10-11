@@ -651,14 +651,8 @@ class RealEstate_Sync_Admin {
      * Add admin menu
      */
     public function add_admin_menu() {
-        add_submenu_page(
-            'tools.php',
-            'RealEstate Sync',
-            'RealEstate Sync',
-            'manage_options',
-            $this->plugin_slug,
-            array($this, 'display_admin_page')
-        );
+        // NOTA: Admin menu ora gestito dal main plugin file
+        // Funzione mantenuta per compatibilità
     }
     
     /**
@@ -2488,6 +2482,169 @@ class RealEstate_Sync_Admin {
         } catch (Exception $e) {
             $this->logger->log('🚨 TEST WORKFLOW ERROR: ' . $e->getMessage(), 'error');
             wp_send_json_error('Error testing activation workflow: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * 🔧 DEBUG: Display metafields debug page (TEMPORANEO)
+     */
+    public function display_debug_metafields_page() {
+        echo '<div class="wrap">';
+        echo '<h1>🔧 RealEstate Sync - Debug Metafields</h1>';
+        echo '<p><strong>TEMPORANEO:</strong> Analisi metafields per troubleshooting gallery e agenzia.</p>';
+
+        // Form per inserire Property ID
+        if (isset($_GET['property_id']) && !empty($_GET['property_id'])) {
+            $property_id = intval($_GET['property_id']);
+            $this->debug_property_metafields($property_id);
+        } else {
+            $this->show_property_selector();
+        }
+
+        echo '</div>';
+    }
+
+    /**
+     * Mostra selector per proprietà
+     */
+    private function show_property_selector() {
+        // Lista ultime 10 proprietà estate_property
+        $properties = get_posts([
+            'post_type' => 'estate_property',
+            'posts_per_page' => 10,
+            'post_status' => 'publish',
+            'orderby' => 'date',
+            'order' => 'DESC'
+        ]);
+
+        echo '<h2>📋 Seleziona Proprietà da Analizzare</h2>';
+
+        if (empty($properties)) {
+            echo '<p>❌ Nessuna proprietà trovata di tipo "estate_property"</p>';
+            return;
+        }
+
+        echo '<table class="widefat">';
+        echo '<thead><tr><th>ID</th><th>Titolo</th><th>Data</th><th>Azioni</th></tr></thead>';
+        echo '<tbody>';
+
+        foreach ($properties as $property) {
+            $debug_url = add_query_arg('property_id', $property->ID, $_SERVER['REQUEST_URI']);
+            echo '<tr>';
+            echo '<td>' . $property->ID . '</td>';
+            echo '<td>' . esc_html($property->post_title) . '</td>';
+            echo '<td>' . $property->post_date . '</td>';
+            echo '<td><a href="' . esc_url($debug_url) . '" class="button">🔧 Debug</a></td>';
+            echo '</tr>';
+        }
+
+        echo '</tbody></table>';
+
+        // Form manuale
+        echo '<h3>🎯 O Inserisci ID Manualmente</h3>';
+        echo '<form method="get">';
+        foreach ($_GET as $key => $value) {
+            if ($key !== 'property_id') {
+                echo '<input type="hidden" name="' . esc_attr($key) . '" value="' . esc_attr($value) . '">';
+            }
+        }
+        echo '<input type="number" name="property_id" placeholder="Property ID" required>';
+        echo '<input type="submit" value="🔧 Debug" class="button button-primary">';
+        echo '</form>';
+    }
+
+    /**
+     * Debug specifico per una proprietà
+     */
+    private function debug_property_metafields($property_id) {
+        $property = get_post($property_id);
+
+        if (!$property || $property->post_type !== 'estate_property') {
+            echo '<p>❌ Proprietà non trovata o tipo sbagliato (ID: ' . $property_id . ')</p>';
+            return;
+        }
+
+        echo '<h2>🔧 Debug Proprietà: ' . esc_html($property->post_title) . ' (ID: ' . $property_id . ')</h2>';
+        echo '<p><a href="' . remove_query_arg('property_id') . '">&larr; Torna alla lista</a></p>';
+
+        // Tutti i metafields
+        $all_meta = get_post_meta($property_id);
+
+        echo '<h3>📊 Tutti i Metafields (' . count($all_meta) . ')</h3>';
+        echo '<div style="max-height: 400px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px;">';
+        echo '<pre>';
+        foreach ($all_meta as $key => $values) {
+            echo '<strong>' . esc_html($key) . ':</strong> ';
+            if (count($values) === 1) {
+                $value = $values[0];
+                if (is_serialized($value)) {
+                    echo '(serialized) ' . esc_html(print_r(unserialize($value), true));
+                } else {
+                    echo esc_html($value);
+                }
+            } else {
+                echo esc_html(print_r($values, true));
+            }
+            echo "\n";
+        }
+        echo '</pre>';
+        echo '</div>';
+
+        // Focus su gallery e agenzia
+        echo '<h3>🎯 Focus: Gallery e Agenzia</h3>';
+
+        $gallery_fields = [
+            'property_gallery',
+            'wpestate_property_gallery',
+            'property_gallery_backup',
+            'image_to_attach',
+            '_thumbnail_id'
+        ];
+
+        $agency_fields = [
+            'property_agent',
+            'property_agency',
+            'estate_property_agency',
+            'estate_property_agent'
+        ];
+
+        echo '<h4>🖼️ Gallery Fields:</h4>';
+        echo '<table class="widefat"><thead><tr><th>Field</th><th>Value</th><th>Status</th></tr></thead><tbody>';
+        foreach ($gallery_fields as $field) {
+            $value = get_post_meta($property_id, $field, true);
+            $status = empty($value) ? '❌ Vuoto' : '✅ Presente';
+            echo '<tr>';
+            echo '<td><code>' . $field . '</code></td>';
+            echo '<td>' . (is_array($value) || is_serialized($value) ? '<pre>' . esc_html(print_r($value, true)) . '</pre>' : esc_html($value)) . '</td>';
+            echo '<td>' . $status . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+
+        echo '<h4>🏢 Agency Fields:</h4>';
+        echo '<table class="widefat"><thead><tr><th>Field</th><th>Value</th><th>Status</th></tr></thead><tbody>';
+        foreach ($agency_fields as $field) {
+            $value = get_post_meta($property_id, $field, true);
+            $status = empty($value) ? '❌ Vuoto' : '✅ Presente';
+            echo '<tr>';
+            echo '<td><code>' . $field . '</code></td>';
+            echo '<td>' . esc_html($value) . '</td>';
+            echo '<td>' . $status . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+
+        // Featured image check
+        $featured_id = get_post_thumbnail_id($property_id);
+        echo '<h4>🖼️ Featured Image:</h4>';
+        if ($featured_id) {
+            $featured_url = wp_get_attachment_image_src($featured_id, 'thumbnail');
+            echo '<p>✅ Featured Image ID: ' . $featured_id . '</p>';
+            if ($featured_url) {
+                echo '<img src="' . esc_url($featured_url[0]) . '" style="max-width: 150px; height: auto;">';
+            }
+        } else {
+            echo '<p>❌ Nessuna featured image impostata</p>';
         }
     }
 }

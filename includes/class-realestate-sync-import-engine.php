@@ -148,13 +148,13 @@ class RealEstate_Sync_Import_Engine {
     
     /**
      * 🖼️ Extract media files from XML data with enhanced structure
-     * 
+     *
      * @param array $property_data XML property data
      * @return array Enhanced media files structure
      */
     private function extract_media_from_xml($property_data) {
         $media_files = [];
-        
+
         // Method 1: From JSON encoded media_files
         if (isset($property_data['media_files']) && is_string($property_data['media_files'])) {
             $decoded_media = json_decode($property_data['media_files'], true);
@@ -171,7 +171,7 @@ class RealEstate_Sync_Import_Engine {
                 }
             }
         }
-        
+
         // Method 2: Direct XML structure (if media_files is array)
         if (isset($property_data['media_files']) && is_array($property_data['media_files'])) {
             foreach ($property_data['media_files'] as $index => $media) {
@@ -185,16 +185,16 @@ class RealEstate_Sync_Import_Engine {
                 }
             }
         }
-        
+
         // Method 3: Alternative field names (common in XML feeds)
         if (empty($media_files)) {
             // Check for alternative field names
             $alternative_fields = ['images', 'photos', 'allegati', 'files'];
             foreach ($alternative_fields as $field) {
                 if (isset($property_data[$field])) {
-                    $images_data = is_string($property_data[$field]) ? 
+                    $images_data = is_string($property_data[$field]) ?
                         json_decode($property_data[$field], true) : $property_data[$field];
-                    
+
                     if (is_array($images_data)) {
                         foreach ($images_data as $index => $image) {
                             $url = '';
@@ -203,7 +203,7 @@ class RealEstate_Sync_Import_Engine {
                             } elseif (is_array($image) && isset($image['url'])) {
                                 $url = $image['url'];
                             }
-                            
+
                             if (!empty($url)) {
                                 $media_files[] = [
                                     'url' => $url,
@@ -218,9 +218,10 @@ class RealEstate_Sync_Import_Engine {
                 }
             }
         }
-        
-        $this->logger->log("🖼️ MEDIA EXTRACTION: Found " . count($media_files) . " media files", 'info');
-        
+
+        // 🔇 COMMENTED: Detailed media log - info already in STEP 3a
+        // $this->logger->log("🖼️ MEDIA EXTRACTION: Found " . count($media_files) . " media files", 'info');
+
         return $media_files;
     }
     
@@ -293,21 +294,23 @@ class RealEstate_Sync_Import_Engine {
                 'city' => $agency['comune'] ?? '',
                 'mobile' => $agency['cellulare'] ?? ''
             ];
-            
-            $this->logger->log("🏢 IMPORT ENGINE: Agency data extracted from array structure - ID: {$agency_data['id']}, Name: {$agency_data['name']}", 'info');
+
+            // 🔇 COMMENTED: Agency extraction details - info in STEP 3a
+            // $this->logger->log("🏢 IMPORT ENGINE: Agency data extracted from array structure - ID: {$agency_data['id']}, Name: {$agency_data['name']}", 'info');
         }
-        
+
         // 🚨 REMOVED FALLBACK: No agency association if agency data is missing
         // Properties without agency data will not be associated to any agency
         if (empty($agency_data)) {
-            $this->logger->log("🏢 No agency data found for property - property will not be linked to any agency", 'debug');
+            // 🔇 COMMENTED: No agency log - info in STEP 3a
+            // $this->logger->log("🏢 No agency data found for property - property will not be linked to any agency", 'debug');
             return null; // Return null instead of creating default agency
         }
-        
-        // Only log if we actually found agency data
-        if (!empty($agency_data['id'])) {
-            $this->logger->log("🏢 AGENCY EXTRACTION: Found agency '" . ($agency_data['name'] ?? 'Unknown') . "' (ID: " . ($agency_data['id'] ?? 'Unknown') . ")", 'info');
-        }
+
+        // 🔇 COMMENTED: Agency found log - info already in STEP 3a
+        // if (!empty($agency_data['id'])) {
+        //     $this->logger->log("🏢 AGENCY EXTRACTION: Found agency '" . ($agency_data['name'] ?? 'Unknown') . "' (ID: " . ($agency_data['id'] ?? 'Unknown') . ")", 'info');
+        // }
         
         return $agency_data;
     }
@@ -504,6 +507,9 @@ class RealEstate_Sync_Import_Engine {
             set_time_limit($this->config['max_execution_time']);
         }
         
+        // Configure separate log file for this import
+        $this->logger->set_import_log_file($this->session_data['import_id']);
+
         // Log import start
         $this->logger->log("Import session started: {$this->session_data['import_id']}", 'info');
     }
@@ -532,44 +538,56 @@ class RealEstate_Sync_Import_Engine {
         try {
             $this->stats['total_in_xml']++;
             $property_id = $property_data['id'] ?? 'unknown';
-            
-            $this->logger->log("DEBUG: Processing property {$property_id}", 'info');
-            
+
+            $this->logger->log("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
+            $this->logger->log("┃ STEP 1: IMPORT ENGINE - Property Processing Started", 'info');
+            $this->logger->log("┃ Property ID: {$property_id} | Index: {$property_index}", 'info');
+            $this->logger->log("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
+
             // Skip properties deleted
             if (isset($property_data['deleted']) && $property_data['deleted'] == '1') {
                 $this->stats['deleted_properties']++;
-                $this->logger->log("DEBUG: Property {$property_id} skipped - marked as deleted", 'info');
+                $this->logger->log("❌ STEP 1a: Property {$property_id} SKIPPED - marked as deleted", 'info');
                 return;
             }
             
             // Province filtering
             if (!$this->property_mapper->is_property_in_enabled_provinces($property_data, $this->config['enabled_provinces'])) {
                 $this->stats['skipped_properties']++;
-                $this->logger->log("DEBUG: Property {$property_id} skipped - province filtering failed", 'info');
+                $this->logger->log("❌ STEP 1b: Property {$property_id} SKIPPED - province filtering failed", 'info');
                 return;
             }
-            
+
+            $this->logger->log("✅ STEP 1c: Province filtering passed", 'info');
+
             // 🎯 NORMAL PROCESSING: Always process properties, update if different
             $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
             $property_id = intval($property_data['id']);
-            
+
             // Check changes
+            $this->logger->log("➤ STEP 2: TRACKING - Checking for changes", 'info');
             $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
-            
-            $this->logger->log("DEBUG: Property {$property_id} change_status: " . print_r($change_status, true), 'info');
+
+            $this->logger->log("✅ STEP 2a: Change status determined", 'info', [
+                'action' => $change_status['action'],
+                'has_changed' => $change_status['has_changed']
+            ]);
             
             // 📋 OPTIONAL SKIP MODE: Skip only if explicitly enabled AND no changes
             $skip_unchanged_mode = get_option('realestate_sync_skip_unchanged_mode', false);
-            
+
             if ($skip_unchanged_mode && !$change_status['has_changed']) {
                 $this->stats['skipped_properties']++;
-                $this->logger->log("DEBUG: Property {$property_id} skipped - skip unchanged mode enabled and no changes detected", 'info');
+                $this->logger->log("❌ STEP 2b: Property {$property_id} SKIPPED - unchanged (skip mode enabled)", 'info');
                 return;
             }
-            
-            $this->logger->log("DEBUG: Property {$property_id} will be processed - action: {$change_status['action']}", 'info');
-            
+
+            $this->logger->log("✅ STEP 2c: Property will be processed", 'info', [
+                'action' => $change_status['action']
+            ]);
+
             // Process property based on action needed
+            $this->logger->log("➤ STEP 3: DATA CONVERSION - Converting to v3.0 format", 'info');
             $this->process_property_by_action($property_data, $change_status, $property_hash);
             
             // Track processed property ID
@@ -593,66 +611,56 @@ class RealEstate_Sync_Import_Engine {
      */
     private function process_property_by_action($property_data, $change_status, $property_hash) {
         $property_id = intval($property_data['id']);
-        
+
         // 🔧 CONVERT XML DATA TO SAMPLE v3.0 FORMAT
         $v3_formatted_data = $this->convert_xml_to_v3_format($property_data);
-        
-        // 🔍 ENHANCED DEBUG: Log conversion results with media/agency focus
-        $media_count = count($v3_formatted_data['file_allegati'] ?? []);
-        $agency_name = $v3_formatted_data['agency_data']['name'] ?? 'Unknown';
-        $agency_id = $v3_formatted_data['agency_data']['id'] ?? 'Unknown';
-        
-        $this->logger->log("🎯 CONVERSION SUMMARY for ID $property_id:", 'info');
-        $this->logger->log("   📊 Media Files: $media_count items", 'info');
-        $this->logger->log("   🏢 Agency: $agency_name", 'info');
-        $this->logger->log("   📍 Location: " . ($v3_formatted_data['indirizzo'] ?? 'Unknown'), 'info');
-        
-        // 🏢 TRACK AGENCY: Get stats from Agency Manager instead of tracking here
-        if (isset($v3_formatted_data['agency_data']) && !empty($agency_id) && $agency_id !== 'Unknown') {
-            // Agency stats are now handled by Agency Manager - no need to track here
-            $this->logger->log("🏢 Agency handled by Agency Manager", 'debug', [
-                'agency_id' => $agency_id,
-                'agency_name' => $agency_name
-            ]);
-        } else {
-            $this->logger->log("🏢 Property ID $property_id has no agency - will not be linked to any agency", 'info');
-        }
-        
-        // Optional full debug mode (can be enabled via admin if needed)
-        $debug_mode = get_option('realestate_sync_debug_mode', false);
-        if ($debug_mode) {
-            $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
-            $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
-        }
-        
-        // ✅ DATA TRANSMISSION TO PROPERTY MAPPER: Ready for mapping
-        $info_inserite = $v3_formatted_data['info_inserite'] ?? [];
-        if (!empty($info_inserite)) {
-            // Log action category values for verification
-            $vendita_info9 = isset($info_inserite[9]) ? (int)$info_inserite[9] : 0;
-            $affitto_info10 = isset($info_inserite[10]) ? (int)$info_inserite[10] : 0;
-            $asta_info6 = isset($info_inserite[6]) ? (int)$info_inserite[6] : 0;
-            
-            if ($vendita_info9 || $affitto_info10 || $asta_info6) {
-                $this->logger->log("✅ Property $property_id action categories: Vendita($vendita_info9), Affitto($affitto_info10), Asta($asta_info6)", 'info');
-            }
-        }
+
+        $this->logger->log("✅ STEP 3a: Data conversion completed", 'info', [
+            'property_id' => $property_id,
+            'media_files' => count($v3_formatted_data['file_allegati'] ?? []),
+            'has_agency' => !empty($v3_formatted_data['agency_data']['id'] ?? null)
+        ]);
+
+        // 🔇 COMMENTED: Old detailed logs - replaced by essential debug system
+        // if (isset($v3_formatted_data['agency_data']) && !empty($agency_id) && $agency_id !== 'Unknown') {
+        //     $this->logger->log("🏢 Agency handled by Agency Manager", 'debug', [...]);
+        // }
+
+        // 🔇 COMMENTED: Optional full debug mode - uncomment if needed for deep troubleshooting
+        // $debug_mode = get_option('realestate_sync_debug_mode', false);
+        // if ($debug_mode) {
+        //     $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
+        //     $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
+        // }
         
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
+        $this->logger->log("➤ STEP 4: PROPERTY MAPPER - Mapping data to WP structure", 'info');
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);
-        
+
         if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
-            $this->logger->log("Property mapping failed for ID $property_id", 'warning');
+            $this->logger->log("❌ STEP 4a: Property mapping FAILED for ID $property_id", 'warning');
             return;
         }
-        
+
         $mapped_data = $mapped_result['properties'][0];
-        
+        $this->logger->log("✅ STEP 4a: Property mapping completed", 'info', [
+            'property_id' => $property_id,
+            'taxonomies' => count($mapped_data['taxonomies'] ?? []),
+            'features' => count($mapped_data['features'] ?? []),
+            'gallery_items' => count($mapped_data['gallery'] ?? [])
+        ]);
+
         if ($change_status['action'] === 'insert') {
+            $this->logger->log("➤ STEP 5: WP IMPORTER - Creating NEW property", 'info');
             // 🚀 NEW PROPERTY: Use WP Importer v3.0 with complete structure
             $result = $this->wp_importer->process_property_v3($mapped_data);
-            
+
             if ($result['success']) {
+                $this->logger->log("✅ STEP 5a: Property created successfully", 'info', [
+                    'property_id' => $property_id,
+                    'post_id' => $result['post_id']
+                ]);
+
                 $this->tracking_manager->update_tracking_record(
                     $property_id,
                     $property_hash,
@@ -661,17 +669,32 @@ class RealEstate_Sync_Import_Engine {
                     'active'
                 );
                 $this->stats['new_properties']++;
-                
-                $this->logger->log("New property created v3.0: ID $property_id → Post {$result['post_id']}", 'info');
+
+                $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
             } else {
-                $this->logger->log("Failed to create property ID $property_id: {$result['error']}", 'error');
+                $this->logger->log("❌ STEP 5a: Property creation FAILED: {$result['error']}", 'error');
             }
-            
+
         } elseif ($change_status['action'] === 'update') {
+            $this->logger->log("➤ STEP 5: WP IMPORTER - Updating EXISTING property", 'info');
             // 🔄 UPDATE PROPERTY: Use WP Importer v3.0 for updates
             $result = $this->wp_importer->process_property_v3($mapped_data);
-            
+
             if ($result['success']) {
+                if ($result['action'] === 'updated') {
+                    $this->logger->log("✅ STEP 5a: Property updated successfully", 'info', [
+                        'property_id' => $property_id,
+                        'post_id' => $result['post_id']
+                    ]);
+                    $this->stats['updated_properties']++;
+                } else {
+                    $this->logger->log("✅ STEP 5a: Property unchanged (skipped)", 'info', [
+                        'property_id' => $property_id,
+                        'post_id' => $result['post_id']
+                    ]);
+                    $this->stats['skipped_properties']++;
+                }
+
                 $this->tracking_manager->update_tracking_record(
                     $property_id,
                     $property_hash,
@@ -679,20 +702,15 @@ class RealEstate_Sync_Import_Engine {
                     $property_data,
                     'active'
                 );
-                
-                if ($result['action'] === 'updated') {
-                    $this->stats['updated_properties']++;
-                    $this->logger->log("Property updated v3.0: ID $property_id → Post {$result['post_id']}", 'info');
-                } else {
-                    $this->stats['skipped_properties']++;
-                    $this->logger->log("Property unchanged v3.0: ID $property_id → Post {$result['post_id']}", 'debug');
-                }
+
+                $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
             } else {
-                $this->logger->log("Failed to update property ID $property_id: {$result['error']}", 'error');
+                $this->logger->log("❌ STEP 5a: Property update FAILED: {$result['error']}", 'error');
             }
         }
-        
+
         $this->stats['total_processed']++;
+        $this->logger->log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
     }
     
     /**
