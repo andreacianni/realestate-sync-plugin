@@ -442,11 +442,11 @@ define('JWT_AUTH_CORS_ENABLE', true);
 
 ---
 
-**Ultima modifica**: 2025-10-13 23:40
+**Ultima modifica**: 2025-10-14 11:30
 **Autore**: Claude + Andrea
-**Status**: 🟢 API WRITER CLASS IMPLEMENTATA - PRONTO PER NUOVA CLASSE WP_IMPORTER_API
+**Status**: 🎉 API-BASED IMPORTER COMPLETATO E INTEGRATO
 
-**Next Session Goal**: Implementare `class-realestate-sync-wp-importer-api.php` (nuova classe parallela)
+**Next Session Goal**: Testing end-to-end e migrazione completa da legacy a API importer
 
 ---
 
@@ -484,12 +484,76 @@ define('JWT_AUTH_CORS_ENABLE', true);
 
 ---
 
-## 📄 DOCUMENTAZIONE DA COMMITTARE (Prossimo Commit)
-
-File da aggiungere al repository:
-- ✅ `SESSION_STATUS.md` - Storia completa del progetto
-- ✅ `WPRESIDENCE_API_CAPABILITIES.md` - Documentazione API
+### Commit 3: Documentazione + Git Cleanup ✅
+**SHA**: `0a80c28`
+**Message**: `docs: Add comprehensive documentation for API migration`
+**Files**:
+- ✅ `SESSION_STATUS.md` - Aggiornato con commit info
+- ✅ `WPRESIDENCE_API_CAPABILITIES.md` - Documentazione API completa
 - ✅ `WP_IMPORTER_vs_API_COMPARISON.md` - Analisi architettura
 - ✅ `.claude/SESSION_RECOVERY_PROTOCOL.md` - Protocollo recovery
 
-**Prossimo commit**: `docs: Add API migration documentation and session history`
+### Commit 4: WP_Importer_API Class ✅
+**SHA**: `57b2045`
+**Message**: `feat: Add API-based WP Importer class (78% code reduction)`
+**Files**:
+- ✅ `includes/class-realestate-sync-wp-importer-api.php` (NEW - 375 linee vs 1700 legacy)
+- ✅ `test-wp-importer-api.php` (test script standalone)
+
+**Summary**: Nuovo importer che usa API Writer invece di meta fields diretti. Include:
+- Duplicate detection
+- Taxonomy/feature pre-creation
+- Import tracking
+- Statistics
+- Error handling
+
+### Commit 5: Import Engine Integration ✅
+**SHA**: `1ca4934`
+**Message**: `feat: Integrate API-based importer with Import Engine`
+**Files**:
+- ✅ `includes/class-realestate-sync-import-engine.php` (switchable importers)
+
+**Summary**: Import Engine ora supporta:
+- Auto-selezione importer tramite option `realestate_sync_use_api_importer`
+- Wrapper method per compatibilità tra legacy/API
+- Backward compatible al 100%
+
+---
+
+## 📚 NUOVA DOCUMENTAZIONE CREATA (2025-10-14)
+
+### API_IMPORTER_USAGE.md ✅
+**File**: `API_IMPORTER_USAGE.md` (da committare)
+
+**Contenuto**:
+- Overview architettura completa
+- Guida configurazione (enable/disable API importer)
+- 4 esempi pratici di utilizzo
+- Documentazione endpoint API usati
+- Comparison table legacy vs API
+- Error handling e troubleshooting
+- Migration guide step-by-step
+- Performance considerations
+- Security notes
+
+**Sezioni chiave**:
+1. Configuration - Come abilitare l'API importer
+2. Usage Examples - 4 scenari pratici con codice
+3. API Endpoints Used - JWT auth, create, update
+4. Comparison Table - Legacy vs API side-by-side
+5. Key Differences - Gallery, taxonomy, meta fields
+6. Error Handling - Retry logic, common errors
+7. Debugging - Logging, metadata verification
+8. Migration Guide - 4 step process
+9. Performance - Rate limiting, token caching
+10. Troubleshooting - Gallery, duplicates, auth issues
+
+---
+
+## 📦 FILE DA COMMITTARE (Prossimo Commit)
+
+File pronti per commit:
+- ✅ `API_IMPORTER_USAGE.md` - Guida completa utilizzo
+- ✅ `SESSION_STATUS.md` - Aggiornato con milestone oggi
+
+**Prossimo commit**: `docs: Add API Importer usage guide and update session status`
