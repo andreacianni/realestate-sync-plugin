@@ -2,7 +2,17 @@ logs/
 logs/import-logs/
 includes/class-realestate-sync-property-mapper backup 18-8 18e50.php
 backups/
-*.backup.*DEBUG_*.md
+*.backup.*
+DEBUG_*.md
 STATUS_*.md
 *_GUIDE.md
+NEXT_FIX_*.md
 .claude/settings.local.json
+
+# API test files (temporary testing)
+API_TEST_*.json
+test-*.php
+
+# Session management files (keep in repo for continuity)
+# SESSION_STATUS.md
+# .claude/SESSION_RECOVERY_PROTOCOL.md
