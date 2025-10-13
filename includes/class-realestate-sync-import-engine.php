@@ -49,27 +49,41 @@ class RealEstate_Sync_Import_Engine {
     /**
      * Constructor - DEPENDENCY INJECTION APPROACH
      * Accepts instances instead of creating new ones to prevent duplicate instantiation
-     * 
+     *
      * @param RealEstate_Sync_Property_Mapper $property_mapper Shared Property Mapper instance
-     * @param RealEstate_Sync_WP_Importer $wp_importer Shared WP Importer instance  
+     * @param RealEstate_Sync_WP_Importer|RealEstate_Sync_WP_Importer_API $wp_importer Shared WP Importer instance (legacy or API-based)
      * @param RealEstate_Sync_Logger $logger Shared Logger instance
      */
     public function __construct($property_mapper = null, $wp_importer = null, $logger = null) {
         // 🛡️ DEPENDENCY INJECTION: Use shared instances to prevent duplicate instantiation
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
         $this->property_mapper = $property_mapper ?: new RealEstate_Sync_Property_Mapper();
-        $this->wp_importer = $wp_importer ?: new RealEstate_Sync_WP_Importer();
-        
+
+        // 🌟 IMPORTER SELECTION: Use API-based importer if enabled, legacy otherwise
+        if ($wp_importer) {
+            // Use provided importer (explicit choice)
+            $this->wp_importer = $wp_importer;
+        } else {
+            // Auto-select based on configuration option
+            $use_api_importer = get_option('realestate_sync_use_api_importer', false);
+
+            if ($use_api_importer) {
+                $this->wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
+                $this->logger->log('🌟 Import Engine initialized with API-based importer', 'INFO');
+            } else {
+                $this->wp_importer = new RealEstate_Sync_WP_Importer();
+                $this->logger->log('🛡️ Import Engine initialized with legacy importer', 'DEBUG');
+            }
+        }
+
         // Always create new instances for these (no shared state issues)
         $this->tracking_manager = new RealEstate_Sync_Tracking_Manager();
         $this->streaming_parser = new RealEstate_Sync_XML_Parser();
-        
+
         $this->init_default_config();
         $this->init_session_data();
         $this->init_stats();
         $this->init_agency_stats();
-        
-        $this->logger->log('🛡️ Import Engine initialized with dependency injection (prevents duplicate Property Mapper)', 'debug');
     }
     
     /**
@@ -652,8 +666,8 @@ class RealEstate_Sync_Import_Engine {
 
         if ($change_status['action'] === 'insert') {
             $this->logger->log("➤ STEP 5: WP IMPORTER - Creating NEW property", 'info');
-            // 🚀 NEW PROPERTY: Use WP Importer v3.0 with complete structure
-            $result = $this->wp_importer->process_property_v3($mapped_data);
+            // 🚀 NEW PROPERTY: Use WP Importer (v3.0 legacy or API-based)
+            $result = $this->call_wp_importer($mapped_data);
 
             if ($result['success']) {
                 $this->logger->log("✅ STEP 5a: Property created successfully", 'info', [
@@ -677,8 +691,8 @@ class RealEstate_Sync_Import_Engine {
 
         } elseif ($change_status['action'] === 'update') {
             $this->logger->log("➤ STEP 5: WP IMPORTER - Updating EXISTING property", 'info');
-            // 🔄 UPDATE PROPERTY: Use WP Importer v3.0 for updates
-            $result = $this->wp_importer->process_property_v3($mapped_data);
+            // 🔄 UPDATE PROPERTY: Use WP Importer (v3.0 legacy or API-based)
+            $result = $this->call_wp_importer($mapped_data);
 
             if ($result['success']) {
                 if ($result['action'] === 'updated') {
@@ -903,15 +917,36 @@ class RealEstate_Sync_Import_Engine {
     }
     
     /**
+     * Call WP Importer with correct method based on importer type
+     *
+     * Wrapper method that calls the appropriate method based on whether
+     * we're using the legacy importer (process_property_v3) or the
+     * API-based importer (process_property).
+     *
+     * @param array $mapped_data Mapped property data
+     * @return array Result from importer
+     */
+    private function call_wp_importer($mapped_data) {
+        // Check if using API-based importer
+        if ($this->wp_importer instanceof RealEstate_Sync_WP_Importer_API) {
+            // API-based importer uses process_property()
+            return $this->wp_importer->process_property($mapped_data);
+        } else {
+            // Legacy importer uses process_property_v3()
+            return $this->wp_importer->process_property_v3($mapped_data);
+        }
+    }
+
+    /**
      * Test configuration con dry run
-     * 
+     *
      * @param string $xml_file_path Path al file XML
      * @param int $test_limit Numero properties da testare
      * @return array Test results
      */
     public function test_configuration($xml_file_path, $test_limit = 10) {
         $this->logger->log("Starting configuration test with $test_limit properties", 'info');
-        
+
         // Implementation qui
         return array(
             'tested_properties' => $test_limit,
