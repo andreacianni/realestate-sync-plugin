@@ -122,16 +122,17 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-mapper.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-image-importer.php'; // 🖼️ NEW: Image Importer v1.0
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-manager.php'; // 🏢 NEW: Agency Manager v1.0
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wpresidence-api-writer.php'; // 🚀 NEW: WPResidence API Writer v1.0 (v1.4.0)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wp-importer.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-import-engine.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-cron-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-tracking-manager.php';
-        
+
         // Admin classes
         if (is_admin()) {
             require_once REALESTATE_SYNC_PLUGIN_DIR . 'admin/class-realestate-sync-admin.php';
         }
-        
+
         // Configuration files
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'config/default-settings.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'config/field-mapping.php';
