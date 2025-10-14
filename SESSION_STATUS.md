@@ -442,11 +442,34 @@ define('JWT_AUTH_CORS_ENABLE', true);
 
 ---
 
-**Ultima modifica**: 2025-10-14 11:30
+**Ultima modifica**: 2025-10-14 12:00
 **Autore**: Claude + Andrea
-**Status**: 🎉 API-BASED IMPORTER COMPLETATO E INTEGRATO
+**Status**: 🎉 API-BASED IMPORTER COMPLETATO E ATTIVO BY DEFAULT
 
-**Next Session Goal**: Testing end-to-end e migrazione completa da legacy a API importer
+**Next Session Goal**: Testing end-to-end con dashboard upload XML
+
+---
+
+## 📦 CONFIGURAZIONE API IMPORTER (2025-10-14 12:00)
+
+### ✅ API Importer Attivo by Default
+**File modificato**: `config/default-settings.php`
+**Modifica**: Aggiunta opzione `'realestate_sync_use_api_importer' => true`
+
+**Risultato**: Ogni import dalla dashboard ora usa automaticamente l'API-based importer:
+- ✅ Gallery automatica nel frontend
+- ✅ JWT authentication con token caching
+- ✅ Retry logic su errori temporanei
+- ✅ 78% meno codice (375 vs 1700 linee)
+- ✅ WPResidence hooks execution automatica
+
+**Workflow Dashboard → API**:
+1. User upload XML in Tab "Tools"
+2. AJAX handler → Import Engine
+3. Import Engine legge `realestate_sync_use_api_importer = true`
+4. Istanzia `RealEstate_Sync_WP_Importer_API`
+5. Properties create/update via REST API WPResidence
+6. Gallery appare automaticamente ✅
 
 ---
 

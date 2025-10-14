@@ -709,12 +709,31 @@ class RealEstate_Sync_WP_Importer {
      */
     
     /**
-     * Process property with v3.0 structure including gallery and catasto
+     * ❌ LEGACY IMPORTER - DISABLED
+     *
+     * This method is DISABLED to force the use of API-based importer.
+     * If you see this error, it means the API importer is not being used.
+     *
+     * Check: get_option('realestate_sync_use_api_importer') should be TRUE
+     * Check: API credentials should be configured in database
      *
      * @param array $mapped_property Complete mapped property from v3.0
      * @return array Processing result
      */
     public function process_property_v3($mapped_property) {
+        // ❌ LEGACY IMPORTER DISABLED - FORCE API USAGE
+        $this->logger->log('❌ CRITICAL ERROR: Legacy importer called instead of API importer', 'error', [
+            'api_importer_enabled' => get_option('realestate_sync_use_api_importer'),
+            'api_username_set' => !empty(get_option('realestate_sync_api_username')),
+            'api_password_set' => !empty(get_option('realestate_sync_api_password'))
+        ]);
+
+        return [
+            'success' => false,
+            'error' => 'LEGACY IMPORTER DISABLED - API importer should be used. Check: realestate_sync_use_api_importer option'
+        ];
+
+        /* ❌ ORIGINAL CODE COMMENTED OUT - USE API IMPORTER INSTEAD
         $import_id = $mapped_property['source_data']['id'] ?? 'unknown';
 
         $this->logger->log("  ┌─ WP IMPORTER: Starting process_property_v3", 'info', [
@@ -815,8 +834,9 @@ class RealEstate_Sync_WP_Importer {
                 'error' => $e->getMessage()
             ];
         }
+        END OF COMMENTED CODE */
     }
-    
+
     /**
      * Create new property with v3.0 enhanced features
      */

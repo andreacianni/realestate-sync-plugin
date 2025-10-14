@@ -12,6 +12,7 @@ return array(
     // WPResidence API Configuration (v1.4.0)
     'realestate_sync_api_username' => 'accessi@prioloweb.it',
     'realestate_sync_api_password' => '2#&211`%#5+z',
+    'realestate_sync_use_api_importer' => true, // Use API-based importer (v1.4.0+)
 
     // Import Configuration
     'realestate_sync_enabled_provinces' => array('TN', 'BZ'),

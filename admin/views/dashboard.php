@@ -315,14 +315,28 @@ $import_stats = $tracking_manager->get_import_statistics();
             
             <!-- Upload Test Section -->
             <div class="rs-upload-section" style="border-left: 4px solid #2271b1; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
-                <h4><span class="dashicons dashicons-upload"></span> Import Test</h4>
-                <p>Upload qualsiasi file XML per testare il workflow completo: Properties + Agenzie + Media</p>
-                
+                <h4><span class="dashicons dashicons-upload"></span> Import XML</h4>
+                <p>Upload file XML per importare properties e agenzie (utile sia per test che per produzione)</p>
+
                 <div style="margin: 15px 0;">
                     <input type="file" id="test-xml-file" accept=".xml" style="margin-bottom: 10px; padding: 8px;">
                     <small style="display: block; color: #666;">Seleziona file XML (esempio: sample-con-agenzie.xml)</small>
                 </div>
-                
+
+                <div style="margin: 15px 0; padding: 12px; background: #fff3cd; border-left: 3px solid #f0ad4e; border-radius: 4px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="mark-as-test-import" checked style="margin: 0 8px 0 0; width: 18px; height: 18px;">
+                        <span style="font-weight: 500;">
+                            <span class="dashicons dashicons-flag" style="color: #f0ad4e; vertical-align: middle;"></span>
+                            Marca come import di test
+                        </span>
+                    </label>
+                    <small style="display: block; margin-top: 5px; color: #856404;">
+                        ✓ Se attivo: le proprietà avranno flag <code>_test_import=1</code> e potrai cancellarle con "Cleanup Test Data"<br>
+                        ✗ Se disattivo: import normale (produzione), le proprietà non saranno marcate come test
+                    </small>
+                </div>
+
                 <div style="margin: 15px 0;">
                     <button type="button" class="rs-button-primary" id="process-test-file" disabled>
                         <span class="dashicons dashicons-admin-generic"></span> Processa File XML
@@ -1416,11 +1430,12 @@ jQuery(document).ready(function($) {
             
             $('#test-log-output').removeClass('rs-hidden');
             dashboard.updateTestLog('Avvio processo test import...');
-            
+
             var formData = new FormData();
             formData.append('action', 'realestate_sync_process_test_file');
             formData.append('nonce', realestateSync.nonce);
             formData.append('test_xml_file', fileInput.files[0]);
+            formData.append('mark_as_test', $('#mark-as-test-import').is(':checked') ? '1' : '0');
             
             $.ajax({
                 url: realestateSync.ajax_url,

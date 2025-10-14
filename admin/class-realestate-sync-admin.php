@@ -1737,13 +1737,18 @@ class RealEstate_Sync_Admin {
             $import_engine = new RealEstate_Sync_Import_Engine();
             $settings = get_option('realestate_sync_settings', array());
             $import_engine->configure($settings);
-            
+
             // Create temp file
             $temp_file = wp_upload_dir()['basedir'] . '/realestate-test-' . time() . '.xml';
             file_put_contents($temp_file, $xml_content);
-            
+
+            // Check if user wants to mark properties as test
+            $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
+
             // Execute import + DEBUG
-            $results = $import_engine->execute_chunked_import($temp_file);
+            $results = $import_engine->execute_chunked_import($temp_file, array(
+                'mark_as_test' => $mark_as_test
+            ));
             
             // DEBUG: Log complete results structure
             $this->logger->log("DEBUG: Import Engine Results: " . print_r($results, true), 'info');

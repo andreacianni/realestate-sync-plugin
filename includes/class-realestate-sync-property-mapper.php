@@ -189,6 +189,9 @@ class RealEstate_Sync_Property_Mapper {
         $agency_id = $this->process_agency_for_property($xml_property);
         $source_data = $xml_property;
 
+        // ✅ ADD import_id for API Importer (same as 'id')
+        $source_data['import_id'] = $xml_property['id'] ?? 'unknown';
+
         if ($agency_id) {
             $source_data['agency_id'] = $agency_id;
             $this->logger->log("    │    ✅ Agency processed and assigned", 'info', [
@@ -266,8 +269,10 @@ class RealEstate_Sync_Property_Mapper {
         $meta['property_import_source'] = 'GestionaleImmobiliare';
         $meta['property_import_date'] = current_time('mysql');
         $meta['property_content_hash_v3'] = $this->generate_content_hash_v3($xml_property);
-        
-        // 🎯 FRONTEND DISPLAY: XML ID for frontend templates
+
+        // 🎯 FRONTEND DISPLAY: XML ID for frontend "Property Id" field
+        // WPResidence uses 'property_internal_id' to display custom ID in Property Details
+        $meta['property_internal_id'] = $xml_property['id'];
         $meta['property_xml_id'] = $xml_property['id'];
         $meta['property_display_id'] = $xml_property['id'];
         

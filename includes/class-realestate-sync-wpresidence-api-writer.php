@@ -133,13 +133,15 @@ class RealEstate_Sync_WPResidence_API_Writer {
 		}
 
 		// Extract token from response
-		if (!isset($body['token'])) {
+		// JWT plugin returns token in $body['data']['token'], not $body['token']
+		if (!isset($body['data']['token'])) {
 			$this->logger->log('JWT token not found in authentication response', 'ERROR');
+			$this->logger->log('Response body: ' . print_r($body, true), 'DEBUG');
 			return false;
 		}
 
 		// Store token and expiration (9 minutes from now for safety)
-		$this->jwt_token = $body['token'];
+		$this->jwt_token = $body['data']['token'];
 		$this->jwt_expiration = time() + (9 * 60);
 
 		$this->logger->log('JWT token generated successfully (expires in 9 minutes)', 'INFO');

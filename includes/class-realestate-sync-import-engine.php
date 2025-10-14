@@ -63,16 +63,22 @@ class RealEstate_Sync_Import_Engine {
         if ($wp_importer) {
             // Use provided importer (explicit choice)
             $this->wp_importer = $wp_importer;
+            $this->logger->log('⚙️ Import Engine using INJECTED importer: ' . get_class($wp_importer), 'INFO');
         } else {
             // Auto-select based on configuration option
             $use_api_importer = get_option('realestate_sync_use_api_importer', false);
+
+            // 🐞 DEBUG: Log the option value to see what we're getting
+            $this->logger->log('🔍 DEBUG Constructor: use_api_importer option = ' . var_export($use_api_importer, true), 'INFO');
+            $this->logger->log('🔍 DEBUG Constructor: API username set = ' . var_export(!empty(get_option('realestate_sync_api_username')), true), 'INFO');
+            $this->logger->log('🔍 DEBUG Constructor: API password set = ' . var_export(!empty(get_option('realestate_sync_api_password')), true), 'INFO');
 
             if ($use_api_importer) {
                 $this->wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
                 $this->logger->log('🌟 Import Engine initialized with API-based importer', 'INFO');
             } else {
                 $this->wp_importer = new RealEstate_Sync_WP_Importer();
-                $this->logger->log('🛡️ Import Engine initialized with legacy importer', 'DEBUG');
+                $this->logger->log('🛡️ Import Engine initialized with legacy importer (option disabled or not set)', 'DEBUG');
             }
         }
 
@@ -460,9 +466,16 @@ class RealEstate_Sync_Import_Engine {
     public function execute_chunked_import($xml_file_path, $options = array()) {
         try {
             $this->logger->log("Starting chunked import: " . basename($xml_file_path), 'info');
-            
-            // Pre-import setup
+
+            // Save options to session data
             $this->session_data['xml_file_path'] = $xml_file_path;
+            $this->session_data['mark_as_test'] = isset($options['mark_as_test']) ? $options['mark_as_test'] : false;
+
+            if ($this->session_data['mark_as_test']) {
+                $this->logger->log("🔖 Test import mode enabled - properties will be marked with _test_import flag", 'info');
+            }
+
+            // Pre-import setup
             $this->pre_import_setup();
             
             // Setup callbacks per streaming parser
@@ -674,6 +687,12 @@ class RealEstate_Sync_Import_Engine {
                     'property_id' => $property_id,
                     'post_id' => $result['post_id']
                 ]);
+
+                // 🔖 Mark as test if flag is enabled
+                if (!empty($this->session_data['mark_as_test']) && !empty($result['post_id'])) {
+                    update_post_meta($result['post_id'], '_test_import', '1');
+                    $this->logger->log("🔖 Property marked as test import", 'debug');
+                }
 
                 $this->tracking_manager->update_tracking_record(
                     $property_id,
