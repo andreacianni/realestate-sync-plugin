@@ -1,9 +1,71 @@
-# Session Status - 2025-10-14 (Aggiornato: BUG FIXES CRITICI)
+# Session Status - 2025-10-14 (Aggiornato: SECURITY INCIDENT + BUG FIXES)
+
+## 🚨 SECURITY ALERT - AZIONE IMMEDIATA RICHIESTA
+
+**⚠️ CREDENZIALI ESPOSTE SU GITHUB - PRIORITY #1 ASSOLUTA**
+
+GitGuardian ha rilevato credenziali WordPress in plaintext nei commit `13d624b` e precedenti.
+
+### 🔴 AZIONI CRITICHE DA FARE IMMEDIATAMENTE:
+
+#### 1. CAMBIARE PASSWORD AMMINISTRATORE (LOCALE + PRODUZIONE)
+```bash
+# LOCALE (http://localhost/trentino-wp/wp-admin)
+# - Login come admin
+# - Users → Profile → Generate Password → Update
+
+# PRODUZIONE
+# - Fare ESATTAMENTE la stessa cosa sul server di produzione
+# - NON RIMANDARE - fare subito
+```
+
+#### 2. CREARE UTENTE DEDICATO PER IMPORT (BEST PRACTICE) ⭐
+```sql
+-- Crea nuovo user dedicato solo per API imports
+-- Username: api_importer@trentino.local
+-- Password: generare password sicura random (32+ caratteri)
+-- Role: Administrator (necessario per REST API)
+
+-- Aggiornare plugin settings:
+UPDATE kre_options SET option_value = 'api_importer@trentino.local'
+WHERE option_name = 'realestate_sync_api_username';
+
+UPDATE kre_options SET option_value = 'NUOVA_PASSWORD_SICURA_32_CHAR'
+WHERE option_name = 'realestate_sync_api_password';
+```
+
+**Vantaggi utente dedicato**:
+- ✅ Separazione account admin personale / import automatico
+- ✅ Revocabile senza toccare account principale
+- ✅ Audit trail chiaro (chi ha fatto cosa)
+- ✅ Scope limitato (solo import, no gestione sito)
+
+#### 3. ROTATE JWT SECRET (PRODUZIONE)
+```php
+// wp-config.php - CAMBIA SU PRODUZIONE
+// VECCHIO (esposto):
+define('JWT_AUTH_SECRET_KEY', 't!iTStS=lQ!F$^|...');
+
+// NUOVO (genera random 64 char):
+define('JWT_AUTH_SECRET_KEY', 'NUOVO_SECRET_64_CARATTERI_RANDOM');
+```
+
+### 📋 Checklist Security Recovery:
+- [ ] Password admin cambiata LOCALE
+- [ ] Password admin cambiata PRODUZIONE
+- [ ] Utente `api_importer` creato LOCALE
+- [ ] Utente `api_importer` creato PRODUZIONE
+- [ ] Plugin settings aggiornati con nuovo user
+- [ ] JWT secret rotated PRODUZIONE
+- [ ] Test import con nuove credenziali
+- [ ] GitGuardian alert verificato risolto
+
+---
 
 ## 🎉 STATO ATTUALE: API IMPORTER COMPLETAMENTE FUNZIONANTE
 
-**Data/Ora ultima sessione**: 2025-10-14 17:00
-**Stato**: ✅ **IMPORT VIA API FUNZIONANTE - BUG CRITICI RISOLTI**
+**Data/Ora ultima sessione**: 2025-10-14 17:30
+**Stato**: ✅ **IMPORT VIA API FUNZIONANTE** | 🚨 **SECURITY FIX RICHIESTO**
 
 ---
 
@@ -47,16 +109,46 @@
 - `includes/class-realestate-sync-property-mapper.php` (2 modifiche)
 - `includes/class-realestate-sync-wpresidence-api-writer.php` (1 modifica)
 
-**Summary**:
-- Missing import_id → properties now import successfully
-- Wrong JWT token path → authentication works correctly
-- Property internal ID → frontend displays XML ID
+### Commit 2: Documentation Update ✅
+**SHA**: `13d624b`
+**Branch**: `release/v1.4.0`
+**Message**: `docs: Update session status with bug fixes and TODO items`
+**Files Modified**: `SESSION_STATUS.md`
+**⚠️ SECURITY ISSUE**: Questo commit conteneva credenziali in plaintext (rimosso in commit successivo)
+
+### Commit 3: Security Fix ✅
+**SHA**: `9e1cd71`
+**Branch**: `release/v1.4.0`
+**Message**: `security: Remove exposed credentials from documentation`
+**Files Modified**: `SESSION_STATUS.md`
+**Status**: Credenziali rimosse dall'ultima versione, MA ancora visibili nella storia Git
 
 **Pushed to GitHub**: ✅ `https://github.com/andreacianni/realestate-sync-plugin.git`
+
+### 🚨 Security Incident Summary:
+- **Esposto**: Username `accessi@prioloweb.it` + Password in commit `13d624b`
+- **Rilevato da**: GitGuardian automated scan
+- **Rimediazione**: Credenziali rimosse da commit `9e1cd71`, ma ancora in Git history
+- **Azione richiesta**: Cambio password + creazione utente dedicato + rotate JWT secret
 
 ---
 
 ## 📋 TODO PROSSIMA SESSIONE
+
+### 🚨 Priority #0: SECURITY FIX (BLOCCA TUTTO) 🔴🔴🔴
+
+**DEVE ESSERE FATTO PRIMA DI QUALSIASI ALTRA COSA**
+
+1. **Cambiare password admin** (locale + produzione)
+2. **Creare utente `api_importer@trentino.local`** (locale + produzione)
+3. **Aggiornare plugin settings** con nuovo utente
+4. **Rotate JWT secret** su produzione
+5. **Testare import** con nuove credenziali
+6. **Verificare GitGuardian alert** sia chiuso
+
+**⚠️ NESSUN ALTRO LAVORO FINO A QUANDO QUESTA CHECKLIST NON È COMPLETA**
+
+---
 
 ### Priority 1: Rimuovere Debug Noise 🔴
 **File**: `C:\xampp\htdocs\trentino-wp\wp-content\debug.log`
