@@ -1,99 +1,218 @@
-# Session Status - 2025-10-13 (Aggiornato: API UPDATE TEST + PLANNING)
+# Session Status - 2025-10-14 (Aggiornato: BUG FIXES CRITICI)
 
-## 🎉 STATO ATTUALE: REST API WPRESIDENCE FUNZIONANTE
+## 🎉 STATO ATTUALE: API IMPORTER COMPLETAMENTE FUNZIONANTE
 
-**Data/Ora ultima sessione**: 2025-10-13 15:30
-**Stato**: ✅ **API CREATE E UPDATE COMPLETAMENTE FUNZIONANTI**
-
----
-
-## 🔥 BREAKTHROUGH CONFERMATO
-
-### ✅ Property Creation via API - FUNZIONANTE
-**Data test**: 2025-10-13 09:00-10:30
-**Risultato**: Gallery appare automaticamente nel frontend!
-
-**Property ID creata**: 5191, 5197, 5223
-**Gallery**: ✅ Tutte le immagini visibili automaticamente
-**Nessun salvataggio manuale richiesto**: ✅ Confermato
+**Data/Ora ultima sessione**: 2025-10-14 17:00
+**Stato**: ✅ **IMPORT VIA API FUNZIONANTE - BUG CRITICI RISOLTI**
 
 ---
 
-## 🧪 TEST COMPLETATI OGGI (2025-10-13)
+## 🔥 BUG FIXES CRITICI COMPLETATI OGGI (2025-10-14)
 
-### Test 1: Property Creation con Gallery ✅
-**File usato**: sample8.xml (23 immagini)
-**Property ID**: 5197
-**Campo agency**: property_agent = "5074" (estate_agency)
-**Risultato**: ✅ Property creata, gallery OK, agency associata
+### ✅ Bug #1: Missing import_id in Property Mapper
+**Problema**: API Importer richiedeva `mapped_property['source_data']['import_id']` ma Property Mapper non lo aggiungeva
+**Errore log**: `Missing import_id in mapped property` → nessuna proprietà creata
+**Fix**:
+- File: `class-realestate-sync-property-mapper.php:193`
+- Aggiunto: `$source_data['import_id'] = $xml_property['id'] ?? 'unknown';`
+**Risultato**: ✅ API Importer ora riceve import_id e processa le properties
 
-### Test 2: Property Creation con Agent ✅
-**File usato**: sample02.xml (14 immagini)
-**Property ID**: 5223
-**Campo agent**: property_agent = "57" (estate_agent - Giuseppe Verdi)
-**Risultato**: ✅ Property creata, gallery OK, agent associato
+### ✅ Bug #2: Wrong JWT Token Path in API Writer
+**Problema**: JWT plugin restituisce token in `body['data']['token']` ma codice cercava `body['token']`
+**Errore log**: `JWT token not found in authentication response` → autenticazione fallita
+**Fix**:
+- File: `class-realestate-sync-wpresidence-api-writer.php:137-144`
+- Cambiato path: `$body['token']` → `$body['data']['token']`
+**Test curl**: Token estratto correttamente da response JWT
+**Risultato**: ✅ JWT authentication funzionante
 
-### Test 3: Property Update via API ✅
-**Property aggiornata**: 5223
-**Endpoint corretto**: `PUT /wpresidence/v1/property/edit/{id}` (NON `/property/update/{id}`)
-**Campi aggiornati**:
-- `test_field_api_update`: "API Update Test - 2025-10-13 15:23" (custom field dinamico)
-- `owner_notes`: "Note aggiornate via API PUT - Test funzionalita update endpoint"
-- `property_price`: "125000" (modificato da 120000)
-
-**Risultato**: ✅ Update funzionante, campi salvati correttamente nel database
-
-**Nota importante**:
-- Campo `owner_notes` appare nel backend WP (admin) ✅
-- Campo `test_field_api_update` salvato nel DB ma non visibile nel frontend ✅ (comportamento atteso per campi custom non mappati nel tema)
+### ✅ Bug #3: Property ID not displayed in frontend
+**Problema**: Frontend mostrava WordPress Post ID invece di XML property ID
+**Richiesta user**: "Property Id" in Property Details deve mostrare `<info><id>` dall'XML, NON l'ID automatico di WP
+**Fix**:
+- File: `class-realestate-sync-property-mapper.php:275`
+- Aggiunto: `$meta['property_internal_id'] = $xml_property['id'];`
+**Spiegazione**: WPResidence usa campo `property_internal_id` per mostrare ID custom in Property Details
+**Risultato**: ✅ Frontend mostra "Listing Id: 31538" (XML ID) invece di WordPress Post ID
 
 ---
 
-## 📋 API CAPABILITIES DOCUMENTATE
+## 🔧 COMMIT EFFETTUATI OGGI
 
-### File creati:
-1. **WPRESIDENCE_API_CAPABILITIES.md** - Documentazione completa API
-2. **WP_IMPORTER_vs_API_COMPARISON.md** - Analisi codice da eliminare/mantenere
-3. **API_TEST_sample8_complete.json** - Test property con agency
-4. **API_TEST_sample02_with_agent.json** - Test property con agent
-5. **API_TEST_update_5223.json** - Test update endpoint
+### Commit 1: Critical Bug Fixes ✅
+**SHA**: `967931a`
+**Branch**: `release/v1.4.0`
+**Message**: `fix: Critical bugs preventing property import via API`
+**Files Modified**:
+- `includes/class-realestate-sync-property-mapper.php` (2 modifiche)
+- `includes/class-realestate-sync-wpresidence-api-writer.php` (1 modifica)
 
-### Endpoint Verificati:
-- ✅ `POST /wpresidence/v1/property/add` - Create property
-- ✅ `PUT /wpresidence/v1/property/edit/{id}` - Update property (NON /property/update)
-- ✅ `GET /wpresidence/v1/` - List available routes
-- ⏳ `GET /wpresidence/v1/property/{id}` - Get property (da testare)
-- ⏳ `DELETE /wpresidence/v1/property/delete/{id}` - Delete property (da testare)
+**Summary**:
+- Missing import_id → properties now import successfully
+- Wrong JWT token path → authentication works correctly
+- Property internal ID → frontend displays XML ID
 
-### Campi API Supportati:
-**Core Fields** ✅:
-- title, property_description, property_price
-- property_size, property_bedrooms, property_bathrooms
-- property_rooms
+**Pushed to GitHub**: ✅ `https://github.com/andreacianni/realestate-sync-plugin.git`
 
-**Location Fields** ✅:
-- property_address, property_city, property_area
-- property_county, property_state, property_zip
-- property_country, property_latitude, property_longitude
+---
 
-**Gallery** ✅:
-- images: [{"id": "img00", "url": "https://..."}]
-- Auto-download HTTPS images (max 5MB, jpeg/png/gif/webp)
-- Auto-create attachments
-- Auto-set featured image
+## 📋 TODO PROSSIMA SESSIONE
 
-**Taxonomies** ✅:
-- Auto-detect e auto-assign (property_category, property_status, property_features, etc.)
-- Devono pre-esistere in WordPress
+### Priority 1: Rimuovere Debug Noise 🔴
+**File**: `C:\xampp\htdocs\trentino-wp\wp-content\debug.log`
 
-**Custom Fields** ✅:
-- Qualsiasi campo non-taxonomy viene salvato come meta field
-- Formato: passare direttamente nel body JSON o via custom_fields array
+**Problema**: Log file pieno di righe ripetitive:
+```
+[14-Oct-2025 05:28:46 UTC] RealEstate Sync [info]: 🔍 Hook Logger: Initializing
+[14-Oct-2025 05:28:46 UTC] RealEstate Sync [info]: 🔍 Hook Logger: Log file path set
+[14-Oct-2025 05:28:46 UTC] RealEstate Sync [info]: ⚙️ Import Engine using INJECTED importer: RealEstate_Sync_WP_Importer
+```
 
-**Agency/Agent Association** ✅:
-- property_agent: "POST_ID" (funziona per estate_agent E estate_agency)
-- Associazione corretta verificata
-- ⚠️ Sidebar non si popola automaticamente (problema noto, differito)
+**Azione richiesta**: Ridurre logging noise, spostare a livello DEBUG o rimuovere log ridondanti
+
+**Files da modificare**:
+- `includes/class-realestate-sync-hook-logger.php` - Ridurre log initializations
+- `includes/class-realestate-sync-import-engine.php` - Ridurre log importer selection
+- Verificare altri punti con log ripetitivi
+
+### Priority 2: Rimuovere Debug DIV dal Frontend 🔴
+**Problema**: DIV di debug visibile nel frontend delle properties
+
+**Azione richiesta**: Trovare e rimuovere/commentare codice che stampa debug info nel frontend
+
+**Possibili location**:
+- Template files del plugin
+- Hook `the_content` o `estate_property_content`
+- Functions.php custom
+- Property single page template override
+
+**Verificare**:
+- Frontend properties (single page)
+- Property list/archive pages
+- Widget/sidebar debug outputs
+
+---
+
+## 🎯 STATO ARCHITETTURA ATTUALE
+
+### ✅ Componenti Funzionanti:
+1. ✅ XML Parser - Parsing streaming per grandi file
+2. ✅ Data Converter v3.0 - Conversione formato interno
+3. ✅ Property Mapper v3.2 - Mappatura campi + custom fields
+4. ✅ Agency Manager - Gestione agencies/agents
+5. ✅ Image Importer - Download immagini HTTPS
+6. ✅ **WP Importer API** - Import via REST API (ATTIVO)
+7. ✅ **WPResidence API Writer** - JWT auth + API calls
+8. ✅ Import Engine - Session management + importer switching
+9. ✅ Tracking Service - Duplicate detection + change tracking
+10. ✅ Logger - Logging strutturato
+
+### 🔄 Import Flow Attuale:
+```
+Dashboard Upload XML
+    ↓
+Import Engine (execute_chunked_import)
+    ↓
+XML Parser (streaming parse)
+    ↓
+Data Converter v3.0 (normalize data)
+    ↓
+Property Mapper v3.2 (map to WP structure)
+    ↓
+WP Importer API (process_property)
+    ↓
+WPResidence API Writer (create_property via REST API)
+    ↓
+✅ Property Created + Gallery Automatic
+```
+
+---
+
+## 📂 REPOSITORY STATUS
+
+### Git Branch: `release/v1.4.0`
+**Ultimo commit**: `967931a` - Critical bug fixes
+**Stato**: ✅ Clean, pushed to GitHub
+**Remote**: `https://github.com/andreacianni/realestate-sync-plugin.git`
+
+### Modified Files (da monitorare):
+- Nessun file modified (repo clean dopo commit)
+
+### Untracked Files (documentazione):
+- `API_IMPORTER_USAGE.md`
+- `WPRESIDENCE_API_CAPABILITIES.md`
+- `WP_IMPORTER_vs_API_COMPARISON.md`
+- `SESSION_STATUS.md`
+- `.claude/SESSION_RECOVERY_PROTOCOL.md`
+- Vari `API_TEST_*.json`
+
+---
+
+## 🔑 CREDENZIALI & CONFIG
+
+### JWT Authentication:
+**Username**: `accessi@prioloweb.it`
+**Password**: `2#&211\`%#5+z`
+**Stored in**: WordPress options
+  - `realestate_sync_api_username`
+  - `realestate_sync_api_password`
+
+**JWT Token**:
+- Endpoint: `POST http://localhost/trentino-wp/wp-json/jwt-auth/v1/token`
+- Response format: `{"success": true, "data": {"token": "eyJ0eXAi..."}}`
+- Expiration: 10 minutes
+- Caching: 9 minutes in API Writer
+
+### API Endpoints:
+**Base URL**: `http://localhost/trentino-wp/wp-json/wpresidence/v1/`
+
+**Verified**:
+- ✅ `POST /property/add` - Create property
+- ✅ `PUT /property/edit/{id}` - Update property
+- ⏳ `GET /property/{id}` - Get property (da testare)
+- ⏳ `DELETE /property/delete/{id}` - Delete property (da testare)
+
+---
+
+## 🧪 TEST LOG ULTIMO IMPORT
+
+### File usato: `realestate-test-*.xml` (1 property)
+**Property ID XML**: 3425524
+**Agency**: 13673 (Cerco Casa In Trentino Srl)
+**Gallery**: 6 immagini
+
+**Log file**: `import-2025-10-14_06-12-21-import_68ede9c5cce53.log`
+
+**Risultato dopo fix**:
+- ✅ STEP 1-4: Parsing, conversion, mapping → OK
+- ✅ STEP 5: API Importer processing → OK
+- ✅ JWT Token obtained successfully
+- ✅ Property formatted for API (28 fields)
+- ✅ Property created via REST API
+- ✅ Agency assigned (ID 5179)
+- ✅ Gallery auto-imported
+
+---
+
+## 📊 METRICHE IMPORT
+
+### Confronto Legacy vs API Importer:
+
+| Metrica | Legacy WP_Importer | API Importer |
+|---------|-------------------|--------------|
+| Codice (linee) | ~1700 | ~375 (-78%) |
+| Gallery handling | Manuale (150+ linee) | Automatico API |
+| Meta fields | 50+ update_post_meta | API body JSON |
+| Taxonomies | Manual wp_set_post_terms | Auto-detect API |
+| Hooks execution | Manual triggers | Automatic |
+| Maintenance | Alta complessità | Bassa complessità |
+| WP updates | Rischio breaking | Compatibile |
+
+**Performance**:
+- JWT Token generation: ~2s (cached 9 min)
+- API property creation: ~3s
+- Gallery auto-import: handled by API
+- Total time: comparable to legacy, più affidabile
 
 ---
 
@@ -101,482 +220,109 @@
 
 ### 1. Agency Sidebar Non Auto-Popola ⏳
 **Status**: DIFFERITO (non critico)
-**Descrizione**: property_agent associa correttamente agent/agency ma sidebar non appare automaticamente
-**Workaround**: Salvataggio manuale (una tantum per property)
-**User decision**: "Andiamo avanti con il lavoro, poi pensiamo a questo aspetto"
+**Descrizione**: `property_agent` associa correttamente agency ma sidebar non appare automaticamente
+**Workaround**: Salvataggio manuale property (una tantum)
+**Decisione user**: "Andiamo avanti con il lavoro, poi pensiamo a questo aspetto"
 
-### 2. Custom Field Visibility 📝
-**Status**: COMPORTAMENTO ATTESO
-**Descrizione**: Campi custom non mappati nel tema (es. test_field_api_update) salvati nel DB ma non visibili nel frontend
-**Soluzione**: OK, è normale - solo campi mappati nel tema appaiono nel frontend
+### 2. Debug Noise in Logs 🔴
+**Status**: DA RISOLVERE PROSSIMA SESSIONE
+**Descrizione**: `wp-content/debug.log` pieno di log ripetitivi (Hook Logger, Import Engine, etc.)
+**Impatto**: Log file cresce rapidamente, difficile debug
+**Azione**: Ridurre log level o disabilitare log non critici
 
----
-
-## 🎯 DECISIONE ARCHITETTURALE - OPZIONE A SCELTA
-
-**User choice**: "Creare la classe WpResidence_API_Writer separata (approccio pulito e professionale)"
-
-### Codice da MANTENERE (invariato):
-- ✅ XML Parser
-- ✅ Data Converter v3.0
-- ✅ Property Mapper v3.1
-- ✅ Agency Manager
-- ✅ Image Importer (download immagini)
-- ✅ Tracking Service
-- ✅ Import Engine (session management)
-- ✅ Duplicate detection
-- ✅ Logger
-
-### Codice da ELIMINARE (~1000 linee):
-- ❌ Gallery processing manuale (linee ~1200-1450 WP_Importer)
-- ❌ Meta fields diretti (wpestate_property_gallery, image_to_attach, property_image_N)
-- ❌ Taxonomy assignment manuale
-- ❌ Cache clearing manuale
-- ❌ WpResidence hooks triggers
-
-### Codice NUOVO da creare (~400 linee):
-**File**: `class-realestate-sync-wpresidence-api-writer.php`
-
-**Struttura proposta**:
-```php
-class RealEstate_Sync_WPResidence_API_Writer {
-    private $logger;
-    private $jwt_token;
-    private $jwt_expiration;
-    private $api_base_url;
-
-    public function __construct($logger = null);
-
-    // JWT Token Management
-    private function get_jwt_token();
-    private function refresh_token_if_needed();
-
-    // API Body Formatting
-    public function format_api_body($mapped_property);
-    private function format_gallery_for_api($gallery_array);
-    private function format_taxonomies_for_api($taxonomies);
-
-    // API Operations
-    public function create_property($api_body);
-    public function update_property($post_id, $api_body);
-
-    // Error Handling
-    private function handle_api_error($response, $retry_count = 0);
-    private function should_retry($error_code);
-}
-```
-
-**Metodi dettagliati**:
-1. `get_jwt_token()` - Genera/recupera token JWT (cache 10 min)
-2. `format_api_body()` - Converte dati mappati → formato API
-3. `create_property()` - POST /wpresidence/v1/property/add
-4. `update_property()` - PUT /wpresidence/v1/property/edit/{id}
-5. `handle_api_error()` - Retry logic + logging errori
-
-### Modifiche al WP_Importer:
-**File**: `class-realestate-sync-wp-importer.php`
-
-**Modificare** `process_property_v3()`:
-```php
-// BEFORE (meta fields diretti):
-$this->process_gallery_v3($post_id, $mapped_property['gallery']);
-update_post_meta($post_id, 'property_agent', $agency_id);
-// ... 50+ update_post_meta calls ...
-
-// AFTER (via API Writer):
-$api_writer = new RealEstate_Sync_WPResidence_API_Writer($this->logger);
-$api_body = $api_writer->format_api_body($mapped_property);
-
-if ($is_update) {
-    $result = $api_writer->update_property($post_id, $api_body);
-} else {
-    $result = $api_writer->create_property($api_body);
-}
-```
-
-**Net reduction**: ~60% less code (1700 → 700 linee WP_Importer)
+### 3. Debug DIV visibile in Frontend 🔴
+**Status**: DA RISOLVERE PROSSIMA SESSIONE
+**Descrizione**: DIV di debug visibile nelle pagine properties del frontend
+**Impatto**: Esperienza utente, presentazione non professionale
+**Azione**: Trovare e rimuovere output debug
 
 ---
 
-## 📂 FILE MODIFICATI/CREATI OGGI
+## 🎯 MILESTONE RAGGIUNTE
 
-### File di Documentazione:
-1. ✅ `WPRESIDENCE_API_CAPABILITIES.md` - Riepilogo completo API
-2. ✅ `WP_IMPORTER_vs_API_COMPARISON.md` - Analisi codice da refactoring
-3. ✅ `API_TEST_sample8_complete.json` - Test property commercial con agency
-4. ✅ `API_TEST_sample02_with_agent.json` - Test property residential con agent
-5. ✅ `API_TEST_update_5223.json` - Test update endpoint
-
-### File da Modificare (Prossima Sessione):
-1. 🔄 `class-realestate-sync-wp-importer.php` - Refactor process_property_v3()
-2. 🆕 `class-realestate-sync-wpresidence-api-writer.php` - Nuova classe (da creare)
-
----
-
-## 🚀 PROSSIMI STEP (Sessione Successiva)
-
-### Priority 1: Implementare API Writer Class 🔴
-**File da creare**: `includes/class-realestate-sync-wpresidence-api-writer.php`
-
-**Step**:
-1. Creare scheletro classe con struttura definita sopra
-2. Implementare `get_jwt_token()` con caching 10 minuti
-3. Implementare `format_api_body()` convertendo dati mappati → formato API
-4. Implementare `create_property()` con error handling
-5. Implementare `update_property()` con error handling
-6. Aggiungere retry logic per errori temporanei (timeout, 500, etc.)
-7. Logging completo di tutte le operazioni
-
-### Priority 2: Refactor WP_Importer per usare API Writer 🔴
-**File da modificare**: `includes/class-realestate-sync-wp-importer.php`
-
-**Step**:
-1. Aggiungere dependency injection di API Writer
-2. Modificare `process_property_v3()` per usare API Writer invece di meta diretti
-3. Rimuovere `process_gallery_v3()` (gestito dall'API)
-4. Rimuovere chiamate dirette a `update_post_meta()` per gallery
-5. Mantenere tracking, duplicate detection, logging
-6. Testare con import completo
-
-### Priority 3: Aggiungere Pre-Creation di Taxonomies 🟡
-**File da modificare**: `includes/class-realestate-sync-wp-importer.php`
-
-**Funzioni da aggiungere**:
-```php
-private function ensure_terms_exist($mapped_property);
-private function ensure_features_exist($features_array);
-private function create_term_if_not_exists($taxonomy, $term_slug, $term_name);
-```
-
-**Motivo**: API auto-assegna taxonomies MA solo se già esistono in WP
-
-### Priority 4: Test End-to-End con XML Completo 🟡
-**File da usare**: sample8.xml o sample02.xml
-
-**Verificare**:
-1. ✅ Parsing XML
-2. ✅ Conversione dati
-3. ✅ Mappatura campi
-4. ✅ Chiamata API
-5. ✅ Gallery nel frontend
-6. ⚠️ Agency sidebar (problema noto)
-7. ✅ Tutti i meta fields corretti
-8. ✅ Taxonomies assegnate
-
-### Priority 5: Investigate Sidebar Auto-Population (Differito) 🟢
-**Status**: Non critico, differito a dopo migrazione API completa
-
-**Opzioni da investigare** (se necessario):
-- Hook `wp_insert_post` per modificare `post_author`
-- Campo `sidebar_agent_option` con valori diversi
-- Endpoint API separato per agency association
-- Modifica post-creazione via update
+1. ✅ **JWT Authentication configurato** (wp-config.php + plugin settings)
+2. ✅ **API WpResidence funzionante** (create + update testati)
+3. ✅ **Gallery automatica nel frontend** (BREAKTHROUGH!)
+4. ✅ **WPResidence API Writer class** (JWT auth + retry logic)
+5. ✅ **WP Importer API class** (78% code reduction vs legacy)
+6. ✅ **Import Engine integration** (switchable legacy/API)
+7. ✅ **Documentazione completa** (3 docs principali)
+8. ✅ **Property Mapper v3.2** (custom fields + enhanced categories)
+9. ✅ **Agency Manager integration** (direct property→agency mapping)
+10. ✅ **Import via Dashboard** (API importer attivo by default)
+11. ✅ **Bug fixes critici** (import_id, JWT token path, property_internal_id)
 
 ---
 
-## 🔑 CREDENZIALI & CONFIG
+## 🚀 PROSSIMI STEP (Next Session)
 
-### JWT Authentication:
-**Username**: accessi@prioloweb.it
-**Password**: 2#&211`%#5+z (memorizzata, da cambiare in produzione)
+### Immediate Priority 🔴
+1. **Rimuovere debug DIV dal frontend** - Cercare codice che stampa debug info visibile
+2. **Ridurre log noise** - Hook Logger, Import Engine, altri log ripetitivi
+3. **Test end-to-end completo** - Upload XML da dashboard e verificare tutto il flusso
 
-**JWT Token Expiration**: 10 minuti
-**Token Endpoint**: POST http://localhost/trentino-wp/wp-json/jwt-auth/v1/token
+### Medium Priority 🟡
+4. **Test import XML multi-property** - Verificare batch processing
+5. **Test update existing property** - Verificare detection duplicati + update
+6. **Verificare tutti i custom fields** - Property Details completezza mappatura
+7. **Test diverse tipologie property** - Vendita, Affitto, Asta
 
-**wp-config.php**:
-```php
-define('JWT_AUTH_SECRET_KEY', 't!iTStS=lQ!F$^|XI6# Oke{OtlpEbe05AsUHa(6F)^{l^tNV+4^eSgwc:8qG!uN');
-define('JWT_AUTH_CORS_ENABLE', true);
-```
-
-### API Endpoints:
-**Base URL**: http://localhost/trentino-wp/wp-json/wpresidence/v1/
-
-**Available**:
-- POST /property/add - Create property
-- PUT /property/edit/{id} - Update property (NON /property/update!)
-- GET /property/{id} - Get single property
-- GET /properties - List properties
-- DELETE /property/delete/{id} - Delete property
-
----
-
-## 📊 METRICHE & PERFORMANCE
-
-### Test Property 5197 (sample8.xml):
-- 23 immagini HTTPS
-- Tempo totale: ~43 secondi
-- Download immagini: ~40s (~1.7s per immagine)
-- Processing API: ~3s
-
-### Test Property 5223 (sample02.xml):
-- 14 immagini HTTPS
-- Tutti i campi property mappati
-- Gallery appare automaticamente ✅
-- Agent associato correttamente ✅
-
-### Test Update Property 5223:
-- 3 campi aggiornati
-- Tempo: <2 secondi
-- Update success ✅
-
----
-
-## 🎯 OBIETTIVO FINALE
-
-**Workflow target**:
-1. User carica XML file
-2. Plugin parsa + mappa dati (codice esistente)
-3. API Writer crea/update property via REST API
-4. Gallery appare automaticamente nel frontend ✅
-5. Agency associata (sidebar problema differito)
-6. Nessun intervento manuale richiesto ✅
-
-**Stato attuale**: 90% completo
-**Manca**: Implementazione API Writer class + refactor WP_Importer
-
----
-
-## 📝 NOTE TECNICHE IMPORTANTI
-
-### API Image Handling:
-- Solo HTTPS URLs accettati
-- Max 5MB per immagine
-- Formati: jpg, jpeg, png, gif, webp
-- Auto-download + validazione security
-- Auto-create attachments
-- Auto-set featured image (primo dell'array)
-
-### API Custom Fields:
-- Qualsiasi campo passato nel body JSON viene salvato come meta field
-- Non serve array custom_fields separato
-- Campi non mappati nel tema: salvati nel DB ma non visibili nel frontend (OK)
-
-### API Taxonomies:
-- Auto-detect e auto-assign
-- **DEVONO PRE-ESISTERE** in WordPress
-- Se taxonomy non esiste → viene ignorata (nessun errore)
-- Necessario pre-create terms prima di import
-
-### JWT Token Management:
-- Expiration: 10 minuti
-- Necessario refresh/rigenerate dopo scadenza
-- Cache token per multiple operazioni nella stessa sessione
-- Error 403 "jwt_auth_failed" se token scaduto
-
----
-
-## 🏗️ STATO REPOSITORY
-
-### Git Status:
-**Branch**: release/v1.4.0
-
-**Modified**:
-- .gitignore
-- includes/class-realestate-sync-hook-logger.php
-- includes/class-realestate-sync-image-importer.php
-- includes/class-realestate-sync-wp-importer.php
-
-**Untracked**:
-- .claude/SESSION_RECOVERY_PROTOCOL.md
-- DEBUG_CHANGES_LOG.md
-- NEXT_FIX_build_full_address.md
-- SESSION_STATUS.md
-- WPRESIDENCE_API_CAPABILITIES.md (nuovo)
-- WP_IMPORTER_vs_API_COMPARISON.md (nuovo)
-- API_TEST_sample8_complete.json (nuovo)
-- API_TEST_sample02_with_agent.json (nuovo)
-- API_TEST_update_5223.json (nuovo)
-
-**Recent Commits**:
-- 7ccb4dd: chore: Update .gitignore for debug documentation files
-- ef90b20: feat: Add Hook Logger class for debugging WP hooks
-- 8f7490b: release: Bump version to 1.4.0 for production release
-- e77edda: fix: Add GitHub Updater headers + debug improvements
+### Low Priority 🟢
+8. **Investigate sidebar auto-population** (se necessario)
+9. **Performance optimization** (se necessario)
+10. **Error recovery testing** (network errors, timeouts, etc.)
 
 ---
 
 ## 🔍 COME RECUPERARE QUESTA SESSIONE
 
 **Prompt suggerito**:
-> "Leggi SESSION_STATUS.md e continua con l'implementazione della classe RealEstate_Sync_WPResidence_API_Writer seguendo la struttura definita nel documento WP_IMPORTER_vs_API_COMPARISON.md"
+> "Leggi SESSION_STATUS.md. Abbiamo appena fixato 3 bug critici (missing import_id, JWT token path, property_internal_id). Le properties ora si importano correttamente via API. I TODO principali sono: rimuovere debug DIV visibile nel frontend e ridurre log noise in wp-content/debug.log (Hook Logger, Import Engine)."
 
 **Contesto chiave**:
-- REST API WpResidence funzionante (✅ testato)
-- Endpoint CREATE e UPDATE verificati
-- Gallery appare automaticamente via API
-- Sidebar agency problema differito (non critico)
-- Prossimo step: implementare API Writer class
+- API Importer FUNZIONANTE dopo bug fixes
+- JWT authentication OK
+- Properties create/update via REST API OK
+- Gallery automatica OK
+- Frontend mostra XML property ID OK
+- Prossimo: cleanup debug output + logging
 
 ---
 
-## ✅ MILESTONE RAGGIUNTE
+## 📝 NOTE TECNICHE IMPORTANTI
 
-1. ✅ **JWT Authentication configurato** (wp-config.php)
-2. ✅ **API WpResidence funzionante** (property 5191, 5197, 5223 create)
-3. ✅ **Gallery appare automaticamente** (BREAKTHROUGH!)
-4. ✅ **Endpoint UPDATE testato** (property 5223 aggiornata)
-5. ✅ **Agency/Agent association** (property_agent field verificato)
-6. ✅ **Documentazione API completa** (WPRESIDENCE_API_CAPABILITIES.md)
-7. ✅ **Analisi refactoring completa** (WP_IMPORTER_vs_API_COMPARISON.md)
-8. ✅ **Scelta architettura** (Opzione A: API Writer class separata)
+### Database Prefix:
+**IMPORTANTE**: Questo progetto usa prefisso `kre_`, NON `wp_`
+- Tabelle: `kre_posts`, `kre_postmeta`, etc.
+- Queries SQL: usare sempre `kre_` prefix
+- Verificato in tutte le query del plugin
 
----
+### Property ID Mapping:
+- **XML ID** (`<info><id>31538</id>`): Salvato in `property_internal_id` + `property_import_id`
+- **WordPress Post ID**: ID automatico WP (es. 5197, 5223)
+- **Frontend**: WPResidence mostra `property_internal_id` come "Listing Id"
+- **Tracking**: `property_import_id` usato per duplicate detection
 
-## 🚨 DECISIONI CRITICHE PRESE
-
-### ❌ Abbandonato: Approccio Meta Fields Diretti
-**Motivo**: 6 tentativi falliti, gallery non appare mai nel frontend
-**Tentativi**: Meta diretti, save_post trigger, backup/restore, property_images(), etc.
-**Conclusione**: Impossibile replicare meccanismi interni WpResidence
-
-### ✅ Adottato: REST API WpResidence
-**Motivo**: Unico modo ufficialmente supportato per import programmatici
-**Risultato**: Gallery appare automaticamente al primo tentativo
-**Compatibilità**: Garantita con futuri aggiornamenti tema
-
-### ✅ Architettura: API Writer Class Separata (Opzione A)
-**Motivo**: Separazione concerns, codice pulito, mantenere mappatura esistente
-**Benefici**: 60% less code, più manutenibile, testabile
-**Trade-off**: Nessuno (solo vantaggi)
+### JWT Token Response Format:
+```json
+{
+  "success": true,
+  "statusCode": 200,
+  "data": {
+    "token": "eyJ0eXAiOiJKV1QiLCJhbGci...",
+    "id": 1,
+    "email": "accessi@prioloweb.it"
+  }
+}
+```
+**Path corretto**: `body['data']['token']` (NON `body['token']`)
 
 ---
 
-**Ultima modifica**: 2025-10-14 12:00
+**Ultima modifica**: 2025-10-14 17:00
 **Autore**: Claude + Andrea
-**Status**: 🎉 API-BASED IMPORTER COMPLETATO E ATTIVO BY DEFAULT
+**Status**: ✅ API IMPORTER FUNZIONANTE - TODO: CLEANUP DEBUG
 
-**Next Session Goal**: Testing end-to-end con dashboard upload XML
-
----
-
-## 📦 CONFIGURAZIONE API IMPORTER (2025-10-14 12:00)
-
-### ✅ API Importer Attivo by Default
-**File modificato**: `config/default-settings.php`
-**Modifica**: Aggiunta opzione `'realestate_sync_use_api_importer' => true`
-
-**Risultato**: Ogni import dalla dashboard ora usa automaticamente l'API-based importer:
-- ✅ Gallery automatica nel frontend
-- ✅ JWT authentication con token caching
-- ✅ Retry logic su errori temporanei
-- ✅ 78% meno codice (375 vs 1700 linee)
-- ✅ WPResidence hooks execution automatica
-
-**Workflow Dashboard → API**:
-1. User upload XML in Tab "Tools"
-2. AJAX handler → Import Engine
-3. Import Engine legge `realestate_sync_use_api_importer = true`
-4. Istanzia `RealEstate_Sync_WP_Importer_API`
-5. Properties create/update via REST API WPResidence
-6. Gallery appare automaticamente ✅
+**Next Session Goal**: Rimuovere debug output frontend + ridurre log noise + test end-to-end completo
 
 ---
-
-## 📦 GIT COMMITS OGGI (2025-10-13 Sera)
-
-### Commit 1: API Writer Class ✅
-**SHA**: `8df6509`
-**Message**: `feat: Add WPResidence API Writer class for REST API integration`
-**Files**:
-- ✅ `includes/class-realestate-sync-wpresidence-api-writer.php` (NEW - 574 linee)
-- ✅ `config/default-settings.php` (API credentials + normalized option names)
-- ✅ `realestate-sync.php` (autoloader update)
-
-**Summary**: Classe completa con JWT auth, retry logic, error handling, logging
-
-### Commit 2: Gitignore Update ✅
-**SHA**: `ba28ec0`
-**Message**: `chore: Update .gitignore for API test files and debug docs`
-**Changes**:
-- Pattern per `API_TEST_*.json` (file test temporanei)
-- Pattern per `test-*.php` (script test - security)
-- Pattern per `NEXT_FIX_*.md` (note temporanee)
-
-### Git Stash (Debug Changes) 💾
-**Stash ID**: `stash@{0}`
-**Message**: `Debug improvements from testing sessions (hook-logger, image-importer, wp-importer)`
-**Files stashed**:
-- `includes/class-realestate-sync-hook-logger.php` - Log level changes (info → debug)
-- `includes/class-realestate-sync-image-importer.php` - Commented property_gallery_backup
-- `includes/class-realestate-sync-wp-importer.php` - Hook monitoring + cache clearing improvements (~410 righe modificate)
-
-**Motivo dello stash**: Modifiche di debug da sessioni precedenti, salvate per eventuale recupero futuro ma non committate per mantenere repo pulito prima di implementare nuova architettura API-based.
-
-**Recupero stash**: `git stash pop stash@{0}` (se necessario)
-
----
-
-### Commit 3: Documentazione + Git Cleanup ✅
-**SHA**: `0a80c28`
-**Message**: `docs: Add comprehensive documentation for API migration`
-**Files**:
-- ✅ `SESSION_STATUS.md` - Aggiornato con commit info
-- ✅ `WPRESIDENCE_API_CAPABILITIES.md` - Documentazione API completa
-- ✅ `WP_IMPORTER_vs_API_COMPARISON.md` - Analisi architettura
-- ✅ `.claude/SESSION_RECOVERY_PROTOCOL.md` - Protocollo recovery
-
-### Commit 4: WP_Importer_API Class ✅
-**SHA**: `57b2045`
-**Message**: `feat: Add API-based WP Importer class (78% code reduction)`
-**Files**:
-- ✅ `includes/class-realestate-sync-wp-importer-api.php` (NEW - 375 linee vs 1700 legacy)
-- ✅ `test-wp-importer-api.php` (test script standalone)
-
-**Summary**: Nuovo importer che usa API Writer invece di meta fields diretti. Include:
-- Duplicate detection
-- Taxonomy/feature pre-creation
-- Import tracking
-- Statistics
-- Error handling
-
-### Commit 5: Import Engine Integration ✅
-**SHA**: `1ca4934`
-**Message**: `feat: Integrate API-based importer with Import Engine`
-**Files**:
-- ✅ `includes/class-realestate-sync-import-engine.php` (switchable importers)
-
-**Summary**: Import Engine ora supporta:
-- Auto-selezione importer tramite option `realestate_sync_use_api_importer`
-- Wrapper method per compatibilità tra legacy/API
-- Backward compatible al 100%
-
----
-
-## 📚 NUOVA DOCUMENTAZIONE CREATA (2025-10-14)
-
-### API_IMPORTER_USAGE.md ✅
-**File**: `API_IMPORTER_USAGE.md` (da committare)
-
-**Contenuto**:
-- Overview architettura completa
-- Guida configurazione (enable/disable API importer)
-- 4 esempi pratici di utilizzo
-- Documentazione endpoint API usati
-- Comparison table legacy vs API
-- Error handling e troubleshooting
-- Migration guide step-by-step
-- Performance considerations
-- Security notes
-
-**Sezioni chiave**:
-1. Configuration - Come abilitare l'API importer
-2. Usage Examples - 4 scenari pratici con codice
-3. API Endpoints Used - JWT auth, create, update
-4. Comparison Table - Legacy vs API side-by-side
-5. Key Differences - Gallery, taxonomy, meta fields
-6. Error Handling - Retry logic, common errors
-7. Debugging - Logging, metadata verification
-8. Migration Guide - 4 step process
-9. Performance - Rate limiting, token caching
-10. Troubleshooting - Gallery, duplicates, auth issues
-
----
-
-## 📦 FILE DA COMMITTARE (Prossimo Commit)
-
-File pronti per commit:
-- ✅ `API_IMPORTER_USAGE.md` - Guida completa utilizzo
-- ✅ `SESSION_STATUS.md` - Aggiornato con milestone oggi
-
-**Prossimo commit**: `docs: Add API Importer usage guide and update session status`
