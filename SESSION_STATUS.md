@@ -151,11 +151,12 @@ WPResidence API Writer (create_property via REST API)
 ## 🔑 CREDENZIALI & CONFIG
 
 ### JWT Authentication:
-**Username**: `accessi@prioloweb.it`
-**Password**: `2#&211\`%#5+z`
-**Stored in**: WordPress options
-  - `realestate_sync_api_username`
-  - `realestate_sync_api_password`
+**Username**: Stored in WordPress options (`realestate_sync_api_username`)
+**Password**: Stored in WordPress options (`realestate_sync_api_password`)
+
+⚠️ **SECURITY NOTE**: Credentials removed from documentation for security.
+- Configure via plugin settings page or directly in `wp_options` table
+- Never commit credentials to version control
 
 **JWT Token**:
 - Endpoint: `POST http://localhost/trentino-wp/wp-json/jwt-auth/v1/token`
