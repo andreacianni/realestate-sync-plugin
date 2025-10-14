@@ -16,3 +16,6 @@ test-*.php
 # Session management files (keep in repo for continuity)
 # SESSION_STATUS.md
 # .claude/SESSION_RECOVERY_PROTOCOL.md
+passwords.txt
+*.backup
+realestate-sync-plugin-backup/
