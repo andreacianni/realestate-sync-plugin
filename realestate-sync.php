@@ -16,7 +16,7 @@
  * Network: false
  *
  * GitHub Plugin URI: andreacianni/realestate-sync-plugin
- * GitHub Branch: release/v1.4.0
+ * Primary Branch: release/v1.4.0
  * Release Asset: true
  *
  * @package RealEstateSync
