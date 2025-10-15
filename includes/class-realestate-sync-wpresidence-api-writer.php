@@ -206,6 +206,10 @@ class RealEstate_Sync_WPResidence_API_Writer {
 		if (!empty($mapped_property['source_data']['agency_id'])) {
 			$api_body['property_agent'] = (string) $mapped_property['source_data']['agency_id'];
 			$this->logger->log('Agency/Agent ID: ' . $api_body['property_agent'], 'INFO');
+
+			// Set sidebar_agent_option to 'global' to enable agency sidebar display
+			// This follows WPResidence default behavior for property creation
+			$api_body['sidebar_agent_option'] = 'global';
 		}
 
 		// 7. Catasto data as custom fields

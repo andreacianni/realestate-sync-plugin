@@ -50,28 +50,17 @@ class RealEstate_Sync_Hook_Logger {
         $upload_dir = wp_upload_dir();
         $log_dir = $upload_dir['basedir'] . '/realestate-sync-logs/hook-logs';
 
-        // 🔧 DEBUG: Log directory creation
-        $this->logger->log('🔍 Hook Logger: Initializing', 'info', [
-            'upload_basedir' => $upload_dir['basedir'],
-            'log_dir' => $log_dir,
-            'dir_exists' => file_exists($log_dir),
-            'dir_writable' => is_writable($log_dir)
-        ]);
-
+        // Create directory if needed (silent - only log errors)
         if (!file_exists($log_dir)) {
             $result = wp_mkdir_p($log_dir);
-            $this->logger->log('🔍 Hook Logger: Creating directory', 'info', [
-                'log_dir' => $log_dir,
-                'mkdir_result' => $result,
-                'dir_exists_after' => file_exists($log_dir)
-            ]);
+            if (!$result) {
+                $this->logger->log('⚠️ Hook Logger: Failed to create log directory', 'warning', [
+                    'log_dir' => $log_dir
+                ]);
+            }
         }
 
         $this->log_file_path = $log_dir . '/hooks-' . date('Y-m-d_H-i-s') . '.log';
-
-        $this->logger->log('🔍 Hook Logger: Log file path set', 'info', [
-            'log_file_path' => $this->log_file_path
-        ]);
     }
 
     /**

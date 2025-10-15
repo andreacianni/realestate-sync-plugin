@@ -71,13 +71,23 @@ class RealEstate_Sync_Logger {
      * @var int
      */
     private $max_files = 10;
-    
+
+    /**
+     * Maximum age of log files in days (for automatic cleanup)
+     *
+     * @var int
+     */
+    private $max_log_age_days = 30;
+
     /**
      * Private constructor (Singleton pattern)
      */
     private function __construct() {
         $this->setup_log_directory();
         $this->setup_log_file();
+
+        // Trigger cleanup on initialization (once per session)
+        $this->cleanup_old_logs_by_age();
     }
     
     /**
@@ -145,12 +155,20 @@ class RealEstate_Sync_Logger {
 
     /**
      * Set specific log file for import session
+     * When set, ONLY the import-specific log will be written (no daily log)
      *
      * @param string $import_id Import session ID
      */
     public function set_import_log_file($import_id) {
         $datetime = date('Y-m-d_H-i-s');
         $this->log_file = $this->log_dir . "import-{$datetime}-{$import_id}.log";
+    }
+
+    /**
+     * Reset to daily log file (used after import completes)
+     */
+    public function reset_to_daily_log() {
+        $this->setup_log_file();
     }
     
     /**
@@ -508,9 +526,38 @@ class RealEstate_Sync_Logger {
             unlink($file);
         }
         
-        $this->log("Cleaned up " . count($files_to_remove) . " old log files", 'info');
+        $this->log("Cleaned up " . count($files_to_remove) . " old log files (count limit)", 'info');
     }
-    
+
+    /**
+     * Cleanup old log files by age
+     * Removes log files older than $max_log_age_days
+     */
+    private function cleanup_old_logs_by_age() {
+        $files = glob($this->log_dir . '*.log');
+        $cutoff_time = time() - ($this->max_log_age_days * 24 * 60 * 60);
+        $removed_count = 0;
+
+        foreach ($files as $file) {
+            // Skip .htaccess and index.php
+            if (strpos($file, '.htaccess') !== false || strpos($file, 'index.php') !== false) {
+                continue;
+            }
+
+            // Check file modification time
+            if (filemtime($file) < $cutoff_time) {
+                if (unlink($file)) {
+                    $removed_count++;
+                }
+            }
+        }
+
+        // Only log if files were actually removed (and avoid writing to log during init)
+        if ($removed_count > 0 && file_exists($this->log_file)) {
+            $this->log("Cleaned up {$removed_count} log files older than {$this->max_log_age_days} days", 'info');
+        }
+    }
+
     /**
      * Get stack trace for error logging
      *

@@ -20,17 +20,23 @@ class RealEstate_Sync_Agency_Manager {
      * Logger instance
      */
     private $logger;
-    
+
     /**
      * Agency cache for session performance
      */
     private $agency_cache = array();
-    
+
+    /**
+     * Agency API Writer instance
+     */
+    private $api_writer;
+
     /**
      * Constructor
      */
     public function __construct() {
         $this->logger = RealEstate_Sync_Logger::get_instance();
+        $this->api_writer = new RealEstate_Sync_WPResidence_Agency_API_Writer($this->logger);
     }
     
     /**
@@ -187,22 +193,23 @@ class RealEstate_Sync_Agency_Manager {
      */
     private function sanitize_agency_data($agency_data) {
         $sanitized = array();
-        
+
         // Sanitize each field
-        $sanitized['name'] = sanitize_text_field($agency_data['name']);
-        $sanitized['xml_agency_id'] = sanitize_text_field($agency_data['xml_agency_id']);
-        $sanitized['address'] = sanitize_textarea_field($agency_data['address']);
-        $sanitized['email'] = sanitize_email($agency_data['email']);
-        $sanitized['phone'] = sanitize_text_field($agency_data['phone']);
-        $sanitized['mobile'] = sanitize_text_field($agency_data['mobile']);
-        $sanitized['website'] = esc_url_raw($agency_data['website']);
-        $sanitized['license'] = sanitize_text_field($agency_data['license']);
-        $sanitized['vat_number'] = sanitize_text_field($agency_data['vat_number']);
-        $sanitized['city'] = sanitize_text_field($agency_data['city']);
-        $sanitized['province'] = sanitize_text_field($agency_data['province']);
-        $sanitized['zip_code'] = sanitize_text_field($agency_data['zip_code']);
-        $sanitized['fax'] = sanitize_text_field($agency_data['fax']);
-        
+        $sanitized['name'] = sanitize_text_field($agency_data['name'] ?? '');
+        $sanitized['xml_agency_id'] = sanitize_text_field($agency_data['xml_agency_id'] ?? '');
+        $sanitized['address'] = sanitize_textarea_field($agency_data['address'] ?? '');
+        $sanitized['email'] = sanitize_email($agency_data['email'] ?? '');
+        $sanitized['phone'] = sanitize_text_field($agency_data['phone'] ?? '');
+        $sanitized['mobile'] = sanitize_text_field($agency_data['mobile'] ?? '');
+        $sanitized['website'] = esc_url_raw($agency_data['website'] ?? '');
+        $sanitized['logo_url'] = esc_url_raw($agency_data['logo_url'] ?? '');
+        $sanitized['license'] = sanitize_text_field($agency_data['license'] ?? '');
+        $sanitized['vat_number'] = sanitize_text_field($agency_data['vat_number'] ?? '');
+        $sanitized['city'] = sanitize_text_field($agency_data['city'] ?? '');
+        $sanitized['province'] = sanitize_text_field($agency_data['province'] ?? '');
+        $sanitized['zip_code'] = sanitize_text_field($agency_data['zip_code'] ?? '');
+        $sanitized['contact_person'] = sanitize_text_field($agency_data['contact_person'] ?? '');
+
         return $sanitized;
     }
     
@@ -280,156 +287,77 @@ class RealEstate_Sync_Agency_Manager {
     }
     
     /**
-     * Create new agency
-     * 
+     * Create new agency via WPResidence REST API
+     *
      * @param array $agency_data Agency data
      * @return int|false Agency ID on success, false on failure
      */
     private function create_agency($agency_data) {
-        // Prepare post data
-        $post_data = array(
-            'post_type' => 'estate_agency',
-            'post_title' => $agency_data['name'],
-            'post_status' => 'publish',
-            'post_author' => 1, // Admin user
-            'meta_input' => $this->prepare_agency_meta_fields($agency_data)
-        );
-        
-        // Insert the post
-        $agency_id = wp_insert_post($post_data);
-        
-        if (is_wp_error($agency_id)) {
-            $this->logger->log('ERROR', 'Failed to create agency: ' . $agency_id->get_error_message());
+        $this->logger->log('INFO', 'Creating agency via WPResidence API', array(
+            'agency_name' => $agency_data['name']
+        ));
+
+        // Format data for API
+        $api_body = $this->api_writer->format_api_body($agency_data);
+
+        // Create via API
+        $result = $this->api_writer->create_agency($api_body);
+
+        if (!$result['success']) {
+            $this->logger->log('ERROR', 'Failed to create agency via API: ' . $result['error']);
             return false;
         }
-        
-        if (!$agency_id) {
-            $this->logger->log('ERROR', 'Failed to create agency - wp_insert_post returned 0');
-            return false;
-        }
-        
-        $this->logger->log('SUCCESS', 'Created new agency', array(
+
+        $agency_id = $result['agency_id'];
+
+        $this->logger->log('SUCCESS', 'Created new agency via API', array(
             'agency_id' => $agency_id,
             'agency_name' => $agency_data['name']
         ));
-        
+
+        // Store XML agency ID for tracking
+        update_post_meta($agency_id, 'xml_agency_id', $agency_data['xml_agency_id']);
+
         // Cache the new agency
         $cache_key = md5($agency_data['name'] . $agency_data['xml_agency_id']);
         $this->agency_cache[$cache_key] = $agency_id;
-        
+
         return $agency_id;
     }
     
     /**
-     * Update existing agency
-     * 
+     * Update existing agency via WPResidence REST API
+     *
      * @param int $agency_id Agency ID
      * @param array $agency_data Agency data
      * @return int|false Agency ID on success, false on failure
      */
     private function update_agency($agency_id, $agency_data) {
-        // Update post data
-        $post_data = array(
-            'ID' => $agency_id,
-            'post_title' => $agency_data['name'],
-            'post_modified' => current_time('mysql'),
-        );
-        
-        // Update the post
-        $result = wp_update_post($post_data);
-        
-        if (is_wp_error($result)) {
-            $this->logger->log('ERROR', 'Failed to update agency: ' . $result->get_error_message());
-            return false;
-        }
-        
-        // Update meta fields
-        $meta_fields = $this->prepare_agency_meta_fields($agency_data);
-        foreach ($meta_fields as $meta_key => $meta_value) {
-            update_post_meta($agency_id, $meta_key, $meta_value);
-        }
-        
-        $this->logger->log('SUCCESS', 'Updated agency', array(
+        $this->logger->log('INFO', 'Updating agency via WPResidence API', array(
             'agency_id' => $agency_id,
             'agency_name' => $agency_data['name']
         ));
-        
-        return $agency_id;
-    }
-    
-    /**
-     * Prepare WpResidence agency meta fields
-     * 
-     * @param array $agency_data Agency data
-     * @return array Meta fields array
-     */
-    private function prepare_agency_meta_fields($agency_data) {
-        $meta_fields = array();
-        
-        // XML tracking field
-        if (!empty($agency_data['xml_agency_id'])) {
-            $meta_fields['xml_agency_id'] = $agency_data['xml_agency_id'];
+
+        // Format data for API
+        $api_body = $this->api_writer->format_api_body($agency_data);
+
+        // Update via API
+        $result = $this->api_writer->update_agency($agency_id, $api_body);
+
+        if (!$result['success']) {
+            $this->logger->log('ERROR', 'Failed to update agency via API: ' . $result['error']);
+            return false;
         }
-        
-        // WpResidence agency meta fields mapping
-        if (!empty($agency_data['address'])) {
-            $meta_fields['agency_address'] = $agency_data['address'];
-        }
-        
-        if (!empty($agency_data['email'])) {
-            $meta_fields['agency_email'] = $agency_data['email'];
-        }
-        
-        if (!empty($agency_data['phone'])) {
-            $meta_fields['agency_phone'] = $agency_data['phone'];
-        }
-        
-        if (!empty($agency_data['mobile'])) {
-            $meta_fields['agency_mobile'] = $agency_data['mobile'];
-        }
-        
-        if (!empty($agency_data['website'])) {
-            $meta_fields['agency_website'] = $agency_data['website'];
-        }
-        
-        if (!empty($agency_data['license'])) {
-            $meta_fields['agency_license'] = $agency_data['license'];
-        }
-        
-        if (!empty($agency_data['city'])) {
-            $meta_fields['agency_city'] = $agency_data['city'];
-        }
-        
-        if (!empty($agency_data['province'])) {
-            $meta_fields['agency_state'] = $agency_data['province'];
-        }
-        
-        if (!empty($agency_data['zip_code'])) {
-            $meta_fields['agency_zip'] = $agency_data['zip_code'];
-        }
-        
-        if (!empty($agency_data['fax'])) {
-            $meta_fields['agency_fax'] = $agency_data['fax'];
-        }
-        
-        // Additional WpResidence fields with defaults
-        $meta_fields['agency_languages'] = 'Italiano';
-        $meta_fields['agency_skype'] = '';
-        $meta_fields['agency_facebook'] = '';
-        $meta_fields['agency_twitter'] = '';
-        $meta_fields['agency_linkedin'] = '';
-        $meta_fields['agency_pinterest'] = '';
-        $meta_fields['agency_instagram'] = '';
-        
-        // Last import timestamp
-        $meta_fields['last_xml_import'] = current_time('timestamp');
-        
-        $this->logger->log('DEBUG', 'Prepared agency meta fields', array(
-            'fields_count' => count($meta_fields),
-            'agency_email' => isset($meta_fields['agency_email']) ? $meta_fields['agency_email'] : 'not_set'
+
+        $this->logger->log('SUCCESS', 'Updated agency via API', array(
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_data['name']
         ));
-        
-        return $meta_fields;
+
+        // Update XML agency ID for tracking (in case it changed)
+        update_post_meta($agency_id, 'xml_agency_id', $agency_data['xml_agency_id']);
+
+        return $agency_id;
     }
     
     /**
@@ -627,7 +555,7 @@ class RealEstate_Sync_Agency_Manager {
         wp_reset_postdata();
         
         $this->logger->log('INFO', 'Completed orphaned agencies cleanup', $cleanup_results);
-        
+
         return $cleanup_results;
     }
 }

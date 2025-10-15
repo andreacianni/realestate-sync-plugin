@@ -63,22 +63,14 @@ class RealEstate_Sync_Import_Engine {
         if ($wp_importer) {
             // Use provided importer (explicit choice)
             $this->wp_importer = $wp_importer;
-            $this->logger->log('⚙️ Import Engine using INJECTED importer: ' . get_class($wp_importer), 'INFO');
         } else {
             // Auto-select based on configuration option
             $use_api_importer = get_option('realestate_sync_use_api_importer', false);
 
-            // 🐞 DEBUG: Log the option value to see what we're getting
-            $this->logger->log('🔍 DEBUG Constructor: use_api_importer option = ' . var_export($use_api_importer, true), 'INFO');
-            $this->logger->log('🔍 DEBUG Constructor: API username set = ' . var_export(!empty(get_option('realestate_sync_api_username')), true), 'INFO');
-            $this->logger->log('🔍 DEBUG Constructor: API password set = ' . var_export(!empty(get_option('realestate_sync_api_password')), true), 'INFO');
-
             if ($use_api_importer) {
                 $this->wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
-                $this->logger->log('🌟 Import Engine initialized with API-based importer', 'INFO');
             } else {
                 $this->wp_importer = new RealEstate_Sync_WP_Importer();
-                $this->logger->log('🛡️ Import Engine initialized with legacy importer (option disabled or not set)', 'DEBUG');
             }
         }
 
