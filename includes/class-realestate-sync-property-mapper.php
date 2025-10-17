@@ -256,7 +256,12 @@ class RealEstate_Sync_Property_Mapper {
             $meta['property_latitude'] = strval($xml_property['latitude']); // String for API
             $meta['property_longitude'] = strval($xml_property['longitude']); // String for API
         }
-        
+
+        // Google Maps display settings - Opzione A: Trasparenza totale
+        $meta['google_camera_angle'] = '0';          // Vista orizzontale standard
+        $meta['property_google_view'] = '1';         // Abilita Street View
+        $meta['property_hide_map_marker'] = '0';     // Mostra posizione esatta
+
         // Room data
         $this->map_rooms_data_v3($xml_property, $meta);
         
