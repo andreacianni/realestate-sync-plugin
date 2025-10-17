@@ -243,11 +243,18 @@ class RealEstate_Sync_Property_Mapper {
         $meta['property_price'] = floatval($xml_property['price'] ?? 0);
         $meta['property_size'] = $this->get_best_surface_area($xml_property);
         $meta['property_address'] = $this->build_full_address($xml_property);
-        
+
+        // Address components for Google Maps
+        $comune_istat = $xml_property['comune_istat'] ?? '';
+        $meta['property_county'] = $this->derive_province_name_from_istat($comune_istat); // "Trento" or "Bolzano"
+        $meta['property_state'] = 'Trentino-Alto Adige'; // Always for this region
+        $meta['property_zip'] = $this->derive_zip_code($xml_property); // CAP from comune_istat + zona
+        $meta['property_country'] = 'Italia'; // Always Italia
+
         // Coordinates
         if (!empty($xml_property['latitude']) && !empty($xml_property['longitude'])) {
-            $meta['property_latitude'] = floatval($xml_property['latitude']);
-            $meta['property_longitude'] = floatval($xml_property['longitude']);
+            $meta['property_latitude'] = strval($xml_property['latitude']); // String for API
+            $meta['property_longitude'] = strval($xml_property['longitude']); // String for API
         }
         
         // Room data
@@ -879,10 +886,73 @@ class RealEstate_Sync_Property_Mapper {
     
     private function derive_county_from_comune_istat($comune_istat) {
         if (empty($comune_istat)) return '';
-        
+
         if (substr($comune_istat, 0, 3) === '022') return 'Trentino-Alto Adige';
         if (substr($comune_istat, 0, 3) === '021') return 'Trentino-Alto Adige';
-        
+
+        return '';
+    }
+
+    /**
+     * Derive province name from comune ISTAT code
+     * Used for property_county field (Trento or Bolzano)
+     */
+    private function derive_province_name_from_istat($comune_istat) {
+        if (empty($comune_istat)) return '';
+
+        if (substr($comune_istat, 0, 3) === '022') return 'Trento';
+        if (substr($comune_istat, 0, 3) === '021') return 'Bolzano';
+
+        return '';
+    }
+
+    /**
+     * Derive ZIP code (CAP) from comune ISTAT and zona
+     * Maps comune_istat to Italian postal codes
+     */
+    private function derive_zip_code($xml_property) {
+        $comune_istat = $xml_property['comune_istat'] ?? '';
+
+        if (empty($comune_istat)) return '';
+
+        // Map of comune ISTAT to ZIP codes
+        // Source: Official Italian postal codes for Trentino-Alto Adige
+        $zip_mapping = [
+            // Provincia di Trento (022xxx)
+            '022205' => '38122', // Trento centro
+            '022001' => '38062', // Arco
+            '022178' => '38068', // Rovereto
+            '022054' => '38033', // Cavalese
+            '022012' => '38010', // Andalo
+            '022023' => '38086', // Madonna di Campiglio (Pinzolo)
+            '022066' => '38056', // Levico Terme
+            '022093' => '38057', // Pergine Valsugana
+            '022121' => '38038', // Malè
+            '022153' => '38060', // Nomi (Vallagarina)
+
+            // Provincia di Bolzano (021xxx)
+            '021008' => '39100', // Bolzano centro
+            '021011' => '39031', // Brunico
+            '021041' => '39033', // Corvara in Badia
+            '021054' => '39012', // Merano
+            '021022' => '39046', // Ortisei
+            '021061' => '39048', // Selva di Val Gardena
+            '021110' => '39034', // Dobbiaco
+        ];
+
+        // Try exact match first
+        if (isset($zip_mapping[$comune_istat])) {
+            return $zip_mapping[$comune_istat];
+        }
+
+        // Default ZIP by province
+        if (substr($comune_istat, 0, 3) === '022') {
+            return '38100'; // Generic Trento province
+        }
+        if (substr($comune_istat, 0, 3) === '021') {
+            return '39100'; // Generic Bolzano province
+        }
+
         return '';
     }
     
