@@ -1,22 +1,13 @@
 <?php
 /**
- * RealEstate Sync Plugin - Property Mapper v3.2
- *
- * OPZIONE A FULL IMPLEMENTATION - Phase 1 Complete
- * Based on MAPPING_GAP_ANALYSIS.md and CLIENT_MAPPING_SPECS.md
- *
- * Phase 1 Critical Features Implemented:
- * - Info[57] Maintenance Status (10 values: Nuovo, Ottimo, Buono, Da ristrutturare, etc.)
- * - Info[56] Position (10 values: Centrale, Forte passaggio, Area industriale, etc.)
- * - 43 Micro-categories (Bilocale, Trilocale, Terreni, Commerciali, etc.)
- * - Energy Class complete (14/14 values including "In fase" and "Non soggetto")
- * - Removed Info[62] Panorama per client specifications
- * - Added dati_inseriti[5] and [18] as property details
- *
+ * RealEstate Sync Plugin - Property Mapper v3.1
+ * 
+ * MAPPING COMPLETO basato su database analysis reale + STEP 3 field verification fixes
+ * 
  * @package RealEstateSync
- * @version 3.2.0
+ * @version 3.1.0
  * @author Andrea Cianni - Novacom
- * @updated 2025-11-14 - OPZIONE A Phase 1 completed
+ * @updated 17/08/2025 - STEP 3 field mapping gap fixes implemented
  */
 
 if (!defined('ABSPATH')) {
@@ -24,14 +15,11 @@ if (!defined('ABSPATH')) {
 }
 
 class RealEstate_Sync_Property_Mapper {
-
+    
     private $logger;
     private $gi_categories;
     private $gi_features;
     private $energy_class_mapping;
-    private $maintenance_status_mapping;
-    private $position_mapping;
-    private $micro_categories;
     private $agency_manager;
     
     public function __construct($logger = null) {
@@ -42,7 +30,7 @@ class RealEstate_Sync_Property_Mapper {
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.2 initialized - OPZIONE A Phase 1 complete (Maintenance Status, Position, 43 Micro-categories, Energy Class 14/14)', 'info');
+        $this->logger->log('Property Mapper v3.1 initialized with Agency Manager integration + STEP 3 field mapping fixes', 'info');
     }
     
     private function init_mappings() {
@@ -69,13 +57,13 @@ class RealEstate_Sync_Property_Mapper {
             28 => 'Camere e Posti letto'
         ];
         
-        // GI Features → WpResidence Features (UPDATED v3.2: removed Info[62] panorama per client specs)
+        // GI Features → WpResidence Features
         $this->gi_features = [
             17 => 'giardino',
             66 => 'piscina',
             15 => 'arredato',
             16 => 'riscaldamento-autonomo-centralizzato',
-            // 62 => 'vista-panoramica', // REMOVED v3.2: Client wants to eliminate Info[62]
+            62 => 'vista-panoramica',
             5 => 'box-o-garage',
             20 => 'box-o-garage',
             13 => 'ascensore',
@@ -90,125 +78,11 @@ class RealEstate_Sync_Property_Mapper {
             90 => 'porta-blindata'
         ];
         
-        // Energy class mapping (UPDATED v3.2: added missing values 0 and 9)
+        // Energy class mapping
         $this->energy_class_mapping = [
-            0 => 'In fase di definizione',
             1 => 'A+', 2 => 'A', 3 => 'B', 4 => 'C',
             5 => 'D', 6 => 'E', 7 => 'F', 8 => 'G',
-            9 => 'Non soggetto a certificazione',
             10 => 'A4', 11 => 'A3', 12 => 'A2', 13 => 'A1'
-        ];
-
-        // 🎯 NEW v3.2: Maintenance Status mapping (Info[57])
-        $this->maintenance_status_mapping = [
-            0 => 'Sconosciuto',
-            1 => 'Da ristrutturare',
-            2 => 'Ristrutturato',
-            3 => 'Discreto',
-            4 => 'Buono',
-            5 => 'Ottimo',
-            6 => 'Nuovo',
-            7 => 'Impianti da fare',
-            8 => 'Impianti da rifare',
-            9 => 'Impianti a norma'
-        ];
-
-        // 🎯 NEW v3.2: Position mapping (Info[56]) - Essential for commercial properties
-        $this->position_mapping = [
-            0 => 'Sconosciuto',
-            1 => 'Area industriale/artigianale',
-            2 => 'Centro commerciale',
-            3 => 'Ad angolo',
-            4 => 'Centrale',
-            5 => 'Servita',
-            6 => 'Forte passaggio',
-            7 => 'Fronte lago',
-            8 => 'Fronte strada',
-            9 => 'Interna'
-        ];
-
-        // 🎯 NEW v3.2: Micro-categories mapping (43 to maintain, excluding 56)
-        $this->micro_categories = $this->init_micro_categories();
-    }
-
-    /**
-     * Initialize micro-categories mapping (43 categories to maintain)
-     * Based on CLIENT_MAPPING_SPECS.md - excluding 56 unwanted micro-categories
-     */
-    private function init_micro_categories() {
-        return [
-            // Appartamento (8 micro-cat)
-            44 => 'Monolocale',
-            45 => 'Bilocale',
-            46 => 'Trilocale',
-            47 => 'Quadrilocale',
-            48 => 'Pentalocale',
-            49 => 'Più di 5 locali',
-            50 => 'Duplex',
-            51 => 'Mansarda',
-
-            // Terreno (5 micro-cat)
-            20 => 'Terreno agricolo/coltura',
-            21 => 'Terreno boschivo',
-            22 => 'Terreno edificabile commerciale',
-            23 => 'Terreno edificabile industriale',
-            24 => 'Terreno edificabile residenziale',
-
-            // Posto auto (3 micro-cat)
-            61 => 'Posto auto singolo',
-            62 => 'Posto auto doppio',
-            63 => 'Posto auto triplo',
-
-            // Stanze (2 micro-cat)
-            74 => 'Stanze per studenti',
-            75 => 'Stanze per lavoratori',
-
-            // Casa singola (1 micro-cat)
-            94 => 'Terratetto',
-
-            // Rustico (1 micro-cat)
-            93 => 'Casa colonica',
-
-            // Attività commerciale (23 micro-cat)
-            1 => 'Alimentari',
-            3 => 'Autorimesse',
-            4 => 'Bar',
-            5 => 'Centro commerciale',
-            6 => 'Edicole',
-            7 => 'Farmacie',
-            8 => 'Ferramenta/casalinghi',
-            9 => 'Sale gioco/scommesse',
-            10 => 'Gelaterie',
-            11 => 'Palestre',
-            12 => 'Panifici',
-            13 => 'Pasticcerie',
-            14 => 'Parrucchiere uomo/donna',
-            15 => 'Pubs e locali serali',
-            16 => 'Ristoranti',
-            17 => 'Pizzerie',
-            18 => 'Solarium e centri estetica',
-            19 => 'Tabaccherie',
-            25 => 'Telefonia/informatica',
-            26 => 'Tintorie/lavanderie',
-            27 => 'Video noleggi',
-            28 => 'Showroom',
-            29 => 'Abbigliamento',
-            30 => 'Cartoleria/libreria',
-            32 => 'Fruttivendolo',
-            33 => 'Macelleria',
-            34 => 'Gastronomia',
-            35 => 'Enoteca',
-            36 => 'Negozio di giocattoli',
-            37 => 'Articoli sanitari',
-            38 => 'Calzature',
-            39 => 'Prodotti per animali',
-            40 => 'Tessuti e tende/merceria',
-            41 => 'Borse e pelletterie',
-            42 => 'Fioreria',
-            43 => 'Oreficeria',
-            92 => 'Azienda agricola',
-            96 => 'Friggitorie',
-            97 => 'Rosticcerie'
         ];
     }
     
@@ -235,10 +109,10 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map properties v3.2 - OPZIONE A Phase 1 implementation
+     * Map properties v3.1 - ENHANCED with field mapping fixes
      */
     public function map_properties($xml_properties) {
-        $this->logger->log('Starting Property Mapper v3.2 - OPZIONE A Phase 1', 'info', [
+        $this->logger->log('Starting Property Mapper v3.1 with field mapping fixes', 'info', [
             'input_count' => count($xml_properties)
         ]);
         
@@ -394,30 +268,7 @@ class RealEstate_Sync_Property_Mapper {
         if (!empty($xml_property['virtual_tour'])) {
             $meta['property_virtual_tour'] = esc_url($xml_property['virtual_tour']);
         }
-
-        // 🎯 NEW v3.2: Info[57] Maintenance Status (Critical buyer decision factor)
-        $maintenance_status = $this->map_maintenance_status_v32($xml_property);
-        if ($maintenance_status) {
-            $meta['property_maintenance_status'] = $maintenance_status;
-            $meta['stato_immobile'] = $maintenance_status; // Italian field name for frontend
-        }
-
-        // 🎯 NEW v3.2: Info[56] Position (Essential for commercial properties)
-        $position = $this->map_position_v32($xml_property);
-        if ($position) {
-            $meta['property_position'] = $position;
-            $meta['posizione'] = $position; // Italian field name for frontend
-        }
-
-        // 🎯 NEW v3.2: Micro-category readable name (in addition to ID already stored)
-        if (!empty($xml_property['categorie_micro_id'])) {
-            $micro_id = intval($xml_property['categorie_micro_id']);
-            if (isset($this->micro_categories[$micro_id])) {
-                $meta['property_micro_category'] = $this->micro_categories[$micro_id];
-                $meta['micro_categoria'] = $this->micro_categories[$micro_id]; // Italian field name
-            }
-        }
-
+        
         // Room data
         $this->map_rooms_data_v3($xml_property, $meta);
         
@@ -712,54 +563,22 @@ class RealEstate_Sync_Property_Mapper {
         $classe = $this->get_feature_value($xml_property, 55);
         return $this->energy_class_mapping[$classe] ?? '';
     }
-
-    /**
-     * NEW v3.2: Map maintenance status Info[57]
-     * Critical buyer decision factor: Nuovo, Ottimo, Buono, Da ristrutturare, etc.
-     */
-    private function map_maintenance_status_v32($xml_property) {
-        $status_id = $this->get_feature_value($xml_property, 57);
-        return $this->maintenance_status_mapping[$status_id] ?? '';
-    }
-
-    /**
-     * NEW v3.2: Map position Info[56]
-     * Essential for commercial properties: Centrale, Forte passaggio, Area industriale, etc.
-     */
-    private function map_position_v32($xml_property) {
-        $position_id = $this->get_feature_value($xml_property, 56);
-        return $this->position_mapping[$position_id] ?? '';
-    }
-
+    
     private function map_extended_dimensions($xml_property, &$meta) {
         if (isset($xml_property['dati_inseriti'])) {
             $dati = $xml_property['dati_inseriti'];
-
+            
             if (isset($dati[20]) && $dati[20] > 0) {
                 $meta['property_commercial_size'] = intval($dati[20]);
-                $meta['superficie_commerciale'] = intval($dati[20]); // Italian field name
             }
             if (isset($dati[21]) && $dati[21] > 0) {
                 $meta['property_useful_size'] = intval($dati[21]);
-                $meta['superficie_utile'] = intval($dati[21]); // Italian field name
             }
             if (isset($dati[4]) && $dati[4] > 0) {
                 $meta['property_garden_size'] = intval($dati[4]);
-                $meta['mq_giardino'] = intval($dati[4]); // Italian field name
-            }
-            // 🎯 NEW v3.2: dati_inseriti[5] - mq aree esterne
-            if (isset($dati[5]) && $dati[5] > 0) {
-                $meta['property_outdoor_size'] = intval($dati[5]);
-                $meta['mq_aree_esterne'] = intval($dati[5]); // Italian field name
             }
             if (isset($dati[6]) && $dati[6] > 0) {
                 $meta['property_ceiling_height'] = floatval($dati[6]);
-                $meta['altezza_soffitti'] = floatval($dati[6]); // Italian field name
-            }
-            // 🎯 NEW v3.2: dati_inseriti[18] - mq ufficio
-            if (isset($dati[18]) && $dati[18] > 0) {
-                $meta['property_office_size'] = intval($dati[18]);
-                $meta['mq_ufficio'] = intval($dati[18]); // Italian field name
             }
         }
     }
@@ -787,8 +606,10 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     private function add_computed_features($xml_property, &$features) {
-        // REMOVED v3.2: Info[62] panorama eliminated per client specifications
-
+        if ($this->get_feature_value($xml_property, 62) > 0) {
+            $features[] = 'vista-panoramica';
+        }
+        
         if ($this->get_feature_value($xml_property, 36)) {
             $features[] = 'montagna';
         }
@@ -928,28 +749,16 @@ class RealEstate_Sync_Property_Mapper {
         $validation = [
             'categories_count' => count($this->gi_categories),
             'features_count' => count($this->gi_features),
-            'energy_classes_count' => count($this->energy_class_mapping),
-            'maintenance_status_count' => count($this->maintenance_status_mapping),
-            'position_count' => count($this->position_mapping),
-            'micro_categories_count' => count($this->micro_categories)
+            'energy_classes_count' => count($this->energy_class_mapping)
         ];
-
-        $this->logger->log('Property Mapper v3.2 validation - OPZIONE A Phase 1', 'info', $validation);
-
+        
+        $this->logger->log('Property Mapper v3.1 validation', 'info', $validation);
+        
         return [
             'success' => true,
-            'version' => '3.2.0',
+            'version' => '3.1.0',
             'mapping_stats' => $validation,
             'features' => [
-                // v3.2 NEW - OPZIONE A Phase 1
-                'maintenance_status_mapping' => true,      // Info[57] - 10 values
-                'position_mapping' => true,                // Info[56] - 10 values
-                'micro_categories_mapping' => true,        // 43 categories maintained
-                'energy_class_complete' => true,           // 14/14 values (added 0 and 9)
-                'dati_inseriti_5_18_mapping' => true,      // mq aree esterne + mq ufficio
-                'info_62_removed' => true,                 // Panorama removed per client specs
-
-                // v3.1 Previous
                 'database_analysis_based' => true,
                 'auto_feature_creation' => true,
                 'gallery_support' => true,
@@ -965,28 +774,15 @@ class RealEstate_Sync_Property_Mapper {
             ]
         ];
     }
-
+    
     public function get_mapping_stats() {
         return [
-            'version' => '3.2.0',
-            'implementation' => 'OPZIONE A - Phase 1 Complete',
+            'version' => '3.1.0',
             'total_categories' => count($this->gi_categories),
             'total_features' => count($this->gi_features),
-            'total_micro_categories' => count($this->micro_categories),
             'supported_provinces' => ['TN', 'BZ'],
             'energy_classes' => array_values($this->energy_class_mapping),
-            'maintenance_status_values' => array_values($this->maintenance_status_mapping),
-            'position_values' => array_values($this->position_mapping),
-            'target_compliance' => 'Phase 1 Critical Features Complete',
-            'phase_1_features' => [
-                'info_57_maintenance_status' => '10 values',
-                'info_56_position' => '10 values',
-                'micro_categories' => '43 maintained',
-                'energy_class' => '14/14 complete',
-                'dati_5_outdoor_size' => 'mq aree esterne',
-                'dati_18_office_size' => 'mq ufficio',
-                'info_62_panorama' => 'removed'
-            ],
+            'target_compliance' => true,
             'field_mapping_fixes' => [
                 'zone_area_mapping' => true,
                 'year_built_mapping' => true,
