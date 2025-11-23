@@ -108,7 +108,7 @@ class RealEstate_Sync_GitHub_Updater {
     public function admin_page() {
         $current_version = $this->plugin_data['Version'];
         $latest_release = $this->get_latest_release();
-        $latest_version = $latest_release ? $latest_release['tag_name'] : 'Unknown';
+        $latest_version = $latest_release ? ltrim($latest_release['tag_name'], 'v') : 'Unknown';
         $is_update_available = version_compare($current_version, $latest_version, '<');
         
         ?>
