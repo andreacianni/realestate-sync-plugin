@@ -130,20 +130,7 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-import-engine.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-cron-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-tracking-manager.php';
-<<<<<<< HEAD
 
-=======
-        
-        // 🆕 NEW: Agencies Import System v1.3.0
-        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-parser.php';
-        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-importer.php';
-        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-deduplicator.php';
-        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-agent-linker.php';
-        
-        // GitHub updater class
-        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php';
-        
->>>>>>> origin/claude/map-property-details-fields-01EYW9Hz7pnCqMm5x315h28J
         // Admin classes
         if (is_admin()) {
             require_once REALESTATE_SYNC_PLUGIN_DIR . 'admin/class-realestate-sync-admin.php';
