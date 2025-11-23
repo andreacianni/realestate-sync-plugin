@@ -453,8 +453,13 @@ class RealEstate_Sync_Import_Engine {
      * @param array $config Configuration overrides
      */
     public function configure($config = array()) {
+        // Don't overwrite enabled_provinces with empty array from settings
+        if (isset($config['enabled_provinces']) && empty($config['enabled_provinces'])) {
+            unset($config['enabled_provinces']);
+        }
+
         $this->config = array_merge($this->config, $config);
-        
+
         // Configure streaming parser
         $this->streaming_parser->configure(array(
             'chunk_size' => $this->config['chunk_size'],
