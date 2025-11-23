@@ -19,3 +19,8 @@ test-*.php
 passwords.txt
 *.backup
 realestate-sync-plugin-backup/
+
+# ZIP files and backup views
+*.zip
+admin/views/appo-dash.php
+admin/views/dashboard-main-backup.php

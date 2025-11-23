@@ -1,32 +1,13 @@
 <?php
 /**
- * RealEstate Sync Plugin - Property Mapper v3.3
- *
- * OPZIONE A FULL IMPLEMENTATION - Phase 1 & 2 Complete
- * Based on MAPPING_GAP_ANALYSIS.md and CLIENT_MAPPING_SPECS.md
- *
- * Phase 1 Critical Features (COMPLETED):
- * - Info[57] Maintenance Status (10 values)
- * - Info[56] Position (10 values)
- * - 43 Micro-categories (Bilocale, Trilocale, Terreni, etc.)
- * - Energy Class complete (14/14 values)
- * - Removed Info[62] Panorama
- * - Added dati_inseriti[5] and [18]
- *
- * Phase 2 Important Features (COMPLETED):
- * - 4 Corrected mappings (garage, cantina, montagna, lago → property details)
- * - 37 Characteristics Info[1-54] added (17 amenities + 17 property details)
- * - 43 Advanced Characteristics Info[55-105] added (16 amenities + 27 property details)
- *
- * TOTAL NEW MAPPINGS v3.3:
- * - 33 new amenities & features
- * - 48 new property details
- * - 80+ total new fields mapped
- *
+ * RealEstate Sync Plugin - Property Mapper v3.1
+ * 
+ * MAPPING COMPLETO basato su database analysis reale + STEP 3 field verification fixes
+ * 
  * @package RealEstateSync
- * @version 3.3.0
+ * @version 3.1.0
  * @author Andrea Cianni - Novacom
- * @updated 2025-11-14 - OPZIONE A Phase 1 & 2 completed
+ * @updated 17/08/2025 - STEP 3 field mapping gap fixes implemented
  */
 
 if (!defined('ABSPATH')) {
@@ -34,14 +15,11 @@ if (!defined('ABSPATH')) {
 }
 
 class RealEstate_Sync_Property_Mapper {
-
+    
     private $logger;
     private $gi_categories;
     private $gi_features;
     private $energy_class_mapping;
-    private $maintenance_status_mapping;
-    private $position_mapping;
-    private $micro_categories;
     private $agency_manager;
     
     public function __construct($logger = null) {
@@ -52,7 +30,7 @@ class RealEstate_Sync_Property_Mapper {
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
         
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.3 initialized - OPZIONE A Phase 1 & 2 complete (80+ new fields: 33 amenities, 48 property details)', 'info');
+        $this->logger->log('Property Mapper v3.1 initialized with Agency Manager integration + STEP 3 field mapping fixes', 'info');
     }
     
     private function init_mappings() {
@@ -79,182 +57,32 @@ class RealEstate_Sync_Property_Mapper {
             28 => 'Camere e Posti letto'
         ];
         
-        // GI Features → WpResidence Features (UPDATED v3.2 Phase 2: +17 new amenities)
+        // GI Features → WpResidence Features
         $this->gi_features = [
-            // Existing features from v3.1
-            13 => 'ascensore',
-            14 => 'aria-condizionata',
+            17 => 'giardino',
+            66 => 'piscina',
             15 => 'arredato',
             16 => 'riscaldamento-autonomo-centralizzato',
-            17 => 'giardino',
+            62 => 'vista-panoramica',
+            5 => 'box-o-garage',
             20 => 'box-o-garage',
+            13 => 'ascensore',
+            14 => 'aria-condizionata',
             21 => 'riscaldamento-a-pavimento',
             23 => 'allarme',
             46 => 'camino',
-            66 => 'piscina',
+            8 => 'cantina',
+            36 => 'montagna',
+            37 => 'lago',
             88 => 'domotica',
-            90 => 'porta-blindata',
-
-            // 🆕 NEW v3.2 Phase 2: Info[1-54] Amenities & Features (17 additions)
-            11 => 'mansarda',
-            12 => 'taverna',
-            18 => 'ingresso-indipendente',
-            19 => 'garage-doppio',
-            22 => 'soggiorno-angolo-cottura',
-            24 => 'terrazzi',
-            25 => 'poggioli',
-            26 => 'lavanderia',
-            34 => 'riscaldamento-centralizzato',
-            38 => 'terme',
-            44 => 'soffitta',
-            45 => 'grezzo',
-            47 => 'predisposizione-aria-condizionata',
-            48 => 'predisposizione-allarme',
-            49 => 'pannelli-solari',
-            50 => 'pannelli-fotovoltaici',
-            51 => 'impianto-geotermico',
-
-            // 🆕 NEW v3.2 Phase 2: Info[55-105] Advanced Amenities & Features (16 additions)
-            60 => 'aria-condizionata-canalizzata',
-            61 => 'doppi-servizi',
-            64 => 'piscina-condominiale',
-            69 => 'portierato',
-            71 => 'soppalco',
-            79 => 'arredamento-cucina',
-            82 => 'sala-hobby',
-            83 => 'libreria',
-            84 => 'dependance',
-            85 => 'recintato',
-            86 => 'finiture-di-pregio',
-            89 => 'fibra-ottica',
-            91 => 'inferriate',
-            92 => 'videocitofono',
-            95 => 'parcheggio-condominiale',
-            98 => 'parquet',
-
-            // REMOVED v3.2: Info[62] panorama eliminated per client specifications
-            // MOVED v3.2 Phase 2: Info[5,8,36,37] moved to property details
+            90 => 'porta-blindata'
         ];
         
-        // Energy class mapping (UPDATED v3.2: added missing values 0 and 9)
+        // Energy class mapping
         $this->energy_class_mapping = [
-            0 => 'In fase di definizione',
             1 => 'A+', 2 => 'A', 3 => 'B', 4 => 'C',
             5 => 'D', 6 => 'E', 7 => 'F', 8 => 'G',
-            9 => 'Non soggetto a certificazione',
             10 => 'A4', 11 => 'A3', 12 => 'A2', 13 => 'A1'
-        ];
-
-        // 🎯 NEW v3.2: Maintenance Status mapping (Info[57])
-        $this->maintenance_status_mapping = [
-            0 => 'Sconosciuto',
-            1 => 'Da ristrutturare',
-            2 => 'Ristrutturato',
-            3 => 'Discreto',
-            4 => 'Buono',
-            5 => 'Ottimo',
-            6 => 'Nuovo',
-            7 => 'Impianti da fare',
-            8 => 'Impianti da rifare',
-            9 => 'Impianti a norma'
-        ];
-
-        // 🎯 NEW v3.2: Position mapping (Info[56]) - Essential for commercial properties
-        $this->position_mapping = [
-            0 => 'Sconosciuto',
-            1 => 'Area industriale/artigianale',
-            2 => 'Centro commerciale',
-            3 => 'Ad angolo',
-            4 => 'Centrale',
-            5 => 'Servita',
-            6 => 'Forte passaggio',
-            7 => 'Fronte lago',
-            8 => 'Fronte strada',
-            9 => 'Interna'
-        ];
-
-        // 🎯 NEW v3.2: Micro-categories mapping (43 to maintain, excluding 56)
-        $this->micro_categories = $this->init_micro_categories();
-    }
-
-    /**
-     * Initialize micro-categories mapping (43 categories to maintain)
-     * Based on CLIENT_MAPPING_SPECS.md - excluding 56 unwanted micro-categories
-     */
-    private function init_micro_categories() {
-        return [
-            // Appartamento (8 micro-cat)
-            44 => 'Monolocale',
-            45 => 'Bilocale',
-            46 => 'Trilocale',
-            47 => 'Quadrilocale',
-            48 => 'Pentalocale',
-            49 => 'Più di 5 locali',
-            50 => 'Duplex',
-            51 => 'Mansarda',
-
-            // Terreno (5 micro-cat)
-            20 => 'Terreno agricolo/coltura',
-            21 => 'Terreno boschivo',
-            22 => 'Terreno edificabile commerciale',
-            23 => 'Terreno edificabile industriale',
-            24 => 'Terreno edificabile residenziale',
-
-            // Posto auto (3 micro-cat)
-            61 => 'Posto auto singolo',
-            62 => 'Posto auto doppio',
-            63 => 'Posto auto triplo',
-
-            // Stanze (2 micro-cat)
-            74 => 'Stanze per studenti',
-            75 => 'Stanze per lavoratori',
-
-            // Casa singola (1 micro-cat)
-            94 => 'Terratetto',
-
-            // Rustico (1 micro-cat)
-            93 => 'Casa colonica',
-
-            // Attività commerciale (23 micro-cat)
-            1 => 'Alimentari',
-            3 => 'Autorimesse',
-            4 => 'Bar',
-            5 => 'Centro commerciale',
-            6 => 'Edicole',
-            7 => 'Farmacie',
-            8 => 'Ferramenta/casalinghi',
-            9 => 'Sale gioco/scommesse',
-            10 => 'Gelaterie',
-            11 => 'Palestre',
-            12 => 'Panifici',
-            13 => 'Pasticcerie',
-            14 => 'Parrucchiere uomo/donna',
-            15 => 'Pubs e locali serali',
-            16 => 'Ristoranti',
-            17 => 'Pizzerie',
-            18 => 'Solarium e centri estetica',
-            19 => 'Tabaccherie',
-            25 => 'Telefonia/informatica',
-            26 => 'Tintorie/lavanderie',
-            27 => 'Video noleggi',
-            28 => 'Showroom',
-            29 => 'Abbigliamento',
-            30 => 'Cartoleria/libreria',
-            32 => 'Fruttivendolo',
-            33 => 'Macelleria',
-            34 => 'Gastronomia',
-            35 => 'Enoteca',
-            36 => 'Negozio di giocattoli',
-            37 => 'Articoli sanitari',
-            38 => 'Calzature',
-            39 => 'Prodotti per animali',
-            40 => 'Tessuti e tende/merceria',
-            41 => 'Borse e pelletterie',
-            42 => 'Fioreria',
-            43 => 'Oreficeria',
-            92 => 'Azienda agricola',
-            96 => 'Friggitorie',
-            97 => 'Rosticcerie'
         ];
     }
     
@@ -281,10 +109,10 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map properties v3.3 - OPZIONE A Phase 1 & 2 implementation
+     * Map properties v3.1 - ENHANCED with field mapping fixes
      */
     public function map_properties($xml_properties) {
-        $this->logger->log('Starting Property Mapper v3.3 - OPZIONE A Phase 1 & 2', 'info', [
+        $this->logger->log('Starting Property Mapper v3.1 with field mapping fixes', 'info', [
             'input_count' => count($xml_properties)
         ]);
         
@@ -388,22 +216,10 @@ class RealEstate_Sync_Property_Mapper {
         
         // Coordinates
         if (!empty($xml_property['latitude']) && !empty($xml_property['longitude'])) {
-            $meta['property_latitude'] = strval($xml_property['latitude']); // String for API
-            $meta['property_longitude'] = strval($xml_property['longitude']); // String for API
+            $meta['property_latitude'] = floatval($xml_property['latitude']);
+            $meta['property_longitude'] = floatval($xml_property['longitude']);
         }
-
-        // Address components for Google Maps
-        $comune_istat = $xml_property['comune_istat'] ?? '';
-        $meta['property_county'] = $this->derive_province_name_from_istat($comune_istat); // "Trento" or "Bolzano"
-        $meta['property_state'] = 'Trentino-Alto Adige'; // Always for this region
-        $meta['property_zip'] = $this->derive_zip_code($xml_property); // CAP from comune_istat + zona
-        $meta['property_country'] = 'Italia'; // Always Italia
-
-        // Google Maps display settings - Opzione A: Trasparenza totale
-        $meta['google_camera_angle'] = '0';          // Vista orizzontale standard
-        $meta['property_google_view'] = '1';         // Abilita Street View
-        $meta['property_hide_map_marker'] = '0';     // Mostra posizione esatta
-
+        
         // 🎯 STEP 3 FIX: Zone/Area mapping
         if (!empty($xml_property['zona'])) {
             $meta['property_area'] = trim($xml_property['zona']);
@@ -452,295 +268,7 @@ class RealEstate_Sync_Property_Mapper {
         if (!empty($xml_property['virtual_tour'])) {
             $meta['property_virtual_tour'] = esc_url($xml_property['virtual_tour']);
         }
-
-        // 🎯 NEW v3.2: Info[57] Maintenance Status (Critical buyer decision factor)
-        $maintenance_status = $this->map_maintenance_status_v32($xml_property);
-        if ($maintenance_status) {
-            $meta['property_maintenance_status'] = $maintenance_status;
-            $meta['stato_immobile'] = $maintenance_status; // Italian field name for frontend
-        }
-
-        // 🎯 NEW v3.2: Info[56] Position (Essential for commercial properties)
-        $position = $this->map_position_v32($xml_property);
-        if ($position) {
-            $meta['property_position'] = $position;
-            $meta['posizione'] = $position; // Italian field name for frontend
-        }
-
-        // 🎯 NEW v3.2: Micro-category readable name (in addition to ID already stored)
-        if (!empty($xml_property['categorie_micro_id'])) {
-            $micro_id = intval($xml_property['categorie_micro_id']);
-            if (isset($this->micro_categories[$micro_id])) {
-                $meta['property_micro_category'] = $this->micro_categories[$micro_id];
-                $meta['micro_categoria'] = $this->micro_categories[$micro_id]; // Italian field name
-            }
-        }
-
-        // 🎯 NEW v3.2 Phase 2: Corrected mappings - from features to property details (4 fields)
-        // Info[5] Garage/Box
-        if ($this->get_feature_value($xml_property, 5) > 0) {
-            $meta['property_has_garage'] = 'Sì';
-            $meta['garage'] = 'Sì';
-        }
-
-        // Info[8] Cantina
-        if ($this->get_feature_value($xml_property, 8) > 0) {
-            $meta['property_has_cantina'] = 'Sì';
-            $meta['cantina'] = 'Sì';
-        }
-
-        // Info[36] Montagna (location type)
-        if ($this->get_feature_value($xml_property, 36) > 0) {
-            $meta['property_location_mountain'] = 'Sì';
-            $meta['zona_montagna'] = 'Sì';
-        }
-
-        // Info[37] Lago (location type)
-        if ($this->get_feature_value($xml_property, 37) > 0) {
-            $meta['property_location_lake'] = 'Sì';
-            $meta['zona_lago'] = 'Sì';
-        }
-
-        // 🆕 NEW v3.2 Phase 2: Info[1-54] Property Details (17 additions)
-        // Info[3] Cucina
-        if ($this->get_feature_value($xml_property, 3) > 0) {
-            $meta['property_has_kitchen'] = 'Sì';
-            $meta['cucina'] = 'Sì';
-        }
-
-        // Info[4] Soggiorno
-        if ($this->get_feature_value($xml_property, 4) > 0) {
-            $meta['property_has_living_room'] = 'Sì';
-            $meta['soggiorno'] = 'Sì';
-        }
-
-        // Info[6] Asta
-        if ($this->get_feature_value($xml_property, 6) > 0) {
-            $meta['property_auction'] = 'Sì';
-            $meta['asta'] = 'Sì';
-        }
-
-        // Info[7] Ripostigli
-        $ripostigli = $this->get_feature_value($xml_property, 7);
-        if ($ripostigli > 0) {
-            $meta['property_storage_rooms'] = $ripostigli == -1 ? 4 : $ripostigli;
-            $meta['ripostigli'] = $ripostigli == -1 ? 4 : $ripostigli;
-        }
-
-        // Info[27-31] Piano types (building levels)
-        if ($this->get_feature_value($xml_property, 27) > 0) {
-            $meta['property_floor_basement'] = 'Sì';
-            $meta['piano_interrato'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 28) > 0) {
-            $meta['property_floor_ground'] = 'Sì';
-            $meta['piano_terra'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 29) > 0) {
-            $meta['property_floor_first'] = 'Sì';
-            $meta['primo_piano'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 30) > 0) {
-            $meta['property_floor_intermediate'] = 'Sì';
-            $meta['piano_intermedio'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 31) > 0) {
-            $meta['property_floor_top'] = 'Sì';
-            $meta['ultimo_piano'] = 'Sì';
-        }
-
-        // Info[32] Totale piani edificio
-        $total_floors = $this->get_feature_value($xml_property, 32);
-        if ($total_floors > 0) {
-            $meta['property_total_floors'] = $total_floors == -1 ? 30 : $total_floors;
-            $meta['totale_piani'] = $total_floors == -1 ? 30 : $total_floors;
-        }
-
-        // Info[35,39,40] Location types
-        if ($this->get_feature_value($xml_property, 35) > 0) {
-            $meta['property_location_sea'] = 'Sì';
-            $meta['zona_mare'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 39) > 0) {
-            $meta['property_location_hill'] = 'Sì';
-            $meta['zona_collina'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 40) > 0) {
-            $meta['property_location_countryside'] = 'Sì';
-            $meta['zona_campagna'] = 'Sì';
-        }
-
-        // Info[41] Nuovo (status)
-        if ($this->get_feature_value($xml_property, 41) > 0) {
-            $meta['property_is_new'] = 'Sì';
-            $meta['immobile_nuovo'] = 'Sì';
-        }
-
-        // Info[43] Giardino condominiale
-        if ($this->get_feature_value($xml_property, 43) > 0) {
-            $meta['property_shared_garden'] = 'Sì';
-            $meta['giardino_condominiale'] = 'Sì';
-        }
-
-        // Info[53] Ribalte
-        if ($this->get_feature_value($xml_property, 53) > 0) {
-            $meta['property_loading_bays'] = 'Sì';
-            $meta['ribalte'] = 'Sì';
-        }
-
-        // Info[54] Urbanizzato
-        if ($this->get_feature_value($xml_property, 54) > 0) {
-            $meta['property_urbanized'] = 'Sì';
-            $meta['urbanizzato'] = 'Sì';
-        }
-
-        // 🆕 NEW v3.2 Phase 2: Info[55-105] Advanced Property Details (27 additions)
-        // Info[63] Spiaggia
-        if ($this->get_feature_value($xml_property, 63) > 0) {
-            $meta['property_location_beach'] = 'Sì';
-            $meta['zona_spiaggia'] = 'Sì';
-        }
-
-        // Info[67,68] mq balconi e terrazzi
-        $mq_balconi = $this->get_feature_value($xml_property, 67);
-        if ($mq_balconi > 0) {
-            $meta['property_balcony_size'] = $mq_balconi;
-            $meta['mq_balconi'] = $mq_balconi;
-        }
-
-        $mq_terrazzi = $this->get_feature_value($xml_property, 68);
-        if ($mq_terrazzi > 0) {
-            $meta['property_terrace_size'] = $mq_terrazzi;
-            $meta['mq_terrazzi'] = $mq_terrazzi;
-        }
-
-        // Info[70] Cucinotto
-        if ($this->get_feature_value($xml_property, 70) > 0) {
-            $meta['property_has_kitchenette'] = 'Sì';
-            $meta['cucinotto'] = 'Sì';
-        }
-
-        // Info[72-75] Property characteristics (simple boolean for now - can add tables later)
-        $esposizione = $this->get_feature_value($xml_property, 72);
-        if ($esposizione > 0) {
-            $meta['property_exposure'] = $esposizione;
-            $meta['esposizione'] = $esposizione;
-        }
-
-        $ubicazione = $this->get_feature_value($xml_property, 73);
-        if ($ubicazione > 0) {
-            $meta['property_location_type'] = $ubicazione;
-            $meta['ubicazione'] = $ubicazione;
-        }
-
-        $affaccia = $this->get_feature_value($xml_property, 74);
-        if ($affaccia > 0) {
-            $meta['property_facing'] = $affaccia;
-            $meta['affaccia'] = $affaccia;
-        }
-
-        $luminosita = $this->get_feature_value($xml_property, 75);
-        if ($luminosita > 0) {
-            $meta['property_brightness'] = $luminosita;
-            $meta['luminosita'] = $luminosita;
-        }
-
-        // Info[76-78] Additional floor types
-        if ($this->get_feature_value($xml_property, 76) > 0) {
-            $meta['property_floor_raised'] = 'Sì';
-            $meta['piano_rialzato'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 77) > 0) {
-            $meta['property_floor_semi_basement'] = 'Sì';
-            $meta['piano_seminterrato'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 78) > 0) {
-            $meta['property_floor_mezzanine'] = 'Sì';
-            $meta['piano_ammezzato'] = 'Sì';
-        }
-
-        // Info[80,81,94] Viste (Views)
-        if ($this->get_feature_value($xml_property, 80) > 0) {
-            $meta['property_view_sea'] = 'Sì';
-            $meta['vista_mare'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 81) > 0) {
-            $meta['property_view_lake'] = 'Sì';
-            $meta['vista_lago'] = 'Sì';
-        }
-        if ($this->get_feature_value($xml_property, 94) > 0) {
-            $meta['property_view_mountains'] = 'Sì';
-            $meta['vista_monti'] = 'Sì';
-        }
-
-        // Info[87] Bagno cieco
-        if ($this->get_feature_value($xml_property, 87) > 0) {
-            $meta['property_blind_bathroom'] = 'Sì';
-            $meta['bagno_cieco'] = 'Sì';
-        }
-
-        // Info[93] Ristrutturato
-        if ($this->get_feature_value($xml_property, 93) > 0) {
-            $meta['property_renovated'] = 'Sì';
-            $meta['ristrutturato'] = 'Sì';
-        }
-
-        // Info[96] Arredamento (table values - simplified for now)
-        $arredamento = $this->get_feature_value($xml_property, 96);
-        if ($arredamento > 0) {
-            $meta['property_furniture_type'] = $arredamento;
-            $meta['tipo_arredamento'] = $arredamento;
-        }
-
-        // Info[97] Disponibilità immediata
-        if ($this->get_feature_value($xml_property, 97) > 0) {
-            $meta['property_immediate_availability'] = 'Sì';
-            $meta['disponibilita_immediata'] = 'Sì';
-        }
-
-        // Info[99] Cucina abitabile
-        if ($this->get_feature_value($xml_property, 99) > 0) {
-            $meta['property_eat_in_kitchen'] = 'Sì';
-            $meta['cucina_abitabile'] = 'Sì';
-        }
-
-        // Info[100-104] Complex fields (table values - simplified for now)
-        $riscaldamento_tipo = $this->get_feature_value($xml_property, 100);
-        if ($riscaldamento_tipo > 0) {
-            $meta['property_heating_type'] = $riscaldamento_tipo;
-            $meta['tipo_riscaldamento'] = $riscaldamento_tipo;
-        }
-
-        $classe_immobile = $this->get_feature_value($xml_property, 101);
-        if ($classe_immobile > 0) {
-            $meta['property_building_class'] = $classe_immobile;
-            $meta['classe_immobile'] = $classe_immobile;
-        }
-
-        $tipo_proprieta = $this->get_feature_value($xml_property, 102);
-        if ($tipo_proprieta > 0) {
-            $meta['property_ownership_type'] = $tipo_proprieta;
-            $meta['tipo_proprieta'] = $tipo_proprieta;
-        }
-
-        $destinazione_uso = $this->get_feature_value($xml_property, 103);
-        if ($destinazione_uso > 0) {
-            $meta['property_intended_use'] = $destinazione_uso;
-            $meta['destinazione_uso'] = $destinazione_uso;
-        }
-
-        $disponibilita = $this->get_feature_value($xml_property, 104);
-        if ($disponibilita > 0) {
-            $meta['property_availability_status'] = $disponibilita;
-            $meta['stato_disponibilita'] = $disponibilita;
-        }
-
-        // Info[105] Attestato prestazione energetica
-        if ($this->get_feature_value($xml_property, 105) > 0) {
-            $meta['property_has_epc'] = 'Sì';
-            $meta['attestato_prestazione_energetica'] = 'Sì';
-        }
-
+        
         // Room data
         $this->map_rooms_data_v3($xml_property, $meta);
         
@@ -1035,54 +563,22 @@ class RealEstate_Sync_Property_Mapper {
         $classe = $this->get_feature_value($xml_property, 55);
         return $this->energy_class_mapping[$classe] ?? '';
     }
-
-    /**
-     * NEW v3.2: Map maintenance status Info[57]
-     * Critical buyer decision factor: Nuovo, Ottimo, Buono, Da ristrutturare, etc.
-     */
-    private function map_maintenance_status_v32($xml_property) {
-        $status_id = $this->get_feature_value($xml_property, 57);
-        return $this->maintenance_status_mapping[$status_id] ?? '';
-    }
-
-    /**
-     * NEW v3.2: Map position Info[56]
-     * Essential for commercial properties: Centrale, Forte passaggio, Area industriale, etc.
-     */
-    private function map_position_v32($xml_property) {
-        $position_id = $this->get_feature_value($xml_property, 56);
-        return $this->position_mapping[$position_id] ?? '';
-    }
-
+    
     private function map_extended_dimensions($xml_property, &$meta) {
         if (isset($xml_property['dati_inseriti'])) {
             $dati = $xml_property['dati_inseriti'];
-
+            
             if (isset($dati[20]) && $dati[20] > 0) {
                 $meta['property_commercial_size'] = intval($dati[20]);
-                $meta['superficie_commerciale'] = intval($dati[20]); // Italian field name
             }
             if (isset($dati[21]) && $dati[21] > 0) {
                 $meta['property_useful_size'] = intval($dati[21]);
-                $meta['superficie_utile'] = intval($dati[21]); // Italian field name
             }
             if (isset($dati[4]) && $dati[4] > 0) {
                 $meta['property_garden_size'] = intval($dati[4]);
-                $meta['mq_giardino'] = intval($dati[4]); // Italian field name
-            }
-            // 🎯 NEW v3.2: dati_inseriti[5] - mq aree esterne
-            if (isset($dati[5]) && $dati[5] > 0) {
-                $meta['property_outdoor_size'] = intval($dati[5]);
-                $meta['mq_aree_esterne'] = intval($dati[5]); // Italian field name
             }
             if (isset($dati[6]) && $dati[6] > 0) {
                 $meta['property_ceiling_height'] = floatval($dati[6]);
-                $meta['altezza_soffitti'] = floatval($dati[6]); // Italian field name
-            }
-            // 🎯 NEW v3.2: dati_inseriti[18] - mq ufficio
-            if (isset($dati[18]) && $dati[18] > 0) {
-                $meta['property_office_size'] = intval($dati[18]);
-                $meta['mq_ufficio'] = intval($dati[18]); // Italian field name
             }
         }
     }
@@ -1110,10 +606,16 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     private function add_computed_features($xml_property, &$features) {
-        // REMOVED v3.2 Phase 1: Info[62] panorama eliminated per client specifications
-        // REMOVED v3.2 Phase 2: Info[36] montagna and Info[37] lago moved to property details
-
-        // No computed features currently active
+        if ($this->get_feature_value($xml_property, 62) > 0) {
+            $features[] = 'vista-panoramica';
+        }
+        
+        if ($this->get_feature_value($xml_property, 36)) {
+            $features[] = 'montagna';
+        }
+        if ($this->get_feature_value($xml_property, 37)) {
+            $features[] = 'lago';
+        }
     }
     
     private function get_feature_value($xml_property, $feature_id) {
@@ -1247,35 +749,16 @@ class RealEstate_Sync_Property_Mapper {
         $validation = [
             'categories_count' => count($this->gi_categories),
             'features_count' => count($this->gi_features),
-            'energy_classes_count' => count($this->energy_class_mapping),
-            'maintenance_status_count' => count($this->maintenance_status_mapping),
-            'position_count' => count($this->position_mapping),
-            'micro_categories_count' => count($this->micro_categories)
+            'energy_classes_count' => count($this->energy_class_mapping)
         ];
-
-        $this->logger->log('Property Mapper v3.3 validation - OPZIONE A Phase 1 & 2 Complete', 'info', $validation);
-
+        
+        $this->logger->log('Property Mapper v3.1 validation', 'info', $validation);
+        
         return [
             'success' => true,
-            'version' => '3.3.0',
+            'version' => '3.1.0',
             'mapping_stats' => $validation,
             'features' => [
-                // v3.3 NEW - OPZIONE A Phase 2
-                'phase_2_corrected_mappings' => 4,         // garage, cantina, montagna, lago
-                'phase_2_info_1_54_added' => 37,           // 17 amenities + 17 property details
-                'phase_2_info_55_105_added' => 43,         // 16 amenities + 27 property details
-                'total_new_amenities' => 33,               // Phase 2 amenities
-                'total_new_property_details' => 48,        // Phase 2 property details
-
-                // v3.2 - OPZIONE A Phase 1
-                'maintenance_status_mapping' => true,      // Info[57] - 10 values
-                'position_mapping' => true,                // Info[56] - 10 values
-                'micro_categories_mapping' => true,        // 43 categories maintained
-                'energy_class_complete' => true,           // 14/14 values (added 0 and 9)
-                'dati_inseriti_5_18_mapping' => true,      // mq aree esterne + mq ufficio
-                'info_62_removed' => true,                 // Panorama removed per client specs
-
-                // v3.1 Previous
                 'database_analysis_based' => true,
                 'auto_feature_creation' => true,
                 'gallery_support' => true,
@@ -1291,36 +774,15 @@ class RealEstate_Sync_Property_Mapper {
             ]
         ];
     }
-
+    
     public function get_mapping_stats() {
         return [
-            'version' => '3.3.0',
-            'implementation' => 'OPZIONE A - Phase 1 & 2 Complete',
+            'version' => '3.1.0',
             'total_categories' => count($this->gi_categories),
             'total_features' => count($this->gi_features),
-            'total_micro_categories' => count($this->micro_categories),
             'supported_provinces' => ['TN', 'BZ'],
             'energy_classes' => array_values($this->energy_class_mapping),
-            'maintenance_status_values' => array_values($this->maintenance_status_mapping),
-            'position_values' => array_values($this->position_mapping),
-            'target_compliance' => 'Phase 1 & 2 Complete - 80+ new fields mapped',
-            'phase_1_features' => [
-                'info_57_maintenance_status' => '10 values',
-                'info_56_position' => '10 values',
-                'micro_categories' => '43 maintained',
-                'energy_class' => '14/14 complete',
-                'dati_5_outdoor_size' => 'mq aree esterne',
-                'dati_18_office_size' => 'mq ufficio',
-                'info_62_panorama' => 'removed'
-            ],
-            'phase_2_features' => [
-                'corrected_mappings' => '4 fields moved to property details',
-                'info_1_54_amenities' => '17 new amenities',
-                'info_1_54_property_details' => '17 new property details',
-                'info_55_105_amenities' => '16 new amenities',
-                'info_55_105_property_details' => '27 new property details',
-                'total_new_fields' => '80+ fields'
-            ],
+            'target_compliance' => true,
             'field_mapping_fixes' => [
                 'zone_area_mapping' => true,
                 'year_built_mapping' => true,
@@ -1330,68 +792,5 @@ class RealEstate_Sync_Property_Mapper {
                 'enhanced_categories' => true
             ]
         ];
-    }
-
-    /**
-     * Derive province name from comune ISTAT code
-     * Maps ISTAT prefixes to province names for Google Maps
-     */
-    private function derive_province_name_from_istat($comune_istat) {
-        if (empty($comune_istat)) return '';
-
-        if (substr($comune_istat, 0, 3) === '022') return 'Trento';
-        if (substr($comune_istat, 0, 3) === '021') return 'Bolzano';
-
-        return '';
-    }
-
-    /**
-     * Derive ZIP code (CAP) from comune ISTAT and zona
-     * Maps comune_istat to Italian postal codes
-     */
-    private function derive_zip_code($xml_property) {
-        $comune_istat = $xml_property['comune_istat'] ?? '';
-
-        if (empty($comune_istat)) return '';
-
-        // Map of comune ISTAT to ZIP codes
-        // Source: Official Italian postal codes for Trentino-Alto Adige
-        $zip_mapping = [
-            // Provincia di Trento (022xxx)
-            '022205' => '38122', // Trento centro
-            '022001' => '38062', // Arco
-            '022178' => '38068', // Rovereto
-            '022054' => '38033', // Cavalese
-            '022012' => '38010', // Andalo
-            '022023' => '38086', // Madonna di Campiglio (Pinzolo)
-            '022066' => '38056', // Levico Terme
-            '022093' => '38057', // Pergine Valsugana
-            '022121' => '38038', // Malè
-            '022153' => '38060', // Nomi (Vallagarina)
-
-            // Provincia di Bolzano (021xxx)
-            '021008' => '39100', // Bolzano centro
-            '021011' => '39031', // Brunico
-            '021041' => '39033', // Corvara in Badia
-            '021054' => '39012', // Merano
-            '021022' => '39046', // Ortisei
-            '021061' => '39048', // Selva di Val Gardena
-            '021110' => '39034', // Dobbiaco
-        ];
-
-        // Try exact match first
-        if (isset($zip_mapping[$comune_istat])) {
-            return $zip_mapping[$comune_istat];
-        }
-
-        // Default ZIP by province
-        if (substr($comune_istat, 0, 3) === '022') {
-            return '38100'; // Generic Trento province
-        }
-        if (substr($comune_istat, 0, 3) === '021') {
-            return '39100'; // Generic Bolzano province
-        }
-
-        return '';
     }
 }
