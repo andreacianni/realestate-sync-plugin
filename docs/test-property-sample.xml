@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <immobili>
+        <!-- PROPERTY 1: Appartamento Bilocale - Test Info[57] Stato Manutenzione = "Nuovo" -->
+        <immobile>
+            <id>TEST001</id>
+            <titolo>Splendido Bilocale Nuovo in Centro</titolo>
+            <descrizione>Appartamento bilocale completamente nuovo con finiture di pregio. Cucina abitabile, soggiorno, camera matrimoniale, bagno. Riscaldamento autonomo, aria condizionata, balcone.</descrizione>
+
+            <!-- Categoria e Tipo -->
+            <categoria>1</categoria> <!-- Residenziale -->
+            <contratto>1</contratto> <!-- Vendita -->
+            <categorie_micro_id>35</categorie_micro_id> <!-- Bilocale -->
+
+            <!-- Prezzi e Dimensioni -->
+            <price>185000</price>
+            <superficie_mq>65</superficie_mq>
+            <superficie_comm>70</superficie_comm>
+            <superficie_giardino>0</superficie_giardino>
+
+            <!-- Localizzazione -->
+            <indirizzo>Via Roma 15</indirizzo>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <zona>Centro Storico</zona>
+            <latitude>46.0664</latitude>
+            <longitude>11.1257</longitude>
+
+            <!-- Caratteristiche Base -->
+            <vani>2</vani>
+            <locali>3</locali>
+            <camere>1</camere>
+            <bagni>1</bagni>
+            <piano>2</piano>
+            <age>2024</age>
+
+            <!-- Classe Energetica -->
+            <energy_class>A</energy_class>
+            <ipe>45.5</ipe>
+            <ipe_unit>kWh/mq anno</ipe_unit>
+
+            <!-- NUOVI CAMPI OPZIONE A -->
+
+            <!-- Info[57] Stato Manutenzione -->
+            <dati_inseriti>
+                <dato id="57">Nuovo</dato> <!-- Test: Stato Manutenzione = "Nuovo" -->
+            </dati_inseriti>
+
+            <!-- Info[56] Posizione -->
+            <info>
+                <caratteristica id="56">Centrale</caratteristica> <!-- Test: Posizione = "Centrale" -->
+            </info>
+
+            <!-- Info[1-54] Caratteristiche -->
+            <info>
+                <caratteristica id="15">1</caratteristica> <!-- Arredato -->
+                <caratteristica id="16">1</caratteristica> <!-- Riscaldamento autonomo -->
+                <caratteristica id="14">1</caratteristica> <!-- Aria condizionata -->
+                <caratteristica id="13">1</caratteristica> <!-- Ascensore -->
+                <caratteristica id="21">1</caratteristica> <!-- Riscaldamento a pavimento -->
+                <caratteristica id="20">1</caratteristica> <!-- Box/Garage -->
+            </info>
+
+            <!-- Info[55-105] Caratteristiche avanzate -->
+            <info>
+                <caratteristica id="76">1</caratteristica> <!-- Vista panoramica -->
+                <caratteristica id="91">1</caratteristica> <!-- Cucina abitabile -->
+                <caratteristica id="58">A+</caratteristica> <!-- Classe energetica dettagliata -->
+            </info>
+
+            <!-- Dati dimensioni aggiuntivi -->
+            <dati_inseriti>
+                <dato id="5">10</dato> <!-- mq aree esterne (balcone) -->
+                <dato id="18">0</dato> <!-- mq ufficio -->
+            </dati_inseriti>
+
+            <!-- Agenzia -->
+            <agency_code>AG001</agency_code>
+
+            <!-- Media -->
+            <images>
+                <image>https://example.com/images/test001-1.jpg</image>
+                <image>https://example.com/images/test001-2.jpg</image>
+            </images>
+        </immobile>
+
+        <!-- PROPERTY 2: Villa - Test Info[57] = "Ottimo" e Info[56] = "Residenziale" -->
+        <immobile>
+            <id>TEST002</id>
+            <titolo>Villa Singola con Giardino e Piscina</titolo>
+            <descrizione>Elegante villa singola in ottimo stato, circondata da ampio giardino con piscina. 4 camere, 3 bagni, doppi servizi, taverna, garage doppio.</descrizione>
+
+            <categoria>1</categoria>
+            <contratto>1</contratto>
+            <categorie_micro_id>2</categorie_micro_id> <!-- Villa -->
+
+            <price>650000</price>
+            <superficie_mq>280</superficie_mq>
+            <superficie_comm>320</superficie_comm>
+            <superficie_giardino>800</superficie_giardino>
+
+            <indirizzo>Via dei Tigli 42</indirizzo>
+            <comune>Rovereto</comune>
+            <comune_istat>022178</comune_istat>
+            <provincia>TN</provincia>
+            <zona>Residenziale</zona>
+            <latitude>45.8906</latitude>
+            <longitude>11.0397</longitude>
+
+            <vani>8</vani>
+            <locali>12</locali>
+            <camere>4</camere>
+            <bagni>3</bagni>
+            <piano>0</piano>
+            <age>1995</age>
+
+            <energy_class>C</energy_class>
+            <ipe>95.2</ipe>
+            <ipe_unit>kWh/mq anno</ipe_unit>
+
+            <!-- OPZIONE A Fields -->
+            <dati_inseriti>
+                <dato id="57">Ottimo</dato> <!-- Stato Manutenzione = "Ottimo" -->
+                <dato id="5">150</dato> <!-- mq aree esterne (giardino + piscina) -->
+                <dato id="18">0</dato>
+            </dati_inseriti>
+
+            <info>
+                <caratteristica id="56">Residenziale</caratteristica> <!-- Posizione -->
+                <caratteristica id="17">1</caratteristica> <!-- Giardino -->
+                <caratteristica id="66">1</caratteristica> <!-- Piscina -->
+                <caratteristica id="5">1</caratteristica> <!-- Garage -->
+                <caratteristica id="20">1</caratteristica> <!-- Box -->
+                <caratteristica id="23">1</caratteristica> <!-- Allarme -->
+                <caratteristica id="14">1</caratteristica> <!-- Aria condizionata -->
+            </info>
+
+            <agency_code>AG001</agency_code>
+
+            <images>
+                <image>https://example.com/images/test002-1.jpg</image>
+                <image>https://example.com/images/test002-2.jpg</image>
+                <image>https://example.com/images/test002-3.jpg</image>
+            </images>
+        </immobile>
+
+        <!-- PROPERTY 3: Terreno - Test Info[57] = "Da ristrutturare" e Micro-categoria Terreni -->
+        <immobile>
+            <id>TEST003</id>
+            <titolo>Terreno Edificabile Vista Montagna</titolo>
+            <descrizione>Terreno edificabile di 1200 mq con vista panoramica sulle montagne. Possibilità di costruire villa singola o bifamiliare. Servizi nelle vicinanze.</descrizione>
+
+            <categoria>10</categoria> <!-- Terreni -->
+            <contratto>1</contratto>
+            <categorie_micro_id>71</categorie_micro_id> <!-- Terreno edificabile -->
+
+            <price>180000</price>
+            <superficie_mq>1200</superficie_mq>
+            <superficie_comm>1200</superficie_comm>
+            <superficie_giardino>0</superficie_giardino>
+
+            <indirizzo>Via Monte Bondone</indirizzo>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <zona>Collina</zona>
+            <latitude>46.0745</latitude>
+            <longitude>11.0952</longitude>
+
+            <vani>0</vani>
+            <locali>0</locali>
+            <camere>0</camere>
+            <bagni>0</bagni>
+            <piano>0</piano>
+
+            <energy_class>Non soggetto</energy_class>
+
+            <!-- OPZIONE A Fields -->
+            <dati_inseriti>
+                <dato id="57">Buono</dato> <!-- Stato Manutenzione -->
+                <dato id="5">0</dato>
+                <dato id="18">0</dato>
+            </dati_inseriti>
+
+            <info>
+                <caratteristica id="56">Montagna</caratteristica> <!-- Posizione = "Montagna" -->
+                <caratteristica id="76">1</caratteristica> <!-- Vista panoramica -->
+            </info>
+
+            <agency_code>AG002</agency_code>
+
+            <images>
+                <image>https://example.com/images/test003-1.jpg</image>
+            </images>
+        </immobile>
+    </immobili>
+</root>
