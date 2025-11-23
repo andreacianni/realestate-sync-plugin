@@ -24,3 +24,4 @@ realestate-sync-plugin-backup/
 *.zip
 admin/views/appo-dash.php
 admin/views/dashboard-main-backup.php
+TabelleCliente.xlsx
