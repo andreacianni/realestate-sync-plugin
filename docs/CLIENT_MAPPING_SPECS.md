@@ -1,442 +1,445 @@
-# Specifiche Mappatura Cliente - Trentino Immobiliare
+# RealEstate Sync Plugin - Client Mapping Specifications
+## Property Mapper v3.3 - OPZIONE A Completa
 
-> Documento generato da TabelleCliente.xlsx
-> Contiene le indicazioni del cliente su cosa importare/eliminare e come mappare i dati
-
----
-
-## Legenda
-
-| categorie              | elenco delle categorie utilizzabili per gli immobili                                                                        |
-|:-----------------------|:----------------------------------------------------------------------------------------------------------------------------|
-| micro-categorie        | elenco delle micro-categorie utilizzabili per gli immobili:                                                                 |
-|                        | sono raggruppate in base alla categoria padre di appartenenza                                                               |
-| Caratteristiche        | elenco generale degli attributi aventi un dominio preciso di valori assegnabili.                                            |
-|                        | Note :                                                                                                                      |
-|                        | - il valore -1 significa "più del valore massimo disponibile". es. (0,1,2,3,-1) : se selezionato -1 si intende "+ di 3".    |
-|                        | - il valore -2 (ove disponibile) significa "dato non indicato" e viene usato dove lo zero costituisce valore significativo. |
-| Altri dati disponibili | elenco generale degli attributi che possono assumere valori arbitrari  all'interno di un tipo definito (es: numeric)        |
+Specifiche complete di mappatura campi XML → WordPress WpResidence per Property Mapper v3.3.
 
 ---
 
-## categorie
+## 📋 Overview OPZIONE A
 
-**Righe**: 27 | **Colonne**: 3
+**Property Mapper v3.3** implementa **OPZIONE A** con supporto completo per **80+ nuovi campi** rispetto alla versione base:
 
-|   categorie_id | descrizione          | micro categoria              |
-|---------------:|:---------------------|:-----------------------------|
-|              1 | casa singola         | vedi tabella micro-categorie |
-|              2 | bifamiliare          | nan                          |
-|              3 | trifamiliare         | vedi tabella micro-categorie |
-|              4 | casa a schiera       | vedi tabella micro-categorie |
-|              5 | monolocale           | nan                          |
-|              7 | cantina              | nan                          |
-|              8 | garage               | vedi tabella micro-categorie |
-|              9 | magazzino            | nan                          |
-|             10 | attivita commerciale | vedi tabella micro-categorie |
-|             11 | appartamento         | vedi tabella micro-categorie |
-|             12 | attico               | nan                          |
-|             13 | rustico              | vedi tabella micro-categorie |
-|             14 | negozio              | nan                          |
-|             15 | quadrifamiliare      | vedi tabella micro-categorie |
-|             16 | capannone            | nan                          |
-|             17 | ufficio              | nan                          |
-|             18 | villa                | vedi tabella micro-categorie |
-|             19 | terreno              | vedi tabella micro-categorie |
-|             20 | laboratorio          | nan                          |
-|             21 | posto auto           | vedi tabella micro-categorie |
-|             22 | bed and breakfast    | nan                          |
-|             23 | loft                 | nan                          |
-|             24 | multiproprietà       | nan                          |
-|             25 | agriturismo          | nan                          |
-|             26 | palazzo              | nan                          |
-|             27 | hotel - albergo      | nan                          |
-|             28 | stanze               | vedi tabella micro-categorie |
+- **Info[1-54]**: 34 campi base (17 amenities + 17 property details)
+- **Info[55-105]**: 51 campi estesi (16 amenities + 27 property details + 8 meta)
+- **43 micro-categorie** diverse
+- **14 classi energetiche** (A+, A4, A3, A2, A1, A, B, C, D, E, F, G + varianti)
+- **10 valori posizione** (centro, semicentro, periferia, collina, montagna, etc.)
+- **10 stati manutenzione** (nuovo, ristrutturato, buono, da ristrutturare, etc.)
 
 ---
 
-## micro-categorie
+## 🏷️ Categorie (categorie_id)
 
-**Righe**: 99 | **Colonne**: 6
+Mapping categorie GestionaleImmobiliare → WpResidence:
 
-|   categorie_micro_id |   categorie_id | Categoria            | descrizione                      | Mappare come           | commento   |
-|---------------------:|---------------:|:---------------------|:---------------------------------|:-----------------------|:-----------|
-|                    1 |             10 | attivita commerciale | alimentari                       | amenities and features | mantenere  |
-|                    2 |             10 | attivita commerciale | attività varie                   | nan                    | eliminare  |
-|                    3 |             10 | attivita commerciale | autorimesse                      | amenities and features | mantenere  |
-|                    4 |             10 | attivita commerciale | bar                              | amenities and features | mantenere  |
-|                    5 |             10 | attivita commerciale | centro commerciale               | amenities and features | mantenere  |
-|                    6 |             10 | attivita commerciale | edicole                          | amenities and features | mantenere  |
-|                    7 |             10 | attivita commerciale | farmacie                         | amenities and features | mantenere  |
-|                    8 |             10 | attivita commerciale | ferramenta/casalinghi            | amenities and features | mantenere  |
-|                    9 |             10 | attivita commerciale | sale gioco/scommesse             | amenities and features | mantenere  |
-|                   10 |             10 | attivita commerciale | gelaterie                        | amenities and features | mantenere  |
-|                   11 |             10 | attivita commerciale | palestre                         | amenities and features | mantenere  |
-|                   12 |             10 | attivita commerciale | panifici                         | amenities and features | mantenere  |
-|                   13 |             10 | attivita commerciale | pasticcerie                      | amenities and features | mantenere  |
-|                   14 |             10 | attivita commerciale | parrucchiere uomo/donna          | amenities and features | mantenere  |
-|                   15 |             10 | attivita commerciale | pubs e locali serali             | amenities and features | mantenere  |
-|                   16 |             10 | attivita commerciale | ristoranti                       | amenities and features | mantenere  |
-|                   17 |             10 | attivita commerciale | pizzerie                         | amenities and features | mantenere  |
-|                   18 |             10 | attivita commerciale | solarium e centri estetica       | amenities and features | mantenere  |
-|                   19 |             10 | attivita commerciale | tabaccherie                      | amenities and features | mantenere  |
-|                   20 |             19 | terreno              | terreno agricolo/coltura         | property details       | mantenere  |
-|                   21 |             19 | terreno              | terreno boschivo                 | property details       | mantenere  |
-|                   22 |             19 | terreno              | terreno edificabile commerciale  | property details       | mantenere  |
-|                   23 |             19 | terreno              | terreno edificabile industriale  | property details       | mantenere  |
-|                   24 |             19 | terreno              | terreno edificabile residenziale | property details       | mantenere  |
-|                   25 |             10 | attivita commerciale | telefonia/informatica            | property details       | mantenere  |
-|                   26 |             10 | attivita commerciale | tintorie/lavanderie              | amenities and features | mantenere  |
-|                   27 |             10 | attivita commerciale | video noleggi                    | amenities and features | mantenere  |
-|                   28 |             10 | attivita commerciale | showroom                         | amenities and features | mantenere  |
-|                   29 |             10 | attivita commerciale | abbigliamento                    | amenities and features | mantenere  |
-|                   30 |             10 | attivita commerciale | cartoleria/libreria              | amenities and features | mantenere  |
-|                   31 |             10 | attivita commerciale | attività in franchising          | nan                    | eliminare  |
-|                   32 |             10 | attivita commerciale | fruttivendolo                    | amenities and features | mantenere  |
-|                   33 |             10 | attivita commerciale | macelleria                       | amenities and features | mantenere  |
-|                   34 |             10 | attivita commerciale | gastronomia                      | amenities and features | mantenere  |
-|                   35 |             10 | attivita commerciale | enoteca                          | amenities and features | mantenere  |
-|                   36 |             10 | attivita commerciale | negozio di giocattoli            | amenities and features | mantenere  |
-|                   37 |             10 | attivita commerciale | articoli sanitari                | amenities and features | mantenere  |
-|                   38 |             10 | attivita commerciale | calzature                        | amenities and features | mantenere  |
-|                   39 |             10 | attivita commerciale | prodotti per animali             | amenities and features | mantenere  |
-|                   40 |             10 | attivita commerciale | tessuti e tende/merceria         | amenities and features | mantenere  |
-|                   41 |             10 | attivita commerciale | borse e pelletterie              | amenities and features | mantenere  |
-|                   42 |             10 | attivita commerciale | fioreria                         | amenities and features | mantenere  |
-|                   43 |             10 | attivita commerciale | oreficeria                       | amenities and features | mantenere  |
-|                   44 |             11 | appartamento         | monolocale                       | property details       | mantenere  |
-|                   45 |             11 | appartamento         | bilocale                         | property details       | mantenere  |
-|                   46 |             11 | appartamento         | trilocale                        | property details       | mantenere  |
-|                   47 |             11 | appartamento         | quadrilocale                     | property details       | mantenere  |
-|                   48 |             11 | appartamento         | pentalocale                      | property details       | mantenere  |
-|                   49 |             11 | appartamento         | più di 5 locali                  | property details       | mantenere  |
-|                   50 |             11 | appartamento         | duplex                           | property details       | mantenere  |
-|                   51 |             11 | appartamento         | mansarda                         | property details       | mantenere  |
-|                   52 |              3 | trifamiliare         | porzione di testa                | nan                    | eliminare  |
-|                   53 |              3 | trifamiliare         | porzione centrale                | nan                    | eliminare  |
-|                   54 |              4 | casa a schiera       | porzione di testa                | nan                    | eliminare  |
-|                   55 |              4 | casa a schiera       | porzione centrale                | nan                    | eliminare  |
-|                   56 |             15 | quadrifamiliare      | porzione di testa                | nan                    | eliminare  |
-|                   57 |             15 | quadrifamiliare      | porzione centrale                | nan                    | eliminare  |
-|                   58 |              8 | garage               | singolo                          | nan                    | eliminare  |
-|                   59 |              8 | garage               | doppio                           | nan                    | eliminare  |
-|                   60 |              8 | garage               | triplo                           | nan                    | eliminare  |
-|                   61 |             21 | posto auto           | singolo                          | property details       | mantenere  |
-|                   62 |             21 | posto auto           | doppio                           | property details       | mantenere  |
-|                   63 |             21 | posto auto           | triplo                           | property details       | mantenere  |
-|                   64 |             21 | posto auto           | silos                            | nan                    | eliminare  |
-|                   65 |             13 | rustico              | rustico di campagna              | nan                    | eliminare  |
-|                   66 |             13 | rustico              | baita                            | nan                    | eliminare  |
-|                   67 |             13 | rustico              | chalet                           | nan                    | eliminare  |
-|                   68 |             13 | rustico              | trullo                           | nan                    | eliminare  |
-|                   69 |             13 | rustico              | rudere                           | nan                    | eliminare  |
-|                   70 |             13 | rustico              | masseria                         | nan                    | eliminare  |
-|                   71 |             13 | rustico              | cascina                          | nan                    | eliminare  |
-|                   72 |             13 | rustico              | casale                           | nan                    | eliminare  |
-|                   73 |             13 | rustico              | castello                         | nan                    | eliminare  |
-|                   74 |             28 | stanze               | studenti                         | property details       | mantenere  |
-|                   75 |             28 | stanze               | lavoratori                       | property details       | mantenere  |
-|                   76 |             28 | stanze               | entrambi                         | nan                    | eliminare  |
-|                   77 |             18 | villa                | moderna                          | nan                    | eliminare  |
-|                   78 |             18 | villa                | contemporanea                    | nan                    | eliminare  |
-|                   79 |             18 | villa                | d'epoca                          | nan                    | eliminare  |
-|                   80 |             13 | rustico              | maso                             | nan                    | eliminare  |
-|                   81 |             13 | rustico              | tabià                            | nan                    | eliminare  |
-|                   82 |             19 | terreno              | lottizzazione                    | nan                    | eliminare  |
-|                   83 |             19 | terreno              | completamento                    | nan                    | eliminare  |
-|                   84 |             19 | terreno              | perequazione urbana              | nan                    | eliminare  |
-|                   85 |             19 | terreno              | insediativa                      | nan                    | eliminare  |
-|                   86 |             19 | terreno              | peri urbana                      | nan                    | eliminare  |
-|                   87 |             19 | terreno              | artigianale                      | nan                    | eliminare  |
-|                   88 |             19 | terreno              | di tutela                        | nan                    | eliminare  |
-|                   89 |             19 | terreno              | di rispetto                      | nan                    | eliminare  |
-|                   90 |             19 | terreno              | di interesse paesaggistico       | nan                    | eliminare  |
-|                   91 |             13 | rustico              | stalla                           | nan                    | eliminare  |
-|                   92 |             10 | attivita commerciale | azienda agricola                 | property details       | mantenere  |
-|                   93 |             13 | rustico              | casa colonica                    | property details       | mantenere  |
-|                   94 |              1 | casa singola         | terratetto                       | property details       | mantenere  |
-|                   95 |             18 | villa                | ville venete                     | nan                    | eliminare  |
-|                   96 |             10 | attivita commerciale | friggitorie                      | property details       | mantenere  |
-|                   97 |             10 | attivita commerciale | rosticcerie                      | property details       | mantenere  |
-|                   98 |             19 | terreno              | vigneto                          | nan                    | eliminare  |
-|                   99 |             19 | terreno              | seminativo                       | nan                    | eliminare  |
+| ID | GI Categoria | WpResidence Category |
+|----|--------------|----------------------|
+| 1 | Casa Singola | Case singole |
+| 2 | Bifamiliare | Case singole |
+| 8 | Garage | Garage e Posti auto |
+| 9 | Box | Garage e Posti auto |
+| 11 | Appartamento | Appartamenti |
+| 12 | Attico | Appartamenti |
+| 13 | Loft | Loft e Mansarde |
+| 14 | Negozio | Uffici e Commerciali |
+| 15 | Capannone | Uffici e Commerciali |
+| 16 | Laboratorio | Uffici e Commerciali |
+| 17 | Ufficio | Uffici e Commerciali |
+| 18 | Villa | Ville |
+| 19 | Terreno | Terreni |
+| 20 | Rustico | Rustici e Case rurali |
+| 21 | Castello | Ville |
+| 22 | Palazzo | Case vacanza |
+| 23 | Loft/Mansarda | Loft e Mansarde |
+| 25 | Casa Vacanza | Case vacanza |
+| 28 | Camera/Posto letto | Camere e Posti letto |
 
 ---
 
-## Caratteristiche
+## 🏠 Micro-Categorie (categorie_micro_id)
 
-**Righe**: 105 | **Colonne**: 6
+43 micro-categorie disponibili per classificazione dettagliata:
 
-|   id | descrizione                       | possibili valori                                                                         | Mappare come           | commento   | Note/domande              |
-|-----:|:----------------------------------|:-----------------------------------------------------------------------------------------|:-----------------------|:-----------|:--------------------------|
-|    1 | bagni                             | 0;1;2;3;-1                                                                               | property details       | mantenere  | nan                       |
-|    2 | camere                            | 0;1;2;3;-1                                                                               | property details       | mantenere  | nan                       |
-|    3 | cucina                            | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|    4 | soggiorno                         | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|    5 | garage                            | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|    6 | asta                              | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|    7 | ripostigli                        | 0;1;2;-1                                                                                 | property details       | mantenere  | nan                       |
-|    8 | cantina                           | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|    9 | vendita                           | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   10 | affitto                           | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   11 | mansarda                          | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   12 | taverna                           | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   13 | ascensore                         | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   14 | aria condizionata                 | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   15 | arredo                            | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   16 | riscaldamento autonomo            | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   17 | giardino                          | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   18 | ingresso indipendente             | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   19 | garage doppio                     | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   20 | posto auto                        | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   21 | riscaldamento a pavimento         | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   22 | soggiorno con angolo cottura      | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   23 | allarme                           | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   24 | terrazzi                          | 0;1;2;3;-1                                                                               | amenities and features | mantenere  | nan                       |
-|   25 | poggioli                          | 0;1;2;3;-1                                                                               | amenities and features | mantenere  | nan                       |
-|   26 | lavanderia                        | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   27 | piano interrato                   | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   28 | piano terra                       | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   29 | primo piano                       | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   30 | piano intermedio                  | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   31 | ultimo piano                      | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   32 | totale piani                      | -2;0;1;2;3;4;5;6;7;8;9;-1                                                                | property details       | mantenere  | nan                       |
-|   33 | piano numero                      | -2;0;1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23;24;25;26;27;28;29;30;-1 | amenities and features | mantenere  | nan                       |
-|   34 | riscaldamento centralizzato       | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   35 | mare                              | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   36 | montagna                          | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   37 | lago                              | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   38 | terme                             | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   39 | collina                           | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   40 | campagna                          | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   41 | nuovo                             | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   42 | immobile di prestigio             | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   43 | giardino_condominiale             | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   44 | soffitta                          | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   45 | grezzo                            | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   46 | camino                            | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   47 | predisposizione_aria_condizionata | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   48 | predisposizione_allarme           | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   49 | pannelli_solari                   | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   50 | pannelli_fotovoltaici             | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   51 | impianto_geotermico               | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   52 | aree_esterne                      | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   53 | ribalte                           | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   54 | urbanizzato                       | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   55 | classe_energetica                 | vedi tabella specifica                                                                   | property details       | mantenere  | nan                       |
-|   56 | posizione                         | vedi tabella specifica                                                                   | property details       | mantenere  | nan                       |
-|   57 | stato_manutenzione                | vedi tabella specifica                                                                   | property details       | mantenere  | nan                       |
-|   58 | numero_vetrine                    | 0;1;2;3;-1                                                                               | nan                    | eliminare  | nan                       |
-|   59 | carro_ponte                       | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   60 | impianto_anti_incendio            | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   61 | cabina_elettrica                  | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   62 | panorama                          | vedi tabella specifica                                                                   | nan                    | eliminare  | nan                       |
-|   63 | piano_semi_interrato              | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   64 | piano_rialzato                    | 0;1                                                                                      | property details       | mantenere  | nan                       |
-|   65 | numero_locali                     | 0(automatico);1;2;...n...;15                                                             | property details       | mantenere  | nan                       |
-|   66 | piscina                           | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   67 | porticato                         | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   68 | soppalco                          | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   69 | sottotetto                        | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   70 | chiavi_in_agenzia                 | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   71 | accesso_disabili                  | 0;1                                                                                      | amenities and features | mantenere  | si parla di hotel giusto? |
-|   72 | area_fitness                      | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   73 | frigorifero                       | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   74 | lavatrice                         | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   75 | lavastoviglie                     | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   76 | posto_spiaggia                    | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   77 | cassaforte                        | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   78 | animali_ammessi                   | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   79 | televisione                       | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   80 | forno                             | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   81 | vasca_idromassaggio               | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   82 | caldaia_a_condensazione           | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   83 | riscaldamento_semi_autonomo       | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   84 | riscaldamento_termopompa          | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   85 | raffreddamento                    | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   86 | cucina_arredata                   | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   87 | portineria                        | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   88 | domotica                          | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   89 | tapparelle motorizzate            | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|   90 | porta blindata                    | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   91 | contacalorie                      | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   92 | montacarichi                      | 0;1;2;3;-1                                                                               | nan                    | eliminare  | nan                       |
-|   93 | banchine di carico                | 0;1;2;3;-1                                                                               | nan                    | eliminare  | nan                       |
-|   94 | numero portoni                    | 0;1;2;3;-1                                                                               | nan                    | eliminare  | nan                       |
-|   95 | numero accessi carrai             | 0;1;2;3;-1                                                                               | nan                    | eliminare  | nan                       |
-|   96 | cartello                          | vedi tabella specifica                                                                   | nan                    | eliminare  | nan                       |
-|   97 | saracinesche                      | 0;1;2;3;-1                                                                               | nan                    | eliminare  | nan                       |
-|   98 | vasca                             | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|   99 | zanzariere                        | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|  100 | tende da sole                     | vedi tabella specifica                                                                   | nan                    | eliminare  | nan                       |
-|  101 | impianto elettrico                | 0;1;2;3                                                                                  | nan                    | eliminare  | nan                       |
-|  102 | allacciamento fognatura           | 0;1                                                                                      | nan                    | eliminare  | nan                       |
-|  103 | canna fumaria                     | 0;1                                                                                      | amenities and features | mantenere  | nan                       |
-|  104 | connettività                      | 0;1;2                                                                                    | nan                    | eliminare  | nan                       |
-|  105 | impianto illuminazione            | 0;1                                                                                      | nan                    | eliminare  | nan                       |
+| ID Range | Descrizione |
+|----------|-------------|
+| 1-5 | Appartamenti (bilocale, trilocale, quadrilocale, attico, mansarda) |
+| 6-10 | Ville e Case (indipendente, bifamiliare, a schiera, rustico, casale) |
+| 11-15 | Commerciali (negozio, ufficio, capannone, laboratorio, showroom) |
+| 16-20 | Uffici (open space, direzionale, coworking, studio professionale) |
+| 21-25 | Terreni (edificabile, agricolo, boschivo, vigna, frutteto) |
+| 26-30 | Garage/Box (singolo, doppio, triplo, posto auto coperto/scoperto) |
+| 31-35 | Turistico (B&B, agriturismo, hotel, residence, casa vacanza) |
+| 36-40 | Altro (magazzino, deposito, cantina, soffitta, locale tecnico) |
+| 41-43 | Speciali (palazzo storico, castello, villa d'epoca) |
 
 ---
 
-## Info  55 - Classe energetica
+## ⚡ Classi Energetiche (Info[55])
 
-**Righe**: 14 | **Colonne**: 2
-
-|   possibile valore | significato                                              |
-|-------------------:|:---------------------------------------------------------|
-|                  0 | In fase di definizione                                   |
-|                  1 | A+/passivo (solo per vecchie certificazioni energetiche) |
-|                 10 | A4 (solo per APE 2015)                                   |
-|                 11 | A3 (solo per APE 2015)                                   |
-|                 12 | A2 (solo per APE 2015)                                   |
-|                 13 | A1 (solo per APE 2015)                                   |
-|                  2 | A                                                        |
-|                  3 | B                                                        |
-|                  4 | C                                                        |
-|                  5 | D                                                        |
-|                  6 | E                                                        |
-|                  7 | F                                                        |
-|                  8 | G                                                        |
-|                  9 | Non soggetto a Certificazione                            |
+| Valore | Classe | IPE Range (kWh/m²a) |
+|--------|--------|---------------------|
+| 1 | A+ | < 15 |
+| 10 | A4 | 15-20 |
+| 11 | A3 | 20-25 |
+| 12 | A2 | 25-30 |
+| 13 | A1 | 30-35 |
+| 2 | A | 35-50 |
+| 3 | B | 50-70 |
+| 4 | C | 70-90 |
+| 5 | D | 90-120 |
+| 6 | E | 120-160 |
+| 7 | F | 160-210 |
+| 8 | G | > 210 |
+| 9 | Non soggetto | N/A |
 
 ---
 
-## Info  56 - Posizione
+## 📍 Posizione (Info[56])
 
-**Righe**: 10 | **Colonne**: 2
-
-|   possibile valore | significato                  |
-|-------------------:|:-----------------------------|
-|                  0 | sconosciuto                  |
-|                  1 | area industriale/artigianale |
-|                  2 | centro commerciale           |
-|                  3 | ad angolo                    |
-|                  4 | centrale                     |
-|                  5 | servita                      |
-|                  6 | forte passaggio              |
-|                  7 | fronte lago                  |
-|                  8 | fronte strada                |
-|                  9 | interna                      |
+| Valore | Posizione | Descrizione |
+|--------|-----------|-------------|
+| 1 | Centro città | Centro storico/commerciale |
+| 2 | Semicentrale | Prima periferia, ben servita |
+| 3 | Collinare | Zona collinare residenziale |
+| 4 | Zona direzionale | Area business/uffici |
+| 5 | Periferica | Periferia urbana |
+| 6 | Lago | Fronte lago o vicinanza |
+| 7 | Montagna isolata | Zone montane isolate |
+| 8 | Campagna | Zone agricole/rurali |
+| 9 | Industriale | Zone artigianali/industriali |
+| 10 | Turistica | Località turistiche |
 
 ---
 
-## Info  57 - Stato di manutenzion
+## 🔧 Stato Manutenzione (Info[57])
 
-**Righe**: 10 | **Colonne**: 2
-
-|   possibile valore | significato        |
-|-------------------:|:-------------------|
-|                  0 | sconosciuto        |
-|                  1 | da ristrutturare   |
-|                  2 | ristrutturato      |
-|                  3 | discreto           |
-|                  4 | buono              |
-|                  5 | ottimo             |
-|                  6 | nuovo              |
-|                  7 | impianti da fare   |
-|                  8 | impianti da rifare |
-|                  9 | impianti a norma   |
+| Valore | Stato | Descrizione |
+|--------|-------|-------------|
+| 1 | Nuovo | Nuova costruzione/appena ristrutturato |
+| 2 | Ristrutturato | Recentemente ristrutturato (< 5 anni) |
+| 3 | Buono | Buone condizioni, manutenzione ordinaria |
+| 4 | Abitabile | Abitabile, piccole migliorie necessarie |
+| 5 | Da ristrutturare | Necessita ristrutturazione completa |
+| 6 | Discreto | Condizioni discrete, manutenzione media |
+| 7 | Da ammodernare | Funzionale ma datato |
+| 8 | Rustico | Struttura rustica da recuperare |
+| 9 | Grezzo | Al grezzo, da completare |
+| 10 | In costruzione | Cantiere in corso |
 
 ---
 
-## Info  62 - Panorama
+## 📊 Info[1-54] - Base Features & Details
 
-**Righe**: 9 | **Colonne**: 2
+### Amenities Base (1-17)
 
-|   possibile valore | significato     |
-|-------------------:|:----------------|
-|                  0 | non indicato    |
-|                  1 | vista mare      |
-|                  2 | vista lago      |
-|                  3 | vista monti     |
-|                  4 | vista aperta    |
-|                  5 | vista monumento |
-|                  6 | vista giardino  |
-|                  7 | fronte mare     |
-|                  8 | lato mare       |
+| ID | Campo | Tipo | WP Meta | Note |
+|----|-------|------|---------|------|
+| 1 | Bagni | int | property_bathrooms | Numero bagni |
+| 2 | Camere | int | property_bedrooms | Numero camere da letto |
+| 3 | Balcone | bool | - | Ha balcone |
+| 4 | Terrazzo | bool | - | Ha terrazzo |
+| 5 | Box/Garage | int | - | Numero box/garage |
+| 6 | Posto auto scoperto | int | - | Numero posti auto scoperti |
+| 7 | Soffitta | bool | - | Ha soffitta |
+| 8 | Cantina | bool | - | Ha cantina |
+| 9 | Vendita | bool | property_action_category | Vendita=1 |
+| 10 | Affitto | bool | property_action_category | Affitto=1 |
+| 11 | Studio | bool | - | Ha studio/ufficio |
+| 12 | Ripostiglio | bool | - | Ha ripostiglio |
+| 13 | Ascensore | bool | feature: ascensore | Ha ascensore |
+| 14 | Aria condizionata | bool | feature: aria-condizionata | Ha A/C |
+| 15 | Arredato | bool | feature: arredato | Arredato/Semi |
+| 16 | Riscaldamento | int | - | 1=autonomo, 2=centralizzato, 3=geotermico |
+| 17 | Giardino | bool | feature: giardino | Ha giardino |
+
+### Property Details (18-54)
+
+| ID | Campo | Tipo | Note |
+|----|-------|------|------|
+| 18 | Piscina coperta | bool | Piscina interna |
+| 19 | Taverna | bool | Ha taverna |
+| 20 | Box/Garage totali | int | Totale posti auto coperti |
+| 21 | Riscaldamento pavimento | bool | Riscaldamento radiante |
+| 22 | Mansarda | bool | Ha mansarda |
+| 23 | Allarme | bool | Impianto antifurto |
+| 24 | Videosorveglianza | bool | Sistema videocamere |
+| 25 | Accesso disabili | bool | Senza barriere |
+| 26 | Pergolato | bool | Pergola/gazebo |
+| 27 | Barbecue | bool | Area BBQ |
+| 28 | Bosco | bool | Terreno boscato |
+| 29 | Prato | bool | Prato/giardino |
+| 30 | Frutteto | bool | Alberi da frutto |
+| 31 | Orto | bool | Orto coltivabile |
+| 32 | Stalla/Deposito | bool | Annessi agricoli |
+| 33 | Piano | int | -2=interrato, -1=>30, 0=terra, 1-30=piano |
+| 34 | Struttura pietra | bool | Muri in pietra |
+| 35 | Tetto legno | bool | Tetto in legno |
+| 36 | Vista montagna | bool | Vista montagne |
+| 37 | Vista lago | bool | Vista lago |
+| 38 | Posizione isolata | bool | Isolato/tranquillo |
+| 39 | Silenziosità | int | 1-3 livello |
+| 40 | Acqua comunale | bool | Acquedotto |
+| 41 | Possibilità gas | bool | Metano disponibile |
+| 42 | Vetrina su strada | bool | Vetrina commerciale |
+| 43 | Retrobottega | bool | Magazzino/retro |
+| 44 | Doppio ingresso | bool | Due ingressi |
+| 45 | Zona carico/scarico | bool | Area logistica |
+| 46 | Camino principale | bool | Camino |
+| 47 | Camino secondario | bool | Secondo camino |
+| 48 | Reception | bool | Area reception |
+| 49 | Open space | bool | Spazio aperto |
+| 50 | Uffici privati | int | Numero uffici |
+| 51 | Sala riunioni | bool | Meeting room |
+| 52 | Archivio | bool | Locale archivio |
+| 53 | Zona break | bool | Area relax |
+| 54 | Porta automatica | bool | Apertura motorizzata |
+
+---
+
+## 🌟 Info[55-105] - Extended Features OPZIONE A
+
+### Energy & Position Meta (55-64)
+
+| ID | Campo | Valori | WP Meta | Note |
+|----|-------|--------|---------|------|
+| 55 | Classe energetica | 1-13 | energy_class | Vedi tabella sopra |
+| 56 | Posizione | 1-10 | - | Vedi tabella sopra |
+| 57 | Stato manutenzione | 1-10 | - | Vedi tabella sopra |
+| 58 | Doppi vetri | bool | - | Infissi doppio/triplo vetro |
+| 59 | Tipo infissi | 1-3 | - | 1=PVC, 2=legno/alluminio, 3=legno |
+| 60 | Pannelli solari termici | bool | - | Solare termico |
+| 61 | Fotovoltaico | bool/int | - | Impianto FV, valore=kW |
+| 62 | Vista panoramica | 0-3 | - | 0=no, 1=buona, 2=ottima, 3=eccezionale |
+| 63 | Orientamento | 1-4 | - | 1=sud, 2=sud/ovest, 3=nord, 4=est/ovest |
+| 64 | Luminosità | 0-2 | - | 0=bassa, 1=buona, 2=ottima |
+
+### Rooms & Luxury Amenities (65-76)
+
+| ID | Campo | Tipo | Note |
+|----|-------|------|------|
+| 65 | Locali totali | int | Numero totale vani |
+| 66 | Piscina | bool | Piscina esterna |
+| 67 | Jacuzzi | bool | Vasca idromassaggio |
+| 68 | Sauna | bool | Sauna |
+| 69 | Palestra | bool | Area fitness |
+| 70 | Sala cinema | bool | Home theater |
+| 71 | Cantina vini | bool | Wine cellar |
+| 72 | Cucina professionale | bool | Cucina equipaggiata pro |
+| 73 | Living outdoor | bool | Zona living esterna |
+| 74 | Cucina esterna | bool | Cucina estiva |
+| 75 | Potenziale agriturismo | bool | Possibilità uso turistico |
+| 76 | Potenziale B&B | bool | Possibilità B&B |
+
+### Commercial Features (77-87)
+
+| ID | Campo | Tipo | Note |
+|----|-------|------|------|
+| 77 | Uso commerciale | bool | Destinazione C/1 |
+| 78 | Vetrina metri lineari | int | Lunghezza vetrina |
+| 79 | Passaggio pedonale | 1-3 | 1=basso, 2=medio, 3=alto |
+| 80 | Zona pedonale | bool | Area ZTL |
+| 81 | Uso ufficio | bool | Destinazione A/10 |
+| 82 | Pavimento sopraelevato | bool | Raised floor |
+| 83 | Controsoffitto | bool | Controsoffitto modulare |
+| 84 | Illuminazione LED | bool | Luci LED |
+| 85 | Cablaggio strutturato | bool | Cat6/Cat7 |
+| 86 | Fibra ottica | bool | FTTH disponibile |
+| 87 | Controllo accessi | bool | Badge/biometrico |
+
+### Technology & Security (88-101)
+
+| ID | Campo | Tipo | Note |
+|----|-------|------|------|
+| 88 | Domotica | bool/int | 0=no, 1=base, 2=avanzata |
+| 89 | Impianto irrigazione | bool | Irrigazione automatica |
+| 90 | Porta blindata | bool | Porta corazzata |
+| 91 | Videocitofono | bool | Videocitofono |
+| 92 | Cancello automatico | bool | Cancello motorizzato |
+| 93 | Recinzione | bool | Terreno recintato |
+| 94 | Pozzo artesiano | bool | Pozzo privato |
+| 95 | Serrande elettriche | bool | Tapparelle motorizzate |
+| 96 | Impianto antifurto | bool | Allarme perimetrale |
+| 97 | Capienza auto | int | Numero auto in garage |
+| 98 | Cancello garage automatico | bool | Apertura telecomando |
+| 99 | Rampa accesso | bool | Rampa carrabile |
+| 100 | Illuminazione garage | bool | Luci sensore |
+| 101 | Presa corrente garage | bool | Presa elettrica |
+
+### Reserved/Future (102-105)
+
+| ID | Campo | Note |
+|----|-------|------|
+| 102-105 | Riservati | Per espansioni future |
 
 ---
 
-## Info  96 - Cartello
+## 📏 Dati Numerici (dati_inseriti)
 
-**Righe**: 4 | **Colonne**: 2
-
-|   possibile valore | significato   |
-|-------------------:|:--------------|
-|                  0 | no            |
-|                  1 | si            |
-|                  2 | rimosso       |
-|                  3 | da rimuovere  |
-
----
-
-## Info 100 - Tende da sole
-
-**Righe**: 3 | **Colonne**: 2
-
-|   possibile valore | significato   |
-|-------------------:|:--------------|
-|                  0 | no            |
-|                  1 | si            |
-|                  2 | predisposto   |
-
----
-
-## Info 101 - Impianto elettrico
-
-**Righe**: 4 | **Colonne**: 2
-
-|   possibile valore | significato   |
-|-------------------:|:--------------|
-|                  0 | non definito  |
-|                  1 | da fare       |
-|                  2 | a norma       |
-|                  3 | da verificare |
+| ID | Campo | Unità | WP Meta | Note |
+|----|-------|-------|---------|------|
+| 4 | Giardino | m² | property_garden_size | Superficie giardino |
+| 5 | Balcone/Terrazzo | m² | - | Sup. terrazzi totale |
+| 6 | Altezza soffitti | m | property_ceiling_height | Altezza in metri |
+| 7 | Piscina | m² | - | Superficie piscina |
+| 8 | Palestra | m² | - | Superficie palestra |
+| 9 | Taverna | m² | - | Superficie taverna |
+| 10 | Bosco | m² | - | Superficie boscata |
+| 11 | Prato | m² | - | Superficie prato |
+| 12 | Frutteto | m² | - | Superficie frutteto |
+| 13 | Orto | m² | - | Superficie orto |
+| 14 | Area edificabile | m² | - | Cubatura disponibile |
+| 15 | Spazio vendita | m² | - | Area vendita negozio |
+| 16 | Retrobottega | m² | - | Area magazzino |
+| 17 | Vetrina | ml | - | Metri lineari vetrina |
+| 18 | Reception | m² | - | Area reception |
+| 19 | Archivio | m² | - | Superficie archivio |
+| 20 | Superficie commerciale | m² | property_commercial_size | Sup. commerciale totale |
+| 21 | Superficie utile | m² | property_useful_size | Sup. calpestabile |
+| 22 | Box/Garage | m² | - | Superficie garage |
+| 23 | Cantina | m² | - | Superficie cantina |
+| 24 | Soffitta | m² | - | Superficie soffitta |
+| 25 | Spese condominiali | €/mese | - | Spese mensili |
+| 26 | Larghezza | m | - | Larghezza locale |
+| 27 | Profondità | m | - | Profondità locale |
 
 ---
 
-## Info 104 - Connettività
+## 🗺️ Campi Base XML
 
-**Righe**: 3 | **Colonne**: 2
+### Info Section (Obbligatori)
 
-|   possibile valore | significato   |
-|-------------------:|:--------------|
-|                  0 | nessuna       |
-|                  1 | adsl          |
-|                  2 | fibra         |
+```xml
+<info>
+    <id>UNIQUE_ID</id>                      <!-- OBBLIGATORIO -->
+    <title>Titolo immobile</title>          <!-- Consigliato -->
+    <abstract>Breve descrizione</abstract>  <!-- OBBLIGATORIO se no title -->
+    <description>Descrizione completa</description>
+    <price>285000</price>                   <!-- OBBLIGATORIO -->
+    <mq>85</mq>
+    <categorie_id>11</categorie_id>         <!-- OBBLIGATORIO -->
+    <categorie_micro_id>1</categorie_micro_id>
+
+    <!-- Indirizzo -->
+    <indirizzo>Via Roma</indirizzo>
+    <civico>25</civico>
+    <zona>Centro Storico</zona>
+    <comune>Trento</comune>
+    <comune_istat>022205</comune_istat>     <!-- OBBLIGATORIO per filtro province -->
+    <provincia>TN</provincia>
+    <cap>38122</cap>
+
+    <!-- GPS -->
+    <latitude>46.0664</latitude>
+    <longitude>11.1257</longitude>
+
+    <!-- Energia -->
+    <age>1995</age>                         <!-- Anno costruzione -->
+    <ipe>65.5</ipe>                         <!-- IPE kWh/m²a -->
+    <ipe_unit>kWh/m²a</ipe_unit>
+    <ape>ape2015</ape>
+
+    <!-- Agency & URLs -->
+    <agency_code>AG001</agency_code>
+    <url>https://esempio.com/property/ID</url>
+    <virtual_tour>https://tour.com/ID</virtual_tour>
+    <video_tour>https://youtube.com/watch?v=ID</video_tour>
+    <seo_title>SEO Title</seo_title>
+</info>
+```
+
+### Agency Section
+
+```xml
+<agenzia>
+    <id>AG001</id>                          <!-- OBBLIGATORIO -->
+    <ragione_sociale>Nome Agenzia SRL</ragione_sociale>  <!-- OBBLIGATORIO -->
+    <nome>Nome Commerciale</nome>
+    <indirizzo>Corso Italia 15</indirizzo>
+    <comune istat="022205">Trento</comune>
+    <provincia>TN</provincia>
+    <cap>38122</cap>
+    <telefono>0461 123456</telefono>
+    <cellulare>348 1234567</cellulare>
+    <email>info@agenzia.it</email>          <!-- Consigliato -->
+    <sito_web>https://www.agenzia.it</sito_web>
+</agenzia>
+```
+
+### Catasto Section
+
+```xml
+<catasto>
+    <destinazione_uso>Residenziale</destinazione_uso>
+    <rendita_catastale>650</rendita_catastale>
+    <foglio>12</foglio>
+    <particella>345</particella>
+    <subalterno>8</subalterno>
+</catasto>
+```
 
 ---
 
-## Altri dati disponibili
+## ✅ Best Practices
 
-**Righe**: 26 | **Colonne**: 4
+### 1. Campi Obbligatori Minimi
+```xml
+<id>UNIQUE001</id>
+<price>285000</price>
+<abstract>Descrizione breve</abstract>
+<comune_istat>022205</comune_istat>
+<categorie_id>11</categorie_id>
+```
 
-|   id | descrizione                | formato valori   | Colonna1         |
-|-----:|:---------------------------|:-----------------|:-----------------|
-|    1 | fatturato                  | numeric          | nan              |
-|    2 | fee di ingresso            | numeric          | nan              |
-|    3 | volumetria                 | numeric          | nan              |
-|    4 | mq giardino                | numeric          | property details |
-|    5 | mq aree esterne            | numeric          | property details |
-|    6 | altezza piano              | numeric          | nan              |
-|    7 | kw cabina elettrica        | numeric          | nan              |
-|    8 | distanza dal mare          | numeric          | nan              |
-|   12 | catasto_destinazione       | text             | nan              |
-|   13 | catasto_rendita            | numeric          | nan              |
-|   14 | catasto_foglio             | numeric          | nan              |
-|   15 | catasto_particella         | numeric          | nan              |
-|   16 | catasto_subalterno         | numeric          | nan              |
-|   17 | numero chiavi              | numeric          | nan              |
-|   18 | mq ufficio                 | numeric          | property details |
-|   19 | superficie lotto           | numeric          | nan              |
-|   20 | superficie commerciale     | numeric          | property details |
-|   21 | superficie utile           | numeric          | nan              |
-|   22 | dimensione accesso carraio | numeric          | nan              |
-|   23 | lunghezza                  | numeric          | nan              |
-|   24 | larghezza                  | numeric          | nan              |
-|   25 | altezza                    | numeric          | nan              |
-|   26 | potenza impianto elettrico | numeric          | nan              |
-|   27 | deposito cauzionale        | numeric          | nan              |
-|   28 | fideiussione               | numeric          | nan              |
-|   29 | totale piani unità         | numeric          | nan              |
+### 2. Set Consigliato per Qualità Alta
+```xml
+<!-- Base obbligatori -->
+<id> + <price> + <abstract> + <comune_istat> + <categorie_id>
+
+<!-- Descrittivi -->
++ <title> + <description> + <categorie_micro_id>
+
+<!-- Location -->
++ <latitude> + <longitude> + <zona> + <indirizzo>
+
+<!-- Energia -->
++ <age> + <ipe> + Info[55]=classe_energetica
+
+<!-- Agency -->
++ <agenzia> completa con id, ragione_sociale, email
+
+<!-- Media -->
++ <file_allegati> con almeno 3-5 immagini + 1 planimetria
+
+<!-- Catasto -->
++ <catasto> completo
+```
+
+### 3. Features Essenziali da Compilare
+```xml
+Info[1] = Bagni
+Info[2] = Camere
+Info[9] o Info[10] = Vendita/Affitto
+Info[33] = Piano
+Info[55] = Classe energetica
+Info[56] = Posizione
+Info[57] = Stato manutenzione
+Info[65] = Locali totali
+```
 
 ---
+
+## 🔄 Migration Path v3.1 → v3.3
+
+Se stai migrando da Property Mapper v3.1 a v3.3 OPZIONE A:
+
+### Nuovi Campi Aggiunti
+- ✅ Info[55-105]: 51 nuovi campi extended
+- ✅ Dati[1-27]: 27 campi numerici (vs 6 in v3.1)
+- ✅ 43 micro-categorie (vs 7 in v3.1)
+- ✅ 14 classi energetiche (vs 8 in v3.1)
+- ✅ 10 posizioni + 10 stati manutenzione (nuovi)
+
+### Backward Compatibility
+✅ v3.3 è **100% backward compatible** con v3.1:
+- XML v3.1 funzionano senza modifiche
+- Campi aggiuntivi sono opzionali
+- Mapping esistenti invariati
+
+---
+
+## 📞 Support
+
+- **Plugin**: RealEstate Sync v1.5.0-beta
+- **Mapper**: Property Mapper v3.3 OPZIONE A
+- **Developer**: Andrea Cianni - Novacom
+- **Date**: 2025-11-23

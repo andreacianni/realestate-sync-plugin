@@ -1,0 +1,797 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    RealEstate Sync Plugin - Property Mapper v3.3 OPZIONE A
+    Test Completo - 80+ Nuovi Campi
+
+    Questo file testa TUTTE le funzionalità di Property Mapper v3.3:
+    - 43 micro-categorie diverse
+    - 10 valori Info[57] Stato Manutenzione
+    - 10 valori Info[56] Posizione
+    - 14 classi energetiche
+    - Info[1-54]: 17 amenities + 17 property details
+    - Info[55-105]: 16 amenities + 27 property details
+
+    7 Proprietà di test complete
+-->
+<dataset>
+
+    <!-- ========================================
+         PROPERTY 1: APPARTAMENTO MODERNO - Test Base Features + Energy Class A+
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE001</id>
+            <title>Appartamento Centro Trento - Classe A+</title>
+            <abstract>Moderno appartamento 85mq, classe A+, vista montagne</abstract>
+            <description><![CDATA[Splendido appartamento moderno di 85 mq nel cuore di Trento. Completamente ristrutturato nel 2022 con criteri di massima efficienza energetica (Classe A+). Dotato di impianto fotovoltaico, riscaldamento a pavimento, domotica completa. Ampio soggiorno con cucina open space, 2 camere matrimoniali, 2 bagni, balcone panoramico con vista sulle Dolomiti. Cantina e posto auto coperto inclusi.]]></description>
+            <price>385000</price>
+            <mq>85</mq>
+            <categorie_id>11</categorie_id>
+            <categorie_micro_id>1</categorie_micro_id>
+            <indirizzo>Piazza Duomo</indirizzo>
+            <civico>12</civico>
+            <zona>Centro Storico</zona>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <latitude>46.0664</latitude>
+            <longitude>11.1257</longitude>
+            <age>2022</age>
+            <agency_code>TI-AG001</agency_code>
+            <url>https://esempio.com/property/COMPLETE001</url>
+            <ipe>18.5</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>ape2015</ape>
+            <virtual_tour>https://esempio.com/tour3d/COMPLETE001</virtual_tour>
+            <video_tour>https://youtube.com/watch?v=COMPLETE001</video_tour>
+            <seo_title>Appartamento Classe A+ Centro Trento - Vista Dolomiti</seo_title>
+        </info>
+
+        <info_inserite>
+            <!-- AMENITIES Base [1-17] -->
+            <info id="1"><valore_assegnato>2</valore_assegnato></info> <!-- Bagni -->
+            <info id="2"><valore_assegnato>2</valore_assegnato></info> <!-- Camere da letto -->
+            <info id="3"><valore_assegnato>1</valore_assegnato></info> <!-- Balcone -->
+            <info id="5"><valore_assegnato>1</valore_assegnato></info> <!-- Box/Garage -->
+            <info id="8"><valore_assegnato>1</valore_assegnato></info> <!-- Cantina -->
+            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
+            <info id="10"><valore_assegnato>0</valore_assegnato></info> <!-- Affitto -->
+            <info id="13"><valore_assegnato>1</valore_assegnato></info> <!-- Ascensore -->
+            <info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- Aria condizionata -->
+            <info id="15"><valore_assegnato>0</valore_assegnato></info> <!-- Arredato -->
+            <info id="16"><valore_assegnato>1</valore_assegnato></info> <!-- Riscaldamento autonomo -->
+            <info id="17"><valore_assegnato>0</valore_assegnato></info> <!-- Giardino -->
+
+            <!-- PROPERTY DETAILS [18-54] -->
+            <info id="20"><valore_assegnato>1</valore_assegnato></info> <!-- Box o garage -->
+            <info id="21"><valore_assegnato>1</valore_assegnato></info> <!-- Riscaldamento a pavimento -->
+            <info id="23"><valore_assegnato>1</valore_assegnato></info> <!-- Allarme -->
+            <info id="33"><valore_assegnato>4</valore_assegnato></info> <!-- Piano 4° -->
+            <info id="46"><valore_assegnato>0</valore_assegnato></info> <!-- Camino -->
+
+            <!-- EXTENDED FEATURES [55-105] -->
+            <info id="55"><valore_assegnato>1</valore_assegnato></info> <!-- Classe energetica A+ -->
+            <info id="56"><valore_assegnato>1</valore_assegnato></info> <!-- Posizione: Centro città -->
+            <info id="57"><valore_assegnato>1</valore_assegnato></info> <!-- Stato: Nuovo/Ristrutturato -->
+            <info id="58"><valore_assegnato>1</valore_assegnato></info> <!-- Doppi vetri -->
+            <info id="59"><valore_assegnato>1</valore_assegnato></info> <!-- Infissi PVC -->
+            <info id="60"><valore_assegnato>1</valore_assegnato></info> <!-- Pannelli solari -->
+            <info id="61"><valore_assegnato>1</valore_assegnato></info> <!-- Fotovoltaico -->
+            <info id="62"><valore_assegnato>2</valore_assegnato></info> <!-- Vista panoramica: Eccellente -->
+            <info id="65"><valore_assegnato>4</valore_assegnato></info> <!-- Locali totali -->
+            <info id="88"><valore_assegnato>1</valore_assegnato></info> <!-- Domotica -->
+            <info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- Porta blindata -->
+            <info id="91"><valore_assegnato>1</valore_assegnato></info> <!-- Videocitofono -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="4"><valore_assegnato>0</valore_assegnato></dati> <!-- Giardino mq -->
+            <dati id="5"><valore_assegnato>15</valore_assegnato></dati> <!-- Balcone/terrazzo mq -->
+            <dati id="6"><valore_assegnato>2.85</valore_assegnato></dati> <!-- Altezza soffitti m -->
+            <dati id="20"><valore_assegnato>95</valore_assegnato></dati> <!-- Superficie commerciale -->
+            <dati id="21"><valore_assegnato>85</valore_assegnato></dati> <!-- Superficie utile -->
+            <dati id="22"><valore_assegnato>18</valore_assegnato></dati> <!-- Box/garage mq -->
+            <dati id="23"><valore_assegnato>8</valore_assegnato></dati> <!-- Cantina mq -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE001_living.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE001_kitchen.jpg</file_path></allegato>
+            <allegato id="3" type="image"><file_path>https://esempio.com/img/COMPLETE001_bedroom1.jpg</file_path></allegato>
+            <allegato id="4" type="image"><file_path>https://esempio.com/img/COMPLETE001_bedroom2.jpg</file_path></allegato>
+            <allegato id="5" type="image"><file_path>https://esempio.com/img/COMPLETE001_bathroom.jpg</file_path></allegato>
+            <allegato id="6" type="image"><file_path>https://esempio.com/img/COMPLETE001_balcony.jpg</file_path></allegato>
+            <allegato id="7" type="planimetria"><file_path>https://esempio.com/img/COMPLETE001_plan.pdf</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Residenziale</destinazione_uso>
+            <rendita_catastale>850</rendita_catastale>
+            <foglio>25</foglio>
+            <particella>487</particella>
+            <subalterno>12</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG001</id>
+            <ragione_sociale>Trentino Immobiliare Excellence SRL</ragione_sociale>
+            <nome>Trentino Immobiliare</nome>
+            <indirizzo>Corso del Lavoro e della Scienza 3</indirizzo>
+            <comune istat="022205">Trento</comune>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <telefono>0461 234567</telefono>
+            <cellulare>348 1234567</cellulare>
+            <email>info@trentinoimmobiliare.it</email>
+            <sito_web>https://www.trentinoimmobiliare.it</sito_web>
+        </agenzia>
+    </annuncio>
+
+    <!-- ========================================
+         PROPERTY 2: VILLA LUSSO - Test Piscina + Garden + Energy Class A4
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE002</id>
+            <title>Villa di Prestigio con Piscina - Classe A4</title>
+            <abstract>Esclusiva villa 350mq con piscina riscaldata, giardino 1200mq, 5 camere</abstract>
+            <description><![CDATA[Prestigiosa villa di lusso di 350 mq su tre livelli, immersa in un parco privato di 1200 mq con magnifica piscina riscaldata (12x6m) e zona relax. Architettura moderna con ampie vetrate, 5 camere da letto, 4 bagni, salone triplo con camino, cucina professionale, taverna con sala cinema, cantina vini, palestra. Garage triplo, sistema domotico avanzato, impianto fotovoltaico 12kW. Classe energetica A4 CasaClima. Vista panoramica sulle Dolomiti di Brenta.]]></description>
+            <price>1450000</price>
+            <mq>350</mq>
+            <categorie_id>18</categorie_id>
+            <categorie_micro_id>5</categorie_micro_id>
+            <indirizzo>Via Belvedere</indirizzo>
+            <civico>88</civico>
+            <zona>Collina Residenziale</zona>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38123</cap>
+            <latitude>46.0850</latitude>
+            <longitude>11.1450</longitude>
+            <age>2020</age>
+            <agency_code>TI-AG001</agency_code>
+            <url>https://esempio.com/property/COMPLETE002</url>
+            <ipe>15.2</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>casaclima_oro</ape>
+            <virtual_tour>https://esempio.com/tour3d/COMPLETE002</virtual_tour>
+            <video_tour>https://youtube.com/watch?v=COMPLETE002</video_tour>
+            <seo_title>Villa Lusso Piscina Trento - 5 Camere Giardino 1200mq CasaClima A4</seo_title>
+        </info>
+
+        <info_inserite>
+            <!-- AMENITIES -->
+            <info id="1"><valore_assegnato>4</valore_assegnato></info> <!-- Bagni -->
+            <info id="2"><valore_assegnato>5</valore_assegnato></info> <!-- Camere -->
+            <info id="3"><valore_assegnato>2</valore_assegnato></info> <!-- Balconi -->
+            <info id="4"><valore_assegnato>1</valore_assegnato></info> <!-- Terrazzo -->
+            <info id="5"><valore_assegnato>3</valore_assegnato></info> <!-- 3 Box -->
+            <info id="6"><valore_assegnato>1</valore_assegnato></info> <!-- Posto auto scoperto -->
+            <info id="7"><valore_assegnato>1</valore_assegnato></info> <!-- Soffitta -->
+            <info id="8"><valore_assegnato>1</valore_assegnato></info> <!-- Cantina -->
+            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
+            <info id="13"><valore_assegnato>1</valore_assegnato></info> <!-- Ascensore interno -->
+            <info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- Aria condizionata -->
+            <info id="15"><valore_assegnato>1</valore_assegnato></info> <!-- Arredato parziale -->
+            <info id="16"><valore_assegnato>2</valore_assegnato></info> <!-- Riscaldamento: geotermico -->
+            <info id="17"><valore_assegnato>1</valore_assegnato></info> <!-- Giardino -->
+
+            <!-- PROPERTY DETAILS -->
+            <info id="18"><valore_assegnato>1</valore_assegnato></info> <!-- Piscina coperta -->
+            <info id="19"><valore_assegnato>1</valore_assegnato></info> <!-- Taverna -->
+            <info id="20"><valore_assegnato>3</valore_assegnato></info> <!-- 3 Box -->
+            <info id="21"><valore_assegnato>1</valore_assegnato></info> <!-- Riscaldamento pavimento -->
+            <info id="22"><valore_assegnato>1</valore_assegnato></info> <!-- Mansarda -->
+            <info id="23"><valore_assegnato>1</valore_assegnato></info> <!-- Allarme perimetrale -->
+            <info id="24"><valore_assegnato>1</valore_assegnato></info> <!-- Videosorveglianza -->
+            <info id="25"><valore_assegnato>1</valore_assegnato></info> <!-- Accesso disabili -->
+            <info id="33"><valore_assegnato>0</valore_assegnato></info> <!-- Piano: terra + 2 -->
+            <info id="36"><valore_assegnato>1</valore_assegnato></info> <!-- Vista montagna -->
+            <info id="37"><valore_assegnato>0</valore_assegnato></info> <!-- Vista lago -->
+            <info id="46"><valore_assegnato>1</valore_assegnato></info> <!-- Camino principale -->
+            <info id="47"><valore_assegnato>1</valore_assegnato></info> <!-- Camino secondario -->
+
+            <!-- EXTENDED FEATURES [55-105] -->
+            <info id="55"><valore_assegnato>10</valore_assegnato></info> <!-- Classe A4 -->
+            <info id="56"><valore_assegnato>3</valore_assegnato></info> <!-- Posizione: Collinare -->
+            <info id="57"><valore_assegnato>1</valore_assegnato></info> <!-- Stato: Nuovo -->
+            <info id="58"><valore_assegnato>1</valore_assegnato></info> <!-- Doppi vetri -->
+            <info id="59"><valore_assegnato>2</valore_assegnato></info> <!-- Infissi legno/alluminio -->
+            <info id="60"><valore_assegnato>1</valore_assegnato></info> <!-- Pannelli solari termici -->
+            <info id="61"><valore_assegnato>1</valore_assegnato></info> <!-- Fotovoltaico 12kW -->
+            <info id="62"><valore_assegnato>3</valore_assegnato></info> <!-- Vista: Spettacolare -->
+            <info id="63"><valore_assegnato>1</valore_assegnato></info> <!-- Orientamento: Sud -->
+            <info id="64"><valore_assegnato>1</valore_assegnato></info> <!-- Luminosità: Eccellente -->
+            <info id="65"><valore_assegnato>12</valore_assegnato></info> <!-- Locali totali -->
+            <info id="66"><valore_assegnato>1</valore_assegnato></info> <!-- Piscina -->
+            <info id="67"><valore_assegnato>1</valore_assegnato></info> <!-- Jacuzzi -->
+            <info id="68"><valore_assegnato>1</valore_assegnato></info> <!-- Sauna -->
+            <info id="69"><valore_assegnato>1</valore_assegnato></info> <!-- Palestra -->
+            <info id="70"><valore_assegnato>1</valore_assegnato></info> <!-- Sala cinema -->
+            <info id="71"><valore_assegnato>1</valore_assegnato></info> <!-- Cantina vini -->
+            <info id="72"><valore_assegnato>1</valore_assegnato></info> <!-- Cucina professionale -->
+            <info id="88"><valore_assegnato>1</valore_assegnato></info> <!-- Domotica avanzata -->
+            <info id="89"><valore_assegnato>1</valore_assegnato></info> <!-- Impianto irrigazione -->
+            <info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- Porta blindata -->
+            <info id="91"><valore_assegnato>1</valore_assegnato></info> <!-- Videocitofono -->
+            <info id="92"><valore_assegnato>1</valore_assegnato></info> <!-- Cancello automatico -->
+            <info id="93"><valore_assegnato>1</valore_assegnato></info> <!-- Recinzione -->
+            <info id="94"><valore_assegnato>1</valore_assegnato></info> <!-- Pozzo artesiano -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="4"><valore_assegnato>1200</valore_assegnato></dati> <!-- Giardino mq -->
+            <dati id="5"><valore_assegnato>80</valore_assegnato></dati> <!-- Terrazzi mq -->
+            <dati id="6"><valore_assegnato>3.50</valore_assegnato></dati> <!-- Altezza soffitti -->
+            <dati id="7"><valore_assegnato>72</valore_assegnato></dati> <!-- Piscina mq -->
+            <dati id="8"><valore_assegnato>25</valore_assegnato></dati> <!-- Palestra mq -->
+            <dati id="9"><valore_assegnato>35</valore_assegnato></dati> <!-- Taverna mq -->
+            <dati id="20"><valore_assegnato>420</valore_assegnato></dati> <!-- Sup. commerciale -->
+            <dati id="21"><valore_assegnato>350</valore_assegnato></dati> <!-- Sup. utile -->
+            <dati id="22"><valore_assegnato>65</valore_assegnato></dati> <!-- Box mq -->
+            <dati id="23"><valore_assegnato>45</valore_assegnato></dati> <!-- Cantina mq -->
+            <dati id="24"><valore_assegnato>40</valore_assegnato></dati> <!-- Soffitta mq -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE002_facade.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE002_pool.jpg</file_path></allegato>
+            <allegato id="3" type="image"><file_path>https://esempio.com/img/COMPLETE002_living.jpg</file_path></allegato>
+            <allegato id="4" type="image"><file_path>https://esempio.com/img/COMPLETE002_kitchen.jpg</file_path></allegato>
+            <allegato id="5" type="image"><file_path>https://esempio.com/img/COMPLETE002_master.jpg</file_path></allegato>
+            <allegato id="6" type="image"><file_path>https://esempio.com/img/COMPLETE002_garden.jpg</file_path></allegato>
+            <allegato id="7" type="image"><file_path>https://esempio.com/img/COMPLETE002_cinema.jpg</file_path></allegato>
+            <allegato id="8" type="image"><file_path>https://esempio.com/img/COMPLETE002_view.jpg</file_path></allegato>
+            <allegato id="9" type="planimetria"><file_path>https://esempio.com/img/COMPLETE002_plan_p0.pdf</file_path></allegato>
+            <allegato id="10" type="planimetria"><file_path>https://esempio.com/img/COMPLETE002_plan_p1.pdf</file_path></allegato>
+            <allegato id="11" type="planimetria"><file_path>https://esempio.com/img/COMPLETE002_plan_p2.pdf</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Residenziale</destinazione_uso>
+            <rendita_catastale>5850</rendita_catastale>
+            <foglio>78</foglio>
+            <particella>901</particella>
+            <subalterno>1</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG001</id>
+            <ragione_sociale>Trentino Immobiliare Excellence SRL</ragione_sociale>
+            <nome>Trentino Immobiliare</nome>
+            <indirizzo>Corso del Lavoro e della Scienza 3</indirizzo>
+            <comune istat="022205">Trento</comune>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <telefono>0461 234567</telefono>
+            <cellulare>348 1234567</cellulare>
+            <email>info@trentinoimmobiliare.it</email>
+            <sito_web>https://www.trentinoimmobiliare.it</sito_web>
+        </agenzia>
+    </annuncio>
+
+    <!-- ========================================
+         PROPERTY 3: ATTICO PANORAMICO - Test Energy Class B + Multiple States
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE003</id>
+            <title>Attico Panoramico con Terrazzo 150mq</title>
+            <abstract>Prestigioso attico ultimo piano, terrazzo 150mq, vista a 360° Dolomiti</abstract>
+            <description><![CDATA[Straordinario attico di 180 mq all'ultimo piano (8°) con spettacolare terrazzo panoramico di 150 mq con vista a 360 gradi sulle Dolomiti e sulla città. L'immobile, recentemente ristrutturato, si compone di ampio salone con cucina a vista, zona notte con 3 camere matrimoniali e 2 bagni, studio, ripostiglio. Terrazzo attrezzato con zona lounge, barbecue e pergolato bioclimatico. Due posti auto coperti e cantina. Perfetto per chi cerca un'abitazione di rappresentanza con spazi esterni eccezionali.]]></description>
+            <price>620000</price>
+            <mq>180</mq>
+            <categorie_id>12</categorie_id>
+            <categorie_micro_id>2</categorie_micro_id>
+            <indirizzo>Via Manci</indirizzo>
+            <civico>44</civico>
+            <zona>San Pio X</zona>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <latitude>46.0720</latitude>
+            <longitude>11.1190</longitude>
+            <age>2005</age>
+            <agency_code>TI-AG002</agency_code>
+            <url>https://esempio.com/property/COMPLETE003</url>
+            <ipe>55.8</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>ape2015</ape>
+            <virtual_tour>https://esempio.com/tour3d/COMPLETE003</virtual_tour>
+            <video_tour>https://youtube.com/watch?v=COMPLETE003</video_tour>
+            <seo_title>Attico Terrazzo 150mq Trento - Vista Dolomiti 360° - 3 Camere</seo_title>
+        </info>
+
+        <info_inserite>
+            <info id="1"><valore_assegnato>2</valore_assegnato></info> <!-- Bagni -->
+            <info id="2"><valore_assegnato>3</valore_assegnato></info> <!-- Camere -->
+            <info id="3"><valore_assegnato>0</valore_assegnato></info> <!-- Balcone -->
+            <info id="4"><valore_assegnato>1</valore_assegnato></info> <!-- Terrazzo grande -->
+            <info id="5"><valore_assegnato>2</valore_assegnato></info> <!-- 2 posti auto -->
+            <info id="8"><valore_assegnato>1</valore_assegnato></info> <!-- Cantina -->
+            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
+            <info id="11"><valore_assegnato>1</valore_assegnato></info> <!-- Studio -->
+            <info id="12"><valore_assegnato>1</valore_assegnato></info> <!-- Ripostiglio -->
+            <info id="13"><valore_assegnato>1</valore_assegnato></info> <!-- Ascensore -->
+            <info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- Aria condizionata -->
+            <info id="15"><valore_assegnato>0</valore_assegnato></info> <!-- Non arredato -->
+            <info id="16"><valore_assegnato>1</valore_assegnato></info> <!-- Riscaldamento autonomo -->
+            <info id="20"><valore_assegnato>1</valore_assegnato></info> <!-- Garage -->
+            <info id="21"><valore_assegnato>0</valore_assegnato></info> <!-- No risc. pavimento -->
+            <info id="23"><valore_assegnato>1</valore_assegnato></info> <!-- Allarme -->
+            <info id="26"><valore_assegnato>1</valore_assegnato></info> <!-- Pergolato -->
+            <info id="27"><valore_assegnato>1</valore_assegnato></info> <!-- Barbecue -->
+            <info id="33"><valore_assegnato>8</valore_assegnato></info> <!-- 8° piano (ultimo) -->
+            <info id="46"><valore_assegnato>0</valore_assegnato></info> <!-- No camino -->
+
+            <!-- EXTENDED -->
+            <info id="55"><valore_assegnato>3</valore_assegnato></info> <!-- Classe B -->
+            <info id="56"><valore_assegnato>2</valore_assegnato></info> <!-- Posizione: Semicentrale -->
+            <info id="57"><valore_assegnato>2</valore_assegnato></info> <!-- Stato: Ristrutturato -->
+            <info id="58"><valore_assegnato>1</valore_assegnato></info> <!-- Doppi vetri -->
+            <info id="59"><valore_assegnato>1</valore_assegnato></info> <!-- Infissi PVC -->
+            <info id="62"><valore_assegnato>3</valore_assegnato></info> <!-- Vista: Eccezionale 360° -->
+            <info id="63"><valore_assegnato>2</valore_assegnato></info> <!-- Orientamento: Sud/Ovest -->
+            <info id="64"><valore_assegnato>1</valore_assegnato></info> <!-- Luminosità: Ottima -->
+            <info id="65"><valore_assegnato>6</valore_assegnato></info> <!-- Locali totali -->
+            <info id="73"><valore_assegnato>1</valore_assegnato></info> <!-- Zona living outdoor -->
+            <info id="74"><valore_assegnato>1</valore_assegnato></info> <!-- Cucina esterna -->
+            <info id="88"><valore_assegnato>0</valore_assegnato></info> <!-- No domotica -->
+            <info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- Porta blindata -->
+            <info id="91"><valore_assegnato>1</valore_assegnato></info> <!-- Videocitofono -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="5"><valore_assegnato>150</valore_assegnato></dati> <!-- Terrazzo mq -->
+            <dati id="6"><valore_assegnato>2.90</valore_assegnato></dati> <!-- Altezza soffitti -->
+            <dati id="20"><valore_assegnato>210</valore_assegnato></dati> <!-- Sup. commerciale -->
+            <dati id="21"><valore_assegnato>180</valore_assegnato></dati> <!-- Sup. utile -->
+            <dati id="22"><valore_assegnato>32</valore_assegnato></dati> <!-- Garage mq (2 posti) -->
+            <dati id="23"><valore_assegnato>12</valore_assegnato></dati> <!-- Cantina mq -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE003_terrace_view.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE003_terrace_lounge.jpg</file_path></allegato>
+            <allegato id="3" type="image"><file_path>https://esempio.com/img/COMPLETE003_living.jpg</file_path></allegato>
+            <allegato id="4" type="image"><file_path>https://esempio.com/img/COMPLETE003_kitchen.jpg</file_path></allegato>
+            <allegato id="5" type="image"><file_path>https://esempio.com/img/COMPLETE003_bedroom.jpg</file_path></allegato>
+            <allegato id="6" type="planimetria"><file_path>https://esempio.com/img/COMPLETE003_plan.pdf</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Residenziale</destinazione_uso>
+            <rendita_catastale>1450</rendita_catastale>
+            <foglio>33</foglio>
+            <particella>566</particella>
+            <subalterno>24</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG002</id>
+            <ragione_sociale>Dolomiti Real Estate SAS</ragione_sociale>
+            <nome>Dolomiti Real Estate</nome>
+            <indirizzo>Via Brennero 125</indirizzo>
+            <comune istat="022205">Trento</comune>
+            <provincia>TN</provincia>
+            <cap>38121</cap>
+            <telefono>0461 987654</telefono>
+            <cellulare>335 9876543</cellulare>
+            <email>info@dolomitirealestate.com</email>
+            <sito_web>https://www.dolomitirealestate.com</sito_web>
+        </agenzia>
+    </annuncio>
+
+    <!-- ========================================
+         PROPERTY 4: RUSTICO MONTAGNA - Test Energy Class G + Rural Features
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE004</id>
+            <title>Rustico da Ristrutturare - Montagna Val di Non</title>
+            <abstract>Caratteristico rustico 220mq, terreno 3000mq, posizione panoramica</abstract>
+            <description><![CDATA[Affascinante rustico di montagna di circa 220 mq da ristrutturare, situato in posizione panoramica soleggiata nella splendida Val di Non. L'immobile si sviluppa su due livelli: piano terra con stalla/deposito e piano primo abitazione tradizionale. Tetto in legno da rifare, muri portanti in pietra in buone condizioni. Ampio terreno di pertinenza di 3000 mq parte pianeggiante parte bosco. Ideale per chi cerca una casa di charme da personalizzare completamente o per struttura ricettiva agriturismo. Accesso carrabile, acquedotto comunale, possibilità allacciamento gas metano.]]></description>
+            <price>185000</price>
+            <mq>220</mq>
+            <categorie_id>20</categorie_id>
+            <categorie_micro_id>10</categorie_micro_id>
+            <indirizzo>Località Montagnola</indirizzo>
+            <civico>sn</civico>
+            <zona>Val di Non</zona>
+            <comune>Cles</comune>
+            <comune_istat>022062</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38023</cap>
+            <latitude>46.3650</latitude>
+            <longitude>11.0350</longitude>
+            <age>1850</age>
+            <agency_code>TI-AG003</agency_code>
+            <url>https://esempio.com/property/COMPLETE004</url>
+            <ipe>185.0</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>ape2015</ape>
+            <virtual_tour></virtual_tour>
+            <video_tour></video_tour>
+            <seo_title>Rustico Ristrutturare Val di Non - Terreno 3000mq Panorama</seo_title>
+        </info>
+
+        <info_inserite>
+            <info id="1"><valore_assegnato>0</valore_assegnato></info> <!-- Bagni: da fare -->
+            <info id="2"><valore_assegnato>0</valore_assegnato></info> <!-- Camere: da definire -->
+            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
+            <info id="17"><valore_assegnato>1</valore_assegnato></info> <!-- Terreno/giardino -->
+            <info id="28"><valore_assegnato>1</valore_assegnato></info> <!-- Bosco -->
+            <info id="29"><valore_assegnato>1</valore_assegnato></info> <!-- Prato -->
+            <info id="30"><valore_assegnato>1</valore_assegnato></info> <!-- Frutteto -->
+            <info id="31"><valore_assegnato>1</valore_assegnato></info> <!-- Orto -->
+            <info id="32"><valore_assegnato>1</valore_assegnato></info> <!-- Stalla/deposito -->
+            <info id="33"><valore_assegnato>0</valore_assegnato></info> <!-- Piano: terra + 1 -->
+            <info id="34"><valore_assegnato>1</valore_assegnato></info> <!-- Struttura pietra -->
+            <info id="35"><valore_assegnato>1</valore_assegnato></info> <!-- Tetto legno -->
+            <info id="36"><valore_assegnato>1</valore_assegnato></info> <!-- Vista montagna -->
+            <info id="38"><valore_assegnato>1</valore_assegnato></info> <!-- Posizione isolata -->
+            <info id="39"><valore_assegnato>1</valore_assegnato></info> <!-- Silenziosità assoluta -->
+            <info id="40"><valore_assegnato>1</valore_assegnato></info> <!-- Acqua comunale -->
+            <info id="41"><valore_assegnato>1</valore_assegnato></info> <!-- Possibilità gas -->
+
+            <!-- EXTENDED -->
+            <info id="55"><valore_assegnato>8</valore_assegnato></info> <!-- Classe G -->
+            <info id="56"><valore_assegnato>7</valore_assegnato></info> <!-- Posizione: Montagna isolata -->
+            <info id="57"><valore_assegnato>5</valore_assegnato></info> <!-- Stato: Da ristrutturare -->
+            <info id="62"><valore_assegnato>2</valore_assegnato></info> <!-- Vista: Panoramica -->
+            <info id="63"><valore_assegnato>1</valore_assegnato></info> <!-- Orientamento: Sud -->
+            <info id="64"><valore_assegnato>1</valore_assegnato></info> <!-- Soleggiamento ottimo -->
+            <info id="65"><valore_assegnato>5</valore_assegnato></info> <!-- Locali: da definire -->
+            <info id="75"><valore_assegnato>1</valore_assegnato></info> <!-- Potenziale agriturismo -->
+            <info id="76"><valore_assegnato>1</valore_assegnato></info> <!-- Potenziale B&B -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="4"><valore_assegnato>3000</valore_assegnato></dati> <!-- Terreno mq -->
+            <dati id="6"><valore_assegnato>2.60</valore_assegnato></dati> <!-- Altezza soffitti -->
+            <dati id="10"><valore_assegnato>1200</valore_assegnato></dati> <!-- Bosco mq -->
+            <dati id="11"><valore_assegnato>800</valore_assegnato></dati> <!-- Prato mq -->
+            <dati id="12"><valore_assegnato>500</valore_assegnato></dati> <!-- Frutteto mq -->
+            <dati id="13"><valore_assegnato>300</valore_assegnato></dati> <!-- Orto mq -->
+            <dati id="14"><valore_assegnato>200</valore_assegnato></dati> <!-- Area edificabile mq -->
+            <dati id="20"><valore_assegnato>240</valore_assegnato></dati> <!-- Sup. commerciale -->
+            <dati id="21"><valore_assegnato>220</valore_assegnato></dati> <!-- Sup. utile -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE004_facade.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE004_panorama.jpg</file_path></allegato>
+            <allegato id="3" type="image"><file_path>https://esempio.com/img/COMPLETE004_land.jpg</file_path></allegato>
+            <allegato id="4" type="image"><file_path>https://esempio.com/img/COMPLETE004_interior.jpg</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Agricolo/Residenziale</destinazione_uso>
+            <rendita_catastale>280</rendita_catastale>
+            <foglio>8</foglio>
+            <particella>145</particella>
+            <subalterno>0</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG003</id>
+            <ragione_sociale>Val di Non Immobiliare SNC</ragione_sociale>
+            <nome>Val di Non Immobiliare</nome>
+            <indirizzo>Piazza Granda 7</indirizzo>
+            <comune istat="022062">Cles</comune>
+            <provincia>TN</provincia>
+            <cap>38023</cap>
+            <telefono>0463 555123</telefono>
+            <cellulare>340 5551234</cellulare>
+            <email>info@valdononimmobiliare.it</email>
+            <sito_web>https://www.valdononimmobiliare.it</sito_web>
+        </agenzia>
+    </annuncio>
+
+    <!-- ========================================
+         PROPERTY 5: NEGOZIO CENTRO - Test Commercial + Energy Class D
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE005</id>
+            <title>Negozio Centro Storico - Affitto Commerciale</title>
+            <abstract>Locale commerciale 120mq, vetrina 8m, centro Trento, alto passaggio</abstract>
+            <description><![CDATA[Prestigioso locale commerciale di 120 mq nel cuore del centro storico di Trento, in zona ad altissimo passaggio pedonale. Il negozio si presenta con ampia vetrina su strada di 8 metri lineari, spazio vendita principale di 80 mq, retrobottega di 25 mq, antibagno e bagno. Soffitti con volte a botte, pavimento in resina, predisposizione impianto climatizzazione. Ideale per boutique, gioielleria, concept store, showroom. Disponibile da subito, contratto 6+6.]]></description>
+            <price>3200</price>
+            <mq>120</mq>
+            <categorie_id>14</categorie_id>
+            <categorie_micro_id>15</categorie_micro_id>
+            <indirizzo>Via Suffragio</indirizzo>
+            <civico>18</civico>
+            <zona>Centro Storico</zona>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <latitude>46.0680</latitude>
+            <longitude>11.1215</longitude>
+            <age>1600</age>
+            <agency_code>TI-AG001</agency_code>
+            <url>https://esempio.com/property/COMPLETE005</url>
+            <ipe>95.5</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>ape2015</ape>
+            <virtual_tour>https://esempio.com/tour3d/COMPLETE005</virtual_tour>
+            <seo_title>Negozio Affitto Centro Trento - 120mq Vetrina 8m Alto Passaggio</seo_title>
+        </info>
+
+        <info_inserite>
+            <info id="1"><valore_assegnato>1</valore_assegnato></info> <!-- Bagno -->
+            <info id="9"><valore_assegnato>0</valore_assegnato></info> <!-- Non vendita -->
+            <info id="10"><valore_assegnato>1</valore_assegnato></info> <!-- Affitto -->
+            <info id="14"><valore_assegnato>0</valore_assegnato></info> <!-- Predisposizione clima -->
+            <info id="16"><valore_assegnato>2</valore_assegnato></info> <!-- Riscaldamento centralizzato -->
+            <info id="33"><valore_assegnato>0</valore_assegnato></info> <!-- Piano terra -->
+            <info id="42"><valore_assegnato>1</valore_assegnato></info> <!-- Vetrina su strada -->
+            <info id="43"><valore_assegnato>1</valore_assegnato></info> <!-- Retrobottega -->
+            <info id="44"><valore_assegnato>1</valore_assegnato></info> <!-- Doppio ingresso -->
+            <info id="45"><valore_assegnato>1</valore_assegnato></info> <!-- Zona carico/scarico -->
+
+            <!-- EXTENDED -->
+            <info id="55"><valore_assegnato>5</valore_assegnato></info> <!-- Classe D -->
+            <info id="56"><valore_assegnato>1</valore_assegnato></info> <!-- Posizione: Centro città -->
+            <info id="57"><valore_assegnato>3</valore_assegnato></info> <!-- Stato: Buono -->
+            <info id="62"><valore_assegnato>0</valore_assegnato></info> <!-- Vista: N/A -->
+            <info id="63"><valore_assegnato>3</valore_assegnato></info> <!-- Orientamento: Nord -->
+            <info id="64"><valore_assegnato>0</valore_assegnato></info> <!-- Luminosità: Media -->
+            <info id="65"><valore_assegnato>3</valore_assegnato></info> <!-- Locali: 3 -->
+            <info id="77"><valore_assegnato>1</valore_assegnato></info> <!-- Uso commerciale -->
+            <info id="78"><valore_assegnato>8</valore_assegnato></info> <!-- Vetrina 8m -->
+            <info id="79"><valore_assegnato>3</valore_assegnato></info> <!-- Passaggio: Alto -->
+            <info id="80"><valore_assegnato>1</valore_assegnato></info> <!-- Zona pedonale -->
+            <info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- Porta blindata -->
+            <info id="95"><valore_assegnato>1</valore_assegnato></info> <!-- Serrande elettriche -->
+            <info id="96"><valore_assegnato>1</valore_assegnato></info> <!-- Impianto antifurto -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="6"><valore_assegnato>4.20</valore_assegnato></dati> <!-- Altezza soffitti -->
+            <dati id="15"><valore_assegnato>80</valore_assegnato></dati> <!-- Spazio vendita mq -->
+            <dati id="16"><valore_assegnato>25</valore_assegnato></dati> <!-- Retro mq -->
+            <dati id="17"><valore_assegnato>8</valore_assegnato></dati> <!-- Vetrina ml -->
+            <dati id="20"><valore_assegnato>120</valore_assegnato></dati> <!-- Sup. commerciale -->
+            <dati id="21"><valore_assegnato>105</valore_assegnato></dati> <!-- Sup. utile -->
+            <dati id="25"><valore_assegnato>350</valore_assegnato></dati> <!-- Spese condominiali mensili € -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE005_vetrina.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE005_interno.jpg</file_path></allegato>
+            <allegato id="3" type="image"><file_path>https://esempio.com/img/COMPLETE005_retro.jpg</file_path></allegato>
+            <allegato id="4" type="planimetria"><file_path>https://esempio.com/img/COMPLETE005_plan.pdf</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Commerciale C/1</destinazione_uso>
+            <rendita_catastale>1850</rendita_catastale>
+            <foglio>18</foglio>
+            <particella>234</particella>
+            <subalterno>3</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG001</id>
+            <ragione_sociale>Trentino Immobiliare Excellence SRL</ragione_sociale>
+            <nome>Trentino Immobiliare</nome>
+            <indirizzo>Corso del Lavoro e della Scienza 3</indirizzo>
+            <comune istat="022205">Trento</comune>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <telefono>0461 234567</telefono>
+            <cellulare>348 1234567</cellulare>
+            <email>info@trentinoimmobiliare.it</email>
+            <sito_web>https://www.trentinoimmobiliare.it</sito_web>
+        </agenzia>
+    </annuncio>
+
+    <!-- ========================================
+         PROPERTY 6: UFFICIO DIREZIONALE - Test Office + Energy Class C
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE006</id>
+            <title>Ufficio Direzionale Zona Spazio Quattro</title>
+            <abstract>Prestigioso ufficio 250mq, open space + 4 stanze, parcheggio privato</abstract>
+            <description><![CDATA[Prestigioso ufficio direzionale di 250 mq in moderno palazzo di rappresentanza zona Spazio Quattro. L'immobile al 3° piano si compone di ampia reception (30mq), open space (80mq), 4 uffici privati, sala riunioni (35mq), archivio, antibagno e 2 bagni. Finiture di pregio: pavimento sopraelevato, controsoffitto con pannelli fonoassorbenti, illuminazione LED, impianto climatizzazione caldo/freddo, cablaggio strutturato Cat6. Sistema controllo accessi, impianto antintrusione. Inclusi 5 posti auto coperti in garage e 3 scoperti. Ideale per studi professionali, società di servizi, assicurazioni, banche. Disponibile immediata.]]></description>
+            <price>4800</price>
+            <mq>250</mq>
+            <categorie_id>17</categorie_id>
+            <categorie_micro_id>20</categorie_micro_id>
+            <indirizzo>Via Solteri</indirizzo>
+            <civico>74</civico>
+            <zona>Spazio Quattro</zona>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38121</cap>
+            <latitude>46.0550</latitude>
+            <longitude>11.1380</longitude>
+            <age>2010</age>
+            <agency_code>TI-AG002</agency_code>
+            <url>https://esempio.com/property/COMPLETE006</url>
+            <ipe>72.3</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>ape2015</ape>
+            <virtual_tour>https://esempio.com/tour3d/COMPLETE006</virtual_tour>
+            <seo_title>Ufficio Affitto 250mq Trento - 4 Stanze Parcheggio - Spazio Quattro</seo_title>
+        </info>
+
+        <info_inserite>
+            <info id="1"><valore_assegnato>2</valore_assegnato></info> <!-- 2 Bagni -->
+            <info id="5"><valore_assegnato>5</valore_assegnato></info> <!-- 5 posti auto coperti -->
+            <info id="6"><valore_assegnato>3</valore_assegnato></info> <!-- 3 posti scoperti -->
+            <info id="9"><valore_assegnato>0</valore_assegnato></info> <!-- Non vendita -->
+            <info id="10"><valore_assegnato>1</valore_assegnato></info> <!-- Affitto -->
+            <info id="13"><valore_assegnato>1</valore_assegnato></info> <!-- Ascensore -->
+            <info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- Clima -->
+            <info id="23"><valore_assegnato>1</valore_assegnato></info> <!-- Allarme -->
+            <info id="24"><valore_assegnato>1</valore_assegnato></info> <!-- Videosorveglianza -->
+            <info id="33"><valore_assegnato>3</valore_assegnato></info> <!-- 3° piano -->
+            <info id="48"><valore_assegnato>1</valore_assegnato></info> <!-- Reception -->
+            <info id="49"><valore_assegnato>1</valore_assegnato></info> <!-- Open space -->
+            <info id="50"><valore_assegnato>4</valore_assegnato></info> <!-- 4 uffici privati -->
+            <info id="51"><valore_assegnato>1</valore_assegnato></info> <!-- Sala riunioni -->
+            <info id="52"><valore_assegnato>1</valore_assegnato></info> <!-- Archivio -->
+            <info id="53"><valore_assegnato>1</valore_assegnato></info> <!-- Zona break -->
+
+            <!-- EXTENDED -->
+            <info id="55"><valore_assegnato>4</valore_assegnato></info> <!-- Classe C -->
+            <info id="56"><valore_assegnato>4</valore_assegnato></info> <!-- Posizione: Zona direzionale -->
+            <info id="57"><valore_assegnato>3</valore_assegnato></info> <!-- Stato: Buono -->
+            <info id="58"><valore_assegnato>1</valore_assegnato></info> <!-- Doppi vetri -->
+            <info id="59"><valore_assegnato>2</valore_assegnato></info> <!-- Infissi alluminio -->
+            <info id="62"><valore_assegnato>0</valore_assegnato></info> <!-- Vista: Standard -->
+            <info id="63"><valore_assegnato>4</valore_assegnato></info> <!-- Orientamento: Est/Ovest -->
+            <info id="64"><valore_assegnato>1</valore_assegnato></info> <!-- Luminosità: Buona -->
+            <info id="65"><valore_assegnato>10</valore_assegnato></info> <!-- Locali: 10 -->
+            <info id="81"><valore_assegnato>1</valore_assegnato></info> <!-- Uso ufficio -->
+            <info id="82"><valore_assegnato>1</valore_assegnato></info> <!-- Pavimento sopraelevato -->
+            <info id="83"><valore_assegnato>1</valore_assegnato></info> <!-- Controsoffitto -->
+            <info id="84"><valore_assegnato>1</valore_assegnato></info> <!-- Illuminazione LED -->
+            <info id="85"><valore_assegnato>1</valore_assegnato></info> <!-- Cablaggio strutturato -->
+            <info id="86"><valore_assegnato>1</valore_assegnato></info> <!-- Fibra ottica -->
+            <info id="87"><valore_assegnato>1</valore_assegnato></info> <!-- Controllo accessi -->
+            <info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- Porta blindata -->
+            <info id="91"><valore_assegnato>1</valore_assegnato></info> <!-- Videocitofono -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="6"><valore_assegnato>2.80</valore_assegnato></dati> <!-- Altezza soffitti -->
+            <dati id="15"><valore_assegnato>80</valore_assegnato></dati> <!-- Open space mq -->
+            <dati id="16"><valore_assegnato>35</valore_assegnato></dati> <!-- Sala riunioni mq -->
+            <dati id="18"><valore_assegnato>30</valore_assegnato></dati> <!-- Reception mq -->
+            <dati id="19"><valore_assegnato>15</valore_assegnato></dati> <!-- Archivio mq -->
+            <dati id="20"><valore_assegnato>280</valore_assegnato></dati> <!-- Sup. commerciale -->
+            <dati id="21"><valore_assegnato>250</valore_assegnato></dati> <!-- Sup. utile -->
+            <dati id="22"><valore_assegnato>75</valore_assegnato></dati> <!-- Parcheggio coperto mq -->
+            <dati id="25"><valore_assegnato>650</valore_assegnato></dati> <!-- Spese condominiali mensili € -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE006_entrance.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE006_openspace.jpg</file_path></allegato>
+            <allegato id="3" type="image"><file_path>https://esempio.com/img/COMPLETE006_meeting.jpg</file_path></allegato>
+            <allegato id="4" type="image"><file_path>https://esempio.com/img/COMPLETE006_office.jpg</file_path></allegato>
+            <allegato id="5" type="planimetria"><file_path>https://esempio.com/img/COMPLETE006_plan.pdf</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Ufficio A/10</destinazione_uso>
+            <rendita_catastale>2350</rendita_catastale>
+            <foglio>52</foglio>
+            <particella>789</particella>
+            <subalterno>15</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG002</id>
+            <ragione_sociale>Dolomiti Real Estate SAS</ragione_sociale>
+            <nome>Dolomiti Real Estate</nome>
+            <indirizzo>Via Brennero 125</indirizzo>
+            <comune istat="022205">Trento</comune>
+            <provincia>TN</provincia>
+            <cap>38121</cap>
+            <telefono>0461 987654</telefono>
+            <cellulare>335 9876543</cellulare>
+            <email>info@dolomitirealestate.com</email>
+            <sito_web>https://www.dolomitirealestate.com</sito_web>
+        </agenzia>
+    </annuncio>
+
+    <!-- ========================================
+         PROPERTY 7: GARAGE/BOX - Test Parking + Energy Class E
+         ======================================== -->
+    <annuncio>
+        <info>
+            <id>COMPLETE007</id>
+            <title>Garage Doppio Centro - Comodo e Sicuro</title>
+            <abstract>Box auto doppio 35mq, porta automatica, zona San Pio X</abstract>
+            <description><![CDATA[Comodo box auto doppio di 35 mq situato in moderno condominio zona San Pio X, a pochi passi dal centro. Il garage è al piano -1, accessibile tramite rampa carrabile con cancello automatico telecomandato. Dimensioni interne: 6.00 x 5.80 m, altezza 2.40 m. Porta sezionale automatica motorizzata con apertura telecomando. Pavimento in cemento lisciato, illuminazione LED con sensore movimento, predisposizione presa corrente. Ideale per 2 auto medie o 1 auto + moto/bici/ripostiglio. Spese condominiali minime (€ 25/mese). Disponibilità immediata. Ottimo anche come investimento per locazione.]]></description>
+            <price>55000</price>
+            <mq>35</mq>
+            <categorie_id>8</categorie_id>
+            <categorie_micro_id>30</categorie_micro_id>
+            <indirizzo>Via al Torrione</indirizzo>
+            <civico>22</civico>
+            <zona>San Pio X</zona>
+            <comune>Trento</comune>
+            <comune_istat>022205</comune_istat>
+            <provincia>TN</provincia>
+            <cap>38122</cap>
+            <latitude>46.0710</latitude>
+            <longitude>11.1180</longitude>
+            <age>2008</age>
+            <agency_code>TI-AG003</agency_code>
+            <url>https://esempio.com/property/COMPLETE007</url>
+            <ipe>0</ipe>
+            <ipe_unit>kWh/m²a</ipe_unit>
+            <ape>non_soggetto</ape>
+            <seo_title>Box Auto Doppio Centro Trento - 35mq Porta Automatica</seo_title>
+        </info>
+
+        <info_inserite>
+            <info id="5"><valore_assegnato>1</valore_assegnato></info> <!-- Box -->
+            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
+            <info id="20"><valore_assegnato>1</valore_assegnato></info> <!-- Box doppio -->
+            <info id="33"><valore_assegnato>-1</valore_assegnato></info> <!-- Piano -1 -->
+            <info id="54"><valore_assegnato>1</valore_assegnato></info> <!-- Porta automatica -->
+
+            <!-- EXTENDED -->
+            <info id="55"><valore_assegnato>9</valore_assegnato></info> <!-- Non soggetto / E -->
+            <info id="56"><valore_assegnato>2</valore_assegnato></info> <!-- Posizione: Semicentrale -->
+            <info id="57"><valore_assegnato>3</valore_assegnato></info> <!-- Stato: Buono -->
+            <info id="65"><valore_assegnato>1</valore_assegnato></info> <!-- 1 locale -->
+            <info id="97"><valore_assegnato>2</valore_assegnato></info> <!-- Capienza: 2 auto -->
+            <info id="98"><valore_assegnato>1</valore_assegnato></info> <!-- Cancello automatico -->
+            <info id="99"><valore_assegnato>1</valore_assegnato></info> <!-- Rampa accesso -->
+            <info id="100"><valore_assegnato>1</valore_assegnato></info> <!-- Illuminazione -->
+            <info id="101"><valore_assegnato>1</valore_assegnato></info> <!-- Presa corrente -->
+        </info_inserite>
+
+        <dati_inseriti>
+            <dati id="6"><valore_assegnato>2.40</valore_assegnato></dati> <!-- Altezza -->
+            <dati id="20"><valore_assegnato>35</valore_assegnato></dati> <!-- Superficie -->
+            <dati id="21"><valore_assegnato>35</valore_assegnato></dati> <!-- Sup. utile -->
+            <dati id="25"><valore_assegnato>25</valore_assegnato></dati> <!-- Spese cond. mensili € -->
+            <dati id="26"><valore_assegnato>6.00</valore_assegnato></dati> <!-- Larghezza m -->
+            <dati id="27"><valore_assegnato>5.80</valore_assegnato></dati> <!-- Profondità m -->
+        </dati_inseriti>
+
+        <file_allegati>
+            <allegato id="1" type="image"><file_path>https://esempio.com/img/COMPLETE007_entrance.jpg</file_path></allegato>
+            <allegato id="2" type="image"><file_path>https://esempio.com/img/COMPLETE007_inside.jpg</file_path></allegato>
+            <allegato id="3" type="planimetria"><file_path>https://esempio.com/img/COMPLETE007_plan.pdf</file_path></allegato>
+        </file_allegati>
+
+        <catasto>
+            <destinazione_uso>Box C/6</destinazione_uso>
+            <rendita_catastale>125</rendita_catastale>
+            <foglio>28</foglio>
+            <particella>445</particella>
+            <subalterno>67</subalterno>
+        </catasto>
+
+        <agenzia>
+            <id>TI-AG003</id>
+            <ragione_sociale>Val di Non Immobiliare SNC</ragione_sociale>
+            <nome>Val di Non Immobiliare</nome>
+            <indirizzo>Piazza Granda 7</indirizzo>
+            <comune istat="022062">Cles</comune>
+            <provincia>TN</provincia>
+            <cap>38023</cap>
+            <telefono>0463 555123</telefono>
+            <cellulare>340 5551234</cellulare>
+            <email>info@valdononimmobiliare.it</email>
+            <sito_web>https://www.valdononimmobiliare.it</sito_web>
+        </agenzia>
+    </annuncio>
+
+</dataset>

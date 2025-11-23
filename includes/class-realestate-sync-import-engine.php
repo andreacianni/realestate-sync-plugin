@@ -82,6 +82,12 @@ class RealEstate_Sync_Import_Engine {
         $this->tracking_manager = new RealEstate_Sync_Tracking_Manager();
         $this->streaming_parser = new RealEstate_Sync_XML_Parser();
 
+        // 🔧 FIX: Initialize agency & media components (required for import workflow)
+        $this->agency_parser = new RealEstate_Sync_Agency_Parser();
+        $this->agency_importer = new RealEstate_Sync_Agency_Importer();
+        $this->media_deduplicator = new RealEstate_Sync_Media_Deduplicator();
+        $this->property_agent_linker = new RealEstate_Sync_Property_Agent_Linker();
+
         $this->init_default_config();
         $this->init_session_data();
         $this->init_stats();
