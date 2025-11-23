@@ -1,198 +1,295 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<root>
-    <immobili>
-        <!-- PROPERTY 1: Appartamento Bilocale - Test Info[57] Stato Manutenzione = "Nuovo" -->
-        <immobile>
-            <id>TEST001</id>
-            <titolo>Splendido Bilocale Nuovo in Centro</titolo>
-            <descrizione>Appartamento bilocale completamente nuovo con finiture di pregio. Cucina abitabile, soggiorno, camera matrimoniale, bagno. Riscaldamento autonomo, aria condizionata, balcone.</descrizione>
+<dataset>
+    <annuncio>
+        <agenzia>
+            <id>11413</id>
+            <ragione_sociale><![CDATA[Agenzia Immobiliare Bonapace & Cereghini sas]]></ragione_sociale>
+            <referente><![CDATA[Jacopo Cereghini]]></referente>
+            <iva>02705500227</iva>
+            <comune istat="022199">Tione di Trento</comune>
+            <provincia>Trento</provincia>
+            <indirizzo><![CDATA[Via Circonvallazione 63]]></indirizzo>
+            <email>jacopo@bonapacecereghini.it</email>
+            <url>www.bonapacecereghini.it</url>
+            <logo>https://media.gestionaleimmobiliare.it/logo/agenzie/11413/640x480/logo_bonapace_cereghini_2016.jpg</logo>
+            <telefono>0465324212</telefono>
+            <cellulare></cellulare>
+            <deleted>0</deleted>
+        </agenzia>
 
-            <!-- Categoria e Tipo -->
-            <categoria>1</categoria> <!-- Residenziale -->
-            <contratto>1</contratto> <!-- Vendita -->
-            <categorie_micro_id>35</categorie_micro_id> <!-- Bilocale -->
+        <info>
+            <id>3449305</id>
+            <agency_code>A108</agency_code>
+            <deleted>0</deleted>
+            <mq>115</mq>
+            <price>650</price>
+            <flag_vacanza>0</flag_vacanza>
+            <age><![CDATA[2022]]></age>
+            <ipe>70.72</ipe>
+            <ipe_unit>kWh/m2anno</ipe_unit>
+            <ape classe="B" flagQuasiZero="0" prestazioneEstate="medio" prestazioneInverno="buono" epglNRen="70.72" epglRen="24.89" kWhUnit="kWh/m2anno">ape2015</ape>
+            <title><![CDATA[Appartamento trilocale in casa indipendente]]></title>
+            <description><![CDATA[A Fiavè, in posizione centrale e comoda a tutti i servizi, proponiamo in affitto casa indipendente, composta da appartamento trilocale e ampio locale cantina. L'immobile è stato oggetto di recentissima riqualificazione energetica, con realizzazione di cappotto termico, sostituzione degli infissi e della caldaia e installazione di impianto solare termico. L'appartamento si sviluppa su due livelli ed è così composto: a piano primo zona giorno, con possibilità di installazione di stufa a Pellet, bagnetto di servizio e scala di accesso per il secondo piano; a secondo piano stanza matrimoniale, stanza singola con accesso al balcone e bagno finestrato. Completa gli spazi una grande cantina a piano terra. Nessuna spesa condominiale. Disponibile a partire da ottobre 2025. --- annuncio pubblicato con GESTIONALEIMMOBILIARE.it]]></description>
+            <zona><![CDATA[]]></zona>
+            <comune_istat>022083</comune_istat>
+            <indirizzo><![CDATA[via tre Novembre]]></indirizzo>
+            <last_editor_time>2025-08-21 19:03:41</last_editor_time>
+            <categorie_id>11</categorie_id>
+            <categorie_micro_id>46</categorie_micro_id>
+            <url><![CDATA[https://www.prossimacasa.it/annuncio_20181285_115mq_trento_fiave.html]]></url>
+            <video_tour></video_tour>
+            <virtual_tour><![CDATA[]]></virtual_tour>
+            <latitude>46.00448840006001</latitude>
+            <longitude>10.84191157948226</longitude>
+        </info>
 
-            <!-- Prezzi e Dimensioni -->
-            <price>185000</price>
-            <superficie_mq>65</superficie_mq>
-            <superficie_comm>70</superficie_comm>
-            <superficie_giardino>0</superficie_giardino>
+        <i18n>
+            <description lang="en"><![CDATA[In Fiavè, in a central position, we offer for rent an independent house consisting of a three-room apartment and a large cellar room.
+    The property has undergone a very recent energy redevelopment, with the construction of a thermal coat, replacement of the fixtures and the boiler and installation of a solar thermal system.
+    The apartment is spread over two levels and is composed as follows: on the first floor living area, with the possibility of installing a pellet stove, small bathroom and access staircase to the second floor; on the second floor double bedroom, single bedroom with access to the balcony and bathroom with window. The spaces are completed by a large cellar on the ground floor.
+    No condominium fees.
+    Long term contracts only.]]></description>
+            <title lang="en"><![CDATA[Three-room apartment in an independent house]]></title>
+        </i18n>
 
-            <!-- Localizzazione -->
-            <indirizzo>Via Roma 15</indirizzo>
-            <comune>Trento</comune>
-            <comune_istat>022205</comune_istat>
-            <provincia>TN</provincia>
-            <zona>Centro Storico</zona>
-            <latitude>46.0664</latitude>
-            <longitude>11.1257</longitude>
+        <file_allegati>
+            <logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/000__casa_appartamento_affitto_fiave___comano_terme_3.jpg]]></logo>
+            
+            <allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/000__casa_appartamento_affitto_fiave___comano_terme_3.jpg]]></file_path></allegato>
+            <allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/001__casa_appartamento_affitto_fiave___comano_terme_26.jpg]]></file_path></allegato>
+            <allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/002__casa_appartamento_affitto_fiave___comano_terme_25.jpg]]></file_path></allegato>
+            <allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/003__casa_appartamento_affitto_fiave___comano_terme_23.jpg]]></file_path></allegato>
+            <allegato id="4"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/004__casa_appartamento_affitto_fiave___comano_terme_17.jpg]]></file_path></allegato>
+            <allegato id="5"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/005__casa_appartamento_affitto_fiave___comano_terme_14.jpg]]></file_path></allegato>
+            <allegato id="6"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/006__casa_appartamento_affitto_fiave___comano_terme_19.jpg]]></file_path></allegato>
+            <allegato id="7"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/007__casa_appartamento_affitto_fiave___comano_terme_9.jpg]]></file_path></allegato>
+            <allegato id="8"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/008__casa_appartamento_affitto_fiave___comano_terme_13.jpg]]></file_path></allegato>
+            <allegato id="9"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230717/3449305/800x800/009__casa_appartamento_affitto_fiave___comano_terme_21.jpg]]></file_path></allegato>
+        </file_allegati>
 
-            <!-- Caratteristiche Base -->
-            <vani>2</vani>
-            <locali>3</locali>
-            <camere>1</camere>
-            <bagni>1</bagni>
-            <piano>2</piano>
-            <age>2024</age>
+        <info_inserite>
+            
+            <info id="1"><valore_assegnato>2</valore_assegnato></info>
+            <info id="2"><valore_assegnato>2</valore_assegnato></info>
+            <info id="3"><valore_assegnato>0</valore_assegnato></info>
+            <info id="4"><valore_assegnato>0</valore_assegnato></info>
+            <info id="5"><valore_assegnato>0</valore_assegnato></info>
+            <info id="6"><valore_assegnato>0</valore_assegnato></info>
+            <info id="7"><valore_assegnato>0</valore_assegnato></info>
+            <info id="8"><valore_assegnato>1</valore_assegnato></info>
+            <info id="9"><valore_assegnato>0</valore_assegnato></info>
+            <info id="10"><valore_assegnato>1</valore_assegnato></info>
+            <info id="11"><valore_assegnato>0</valore_assegnato></info>
+            <info id="12"><valore_assegnato>0</valore_assegnato></info>
+            <info id="13"><valore_assegnato>0</valore_assegnato></info>
+            <info id="14"><valore_assegnato>0</valore_assegnato></info>
+            <info id="15"><valore_assegnato>1</valore_assegnato></info>
+            <info id="16"><valore_assegnato>1</valore_assegnato></info>
+            <info id="17"><valore_assegnato>0</valore_assegnato></info>
+            <info id="18"><valore_assegnato>1</valore_assegnato></info>
+            <info id="19"><valore_assegnato>0</valore_assegnato></info>
+            <info id="20"><valore_assegnato>0</valore_assegnato></info>
+            <info id="21"><valore_assegnato>0</valore_assegnato></info>
+            <info id="22"><valore_assegnato>1</valore_assegnato></info>
+            <info id="23"><valore_assegnato>0</valore_assegnato></info>
+            <info id="24"><valore_assegnato>0</valore_assegnato></info>
+            <info id="25"><valore_assegnato>1</valore_assegnato></info>
+            <info id="26"><valore_assegnato>0</valore_assegnato></info>
+            <info id="27"><valore_assegnato>0</valore_assegnato></info>
+            <info id="28"><valore_assegnato>0</valore_assegnato></info>
+            <info id="29"><valore_assegnato>0</valore_assegnato></info>
+            <info id="30"><valore_assegnato>0</valore_assegnato></info>
+            <info id="31"><valore_assegnato>0</valore_assegnato></info>
+            <info id="32"><valore_assegnato>-2</valore_assegnato></info>
+            <info id="33"><valore_assegnato>-2</valore_assegnato></info>
+            <info id="34"><valore_assegnato>0</valore_assegnato></info>
+            <info id="35"><valore_assegnato>0</valore_assegnato></info>
+            <info id="36"><valore_assegnato>0</valore_assegnato></info>
+            <info id="37"><valore_assegnato>0</valore_assegnato></info>
+            <info id="38"><valore_assegnato>0</valore_assegnato></info>
+            <info id="39"><valore_assegnato>0</valore_assegnato></info>
+            <info id="40"><valore_assegnato>0</valore_assegnato></info>
+            <info id="41"><valore_assegnato>0</valore_assegnato></info>
+            <info id="42"><valore_assegnato>0</valore_assegnato></info>
+            <info id="43"><valore_assegnato>0</valore_assegnato></info>
+            <info id="44"><valore_assegnato>0</valore_assegnato></info>
+            <info id="45"><valore_assegnato>0</valore_assegnato></info>
+            <info id="46"><valore_assegnato>0</valore_assegnato></info>
+            <info id="47"><valore_assegnato>0</valore_assegnato></info>
+            <info id="48"><valore_assegnato>0</valore_assegnato></info>
+            <info id="49"><valore_assegnato>1</valore_assegnato></info>
+            <info id="50"><valore_assegnato>0</valore_assegnato></info>
+            <info id="51"><valore_assegnato>0</valore_assegnato></info>
+            <info id="52"><valore_assegnato>0</valore_assegnato></info>
+            <info id="53"><valore_assegnato>0</valore_assegnato></info>
+            <info id="54"><valore_assegnato>0</valore_assegnato></info>
+            <info id="55"><valore_assegnato>3</valore_assegnato></info>
+            <info id="56"><valore_assegnato>0</valore_assegnato></info>
+            <info id="57"><valore_assegnato>0</valore_assegnato></info>
+            <info id="58"><valore_assegnato>0</valore_assegnato></info>
+            <info id="59"><valore_assegnato>0</valore_assegnato></info>
+            <info id="60"><valore_assegnato>0</valore_assegnato></info>
+            <info id="61"><valore_assegnato>0</valore_assegnato></info>
+            <info id="62"><valore_assegnato>0</valore_assegnato></info>
+            <info id="63"><valore_assegnato>0</valore_assegnato></info>
+            <info id="64"><valore_assegnato>0</valore_assegnato></info>
+            <info id="65"><valore_assegnato>3</valore_assegnato></info>
+            <info id="66"><valore_assegnato>0</valore_assegnato></info>
+            <info id="92"><valore_assegnato>0</valore_assegnato></info>
+            <info id="93"><valore_assegnato>0</valore_assegnato></info>
+            <info id="94"><valore_assegnato>0</valore_assegnato></info>
+            <info id="95"><valore_assegnato>0</valore_assegnato></info>
+            <info id="97"><valore_assegnato>0</valore_assegnato></info>
+            <info id="101"><valore_assegnato>0</valore_assegnato></info>
+            <info id="102"><valore_assegnato>0</valore_assegnato></info>
+            <info id="103"><valore_assegnato>1</valore_assegnato></info>
+            <info id="104"><valore_assegnato>0</valore_assegnato></info>
+            <info id="105"><valore_assegnato>0</valore_assegnato></info>
+        </info_inserite>
+    </annuncio>
+	
+<annuncio>
+	<agenzia>
+		<id>7046</id>
+		<ragione_sociale><![CDATA[La Torre snc di Pallanch Monica & C.]]></ragione_sociale>
+		<referente><![CDATA[Monica Pallanch]]></referente>
+		<iva>02284320229</iva>
+		<comune istat="022205">Trento</comune>
+		<provincia>Trento</provincia>
+		<indirizzo><![CDATA[Via A. Manzoni 47]]></indirizzo>
+		<email>atv@agenziatorreverde.it</email>
+		<url>http://www.agenziatorreverde.it</url>
+		<logo></logo>
+		<telefono>0461238548</telefono>
+		<cellulare>3357601311</cellulare>
+		<deleted>0</deleted>
+	</agenzia>
 
-            <!-- Classe Energetica -->
-            <energy_class>A</energy_class>
-            <ipe>45.5</ipe>
-            <ipe_unit>kWh/mq anno</ipe_unit>
+	<info>
+		<id>3470468</id>
+		<agency_code>2528T03</agency_code>
+		<deleted>0</deleted>
+		<mq>13</mq>
+		<price>350</price>
+		<flag_vacanza>0</flag_vacanza>
+		<age><![CDATA[2000]]></age>
+		<ipe>0.00</ipe>
+		<ipe_unit>kWh/m2anno</ipe_unit>
+		<ape classe="ND" flagQuasiZero="0" prestazioneEstate="" prestazioneInverno="" epglNRen="" epglRen="" kWhUnit="kWh/m2anno">ape2015</ape>
+        <title><![CDATA[TRENTO STANZA SINGOLA PER STUDENTI UNIVERSITARI]]></title>
+		<description><![CDATA[COLLINA DI TRENTO,  IN CASA BIFAMILIARE AFFITTIAMO STANZA SINGOLA IN APPARTAMENTO COMPOSTO DA AMPIA ZONA GIORNO E BALCONE, DOPPI SERVIZI, TRE STANZE DA LETTO COMPLESSIVE, LE SPESE SONO € 110,00 A PERSONA TUTTO INCLUSO, ANCHE WI-FI. POSSIBILITA' DI PARCHEGGIO.SI AFFITTA A STUDENTI UNIVERSITARI MASCHI, LIBERO DAL 01.01.2026. --- annuncio pubblicato con GESTIONALEIMMOBILIARE.it]]></description>
+		<zona><![CDATA[Tavernaro]]></zona>
+		<comune_istat>022205</comune_istat>
+		<indirizzo><![CDATA[via dei Michei]]></indirizzo>
+		<last_editor_time>2025-10-13 18:51:03</last_editor_time>
+		<categorie_id>28</categorie_id>
+		<categorie_micro_id>74</categorie_micro_id>
+		<url><![CDATA[https://www.prossimacasa.it/annuncio_20090816_13mq_trento_trento.html]]></url>
+		<video_tour></video_tour>
+		<virtual_tour><![CDATA[]]></virtual_tour>
+		<latitude>46.0820506</latitude>
+		<longitude>11.1535517</longitude>
+	</info>
 
-            <!-- NUOVI CAMPI OPZIONE A -->
+	<i18n>
+		
+	</i18n>
 
-            <!-- Info[57] Stato Manutenzione -->
-            <dati_inseriti>
-                <dato id="57">Nuovo</dato> <!-- Test: Stato Manutenzione = "Nuovo" -->
-            </dati_inseriti>
+	<file_allegati>
+		<logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/000__img-2179.jpg]]></logo>
+		
+		<allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/000__img-2179.jpg]]></file_path></allegato>
+		<allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/001__stanza_singola_a_sx_2.jpg]]></file_path></allegato>
+		<allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/002__stanza_singola_a_sx_3.jpg]]></file_path></allegato>
+		<allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/003__cucina_10.jpg]]></file_path></allegato>
+		<allegato id="4"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/004__cucina_11.jpg]]></file_path></allegato>
+		<allegato id="5"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/007__soggiorno.jpg]]></file_path></allegato>
+		<allegato id="6"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/008__ingresso.jpg]]></file_path></allegato>
+		<allegato id="7"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/009__img-2173.jpg]]></file_path></allegato>
+		<allegato id="8"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/011__img-2177.jpg]]></file_path></allegato>
+		<allegato id="9"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/012__img-2178.jpg]]></file_path></allegato>
+		<allegato id="10"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/230824/3470468/800x800/014__ripostiglio_1.jpg]]></file_path></allegato>
+	</file_allegati>
 
-            <!-- Info[56] Posizione -->
-            <info>
-                <caratteristica id="56">Centrale</caratteristica> <!-- Test: Posizione = "Centrale" -->
-            </info>
+	<info_inserite>
+		
+		<info id="1"><valore_assegnato>2</valore_assegnato></info>
+		<info id="2"><valore_assegnato>3</valore_assegnato></info>
+		<info id="3"><valore_assegnato>1</valore_assegnato></info>
+		<info id="4"><valore_assegnato>1</valore_assegnato></info>
+		<info id="5"><valore_assegnato>0</valore_assegnato></info>
+		<info id="6"><valore_assegnato>0</valore_assegnato></info>
+		<info id="7"><valore_assegnato>0</valore_assegnato></info>
+		<info id="8"><valore_assegnato>0</valore_assegnato></info>
+		<info id="9"><valore_assegnato>0</valore_assegnato></info>
+		<info id="10"><valore_assegnato>1</valore_assegnato></info>
+		<info id="11"><valore_assegnato>0</valore_assegnato></info>
+		<info id="12"><valore_assegnato>0</valore_assegnato></info>
+		<info id="13"><valore_assegnato>0</valore_assegnato></info>
+		<info id="14"><valore_assegnato>0</valore_assegnato></info>
+		<info id="15"><valore_assegnato>1</valore_assegnato></info>
+		<info id="16"><valore_assegnato>1</valore_assegnato></info>
+		<info id="17"><valore_assegnato>0</valore_assegnato></info>
+		<info id="18"><valore_assegnato>0</valore_assegnato></info>
+		<info id="19"><valore_assegnato>0</valore_assegnato></info>
+		<info id="20"><valore_assegnato>0</valore_assegnato></info>
+		<info id="21"><valore_assegnato>0</valore_assegnato></info>
+		<info id="22"><valore_assegnato>0</valore_assegnato></info>
+		<info id="23"><valore_assegnato>0</valore_assegnato></info>
+		<info id="24"><valore_assegnato>0</valore_assegnato></info>
+		<info id="25"><valore_assegnato>2</valore_assegnato></info>
+		<info id="26"><valore_assegnato>0</valore_assegnato></info>
+		<info id="27"><valore_assegnato>0</valore_assegnato></info>
+		<info id="28"><valore_assegnato>0</valore_assegnato></info>
+		<info id="29"><valore_assegnato>1</valore_assegnato></info>
+		<info id="30"><valore_assegnato>0</valore_assegnato></info>
+		<info id="31"><valore_assegnato>0</valore_assegnato></info>
+		<info id="32"><valore_assegnato>2</valore_assegnato></info>
+		<info id="33"><valore_assegnato>1</valore_assegnato></info>
+		<info id="34"><valore_assegnato>0</valore_assegnato></info>
+		<info id="35"><valore_assegnato>0</valore_assegnato></info>
+		<info id="36"><valore_assegnato>0</valore_assegnato></info>
+		<info id="37"><valore_assegnato>0</valore_assegnato></info>
+		<info id="38"><valore_assegnato>0</valore_assegnato></info>
+		<info id="39"><valore_assegnato>0</valore_assegnato></info>
+		<info id="40"><valore_assegnato>0</valore_assegnato></info>
+		<info id="41"><valore_assegnato>0</valore_assegnato></info>
+		<info id="42"><valore_assegnato>0</valore_assegnato></info>
+		<info id="43"><valore_assegnato>0</valore_assegnato></info>
+		<info id="44"><valore_assegnato>0</valore_assegnato></info>
+		<info id="45"><valore_assegnato>0</valore_assegnato></info>
+		<info id="46"><valore_assegnato>0</valore_assegnato></info>
+		<info id="47"><valore_assegnato>0</valore_assegnato></info>
+		<info id="48"><valore_assegnato>0</valore_assegnato></info>
+		<info id="49"><valore_assegnato>0</valore_assegnato></info>
+		<info id="50"><valore_assegnato>1</valore_assegnato></info>
+		<info id="51"><valore_assegnato>0</valore_assegnato></info>
+		<info id="52"><valore_assegnato>0</valore_assegnato></info>
+		<info id="53"><valore_assegnato>0</valore_assegnato></info>
+		<info id="54"><valore_assegnato>0</valore_assegnato></info>
+		<info id="55"><valore_assegnato>0</valore_assegnato></info>
+		<info id="56"><valore_assegnato>0</valore_assegnato></info>
+		<info id="57"><valore_assegnato>5</valore_assegnato></info>
+		<info id="58"><valore_assegnato>0</valore_assegnato></info>
+		<info id="59"><valore_assegnato>0</valore_assegnato></info>
+		<info id="60"><valore_assegnato>0</valore_assegnato></info>
+		<info id="61"><valore_assegnato>0</valore_assegnato></info>
+		<info id="62"><valore_assegnato>3</valore_assegnato></info>
+		<info id="63"><valore_assegnato>0</valore_assegnato></info>
+		<info id="64"><valore_assegnato>0</valore_assegnato></info>
+		<info id="65"><valore_assegnato>4</valore_assegnato></info>
+		<info id="66"><valore_assegnato>0</valore_assegnato></info>
+		<info id="92"><valore_assegnato>0</valore_assegnato></info>
+		<info id="93"><valore_assegnato>0</valore_assegnato></info>
+		<info id="94"><valore_assegnato>0</valore_assegnato></info>
+		<info id="95"><valore_assegnato>0</valore_assegnato></info>
+		<info id="97"><valore_assegnato>0</valore_assegnato></info>
+		<info id="101"><valore_assegnato>2</valore_assegnato></info>
+		<info id="102"><valore_assegnato>0</valore_assegnato></info>
+		<info id="103"><valore_assegnato>0</valore_assegnato></info>
+		<info id="104"><valore_assegnato>2</valore_assegnato></info>
+		<info id="105"><valore_assegnato>0</valore_assegnato></info>
+	</info_inserite>
+</annuncio>
 
-            <!-- Info[1-54] Caratteristiche -->
-            <info>
-                <caratteristica id="15">1</caratteristica> <!-- Arredato -->
-                <caratteristica id="16">1</caratteristica> <!-- Riscaldamento autonomo -->
-                <caratteristica id="14">1</caratteristica> <!-- Aria condizionata -->
-                <caratteristica id="13">1</caratteristica> <!-- Ascensore -->
-                <caratteristica id="21">1</caratteristica> <!-- Riscaldamento a pavimento -->
-                <caratteristica id="20">1</caratteristica> <!-- Box/Garage -->
-            </info>
-
-            <!-- Info[55-105] Caratteristiche avanzate -->
-            <info>
-                <caratteristica id="76">1</caratteristica> <!-- Vista panoramica -->
-                <caratteristica id="91">1</caratteristica> <!-- Cucina abitabile -->
-                <caratteristica id="58">A+</caratteristica> <!-- Classe energetica dettagliata -->
-            </info>
-
-            <!-- Dati dimensioni aggiuntivi -->
-            <dati_inseriti>
-                <dato id="5">10</dato> <!-- mq aree esterne (balcone) -->
-                <dato id="18">0</dato> <!-- mq ufficio -->
-            </dati_inseriti>
-
-            <!-- Agenzia -->
-            <agency_code>AG001</agency_code>
-
-            <!-- Media -->
-            <images>
-                <image>https://example.com/images/test001-1.jpg</image>
-                <image>https://example.com/images/test001-2.jpg</image>
-            </images>
-        </immobile>
-
-        <!-- PROPERTY 2: Villa - Test Info[57] = "Ottimo" e Info[56] = "Residenziale" -->
-        <immobile>
-            <id>TEST002</id>
-            <titolo>Villa Singola con Giardino e Piscina</titolo>
-            <descrizione>Elegante villa singola in ottimo stato, circondata da ampio giardino con piscina. 4 camere, 3 bagni, doppi servizi, taverna, garage doppio.</descrizione>
-
-            <categoria>1</categoria>
-            <contratto>1</contratto>
-            <categorie_micro_id>2</categorie_micro_id> <!-- Villa -->
-
-            <price>650000</price>
-            <superficie_mq>280</superficie_mq>
-            <superficie_comm>320</superficie_comm>
-            <superficie_giardino>800</superficie_giardino>
-
-            <indirizzo>Via dei Tigli 42</indirizzo>
-            <comune>Rovereto</comune>
-            <comune_istat>022178</comune_istat>
-            <provincia>TN</provincia>
-            <zona>Residenziale</zona>
-            <latitude>45.8906</latitude>
-            <longitude>11.0397</longitude>
-
-            <vani>8</vani>
-            <locali>12</locali>
-            <camere>4</camere>
-            <bagni>3</bagni>
-            <piano>0</piano>
-            <age>1995</age>
-
-            <energy_class>C</energy_class>
-            <ipe>95.2</ipe>
-            <ipe_unit>kWh/mq anno</ipe_unit>
-
-            <!-- OPZIONE A Fields -->
-            <dati_inseriti>
-                <dato id="57">Ottimo</dato> <!-- Stato Manutenzione = "Ottimo" -->
-                <dato id="5">150</dato> <!-- mq aree esterne (giardino + piscina) -->
-                <dato id="18">0</dato>
-            </dati_inseriti>
-
-            <info>
-                <caratteristica id="56">Residenziale</caratteristica> <!-- Posizione -->
-                <caratteristica id="17">1</caratteristica> <!-- Giardino -->
-                <caratteristica id="66">1</caratteristica> <!-- Piscina -->
-                <caratteristica id="5">1</caratteristica> <!-- Garage -->
-                <caratteristica id="20">1</caratteristica> <!-- Box -->
-                <caratteristica id="23">1</caratteristica> <!-- Allarme -->
-                <caratteristica id="14">1</caratteristica> <!-- Aria condizionata -->
-            </info>
-
-            <agency_code>AG001</agency_code>
-
-            <images>
-                <image>https://example.com/images/test002-1.jpg</image>
-                <image>https://example.com/images/test002-2.jpg</image>
-                <image>https://example.com/images/test002-3.jpg</image>
-            </images>
-        </immobile>
-
-        <!-- PROPERTY 3: Terreno - Test Info[57] = "Da ristrutturare" e Micro-categoria Terreni -->
-        <immobile>
-            <id>TEST003</id>
-            <titolo>Terreno Edificabile Vista Montagna</titolo>
-            <descrizione>Terreno edificabile di 1200 mq con vista panoramica sulle montagne. Possibilità di costruire villa singola o bifamiliare. Servizi nelle vicinanze.</descrizione>
-
-            <categoria>10</categoria> <!-- Terreni -->
-            <contratto>1</contratto>
-            <categorie_micro_id>71</categorie_micro_id> <!-- Terreno edificabile -->
-
-            <price>180000</price>
-            <superficie_mq>1200</superficie_mq>
-            <superficie_comm>1200</superficie_comm>
-            <superficie_giardino>0</superficie_giardino>
-
-            <indirizzo>Via Monte Bondone</indirizzo>
-            <comune>Trento</comune>
-            <comune_istat>022205</comune_istat>
-            <provincia>TN</provincia>
-            <zona>Collina</zona>
-            <latitude>46.0745</latitude>
-            <longitude>11.0952</longitude>
-
-            <vani>0</vani>
-            <locali>0</locali>
-            <camere>0</camere>
-            <bagni>0</bagni>
-            <piano>0</piano>
-
-            <energy_class>Non soggetto</energy_class>
-
-            <!-- OPZIONE A Fields -->
-            <dati_inseriti>
-                <dato id="57">Buono</dato> <!-- Stato Manutenzione -->
-                <dato id="5">0</dato>
-                <dato id="18">0</dato>
-            </dati_inseriti>
-
-            <info>
-                <caratteristica id="56">Montagna</caratteristica> <!-- Posizione = "Montagna" -->
-                <caratteristica id="76">1</caratteristica> <!-- Vista panoramica -->
-            </info>
-
-            <agency_code>AG002</agency_code>
-
-            <images>
-                <image>https://example.com/images/test003-1.jpg</image>
-            </images>
-        </immobile>
-    </immobili>
-</root>
+</dataset>
