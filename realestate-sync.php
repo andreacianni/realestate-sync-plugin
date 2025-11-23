@@ -3,7 +3,7 @@
  * Plugin Name: RealEstate Sync
  * Plugin URI: https://www.novacomitalia.com/plugins/realestate-sync
  * Description: Professional WordPress plugin for automated XML import of real estate properties from GestionaleImmobiliare.it. Features chunked processing, automated scheduling, and comprehensive admin interface.
- * Version: 1.5.2
+ * Version: 1.5.3
  * Author: Andrea Cianni - Novacom
  * Author URI: https://www.novacomitalia.com
  * License: GPL v2 or later
@@ -31,7 +31,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('REALESTATE_SYNC_VERSION', '1.5.2');
+define('REALESTATE_SYNC_VERSION', '1.5.3');
 define('REALESTATE_SYNC_PLUGIN_FILE', __FILE__);
 define('REALESTATE_SYNC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('REALESTATE_SYNC_PLUGIN_URL', plugin_dir_url(__FILE__));
@@ -123,6 +123,10 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-mapper.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-image-importer.php'; // 🖼️ NEW: Image Importer v1.0
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-manager.php'; // 🏢 NEW: Agency Manager v2.0
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-parser.php'; // 🏢 Agency Parser
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-importer.php'; // 🏢 Agency Importer
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-deduplicator.php'; // 🖼️ Media Deduplicator
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-agent-linker.php'; // 🔗 Property-Agent Linker
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wpresidence-api-writer.php'; // 🚀 NEW: WPResidence Property API Writer v1.0 (v1.4.0)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wpresidence-agency-api-writer.php'; // 🏢 NEW: WPResidence Agency API Writer v1.0 (v1.4.0)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wp-importer.php'; // Legacy importer (meta fields)
