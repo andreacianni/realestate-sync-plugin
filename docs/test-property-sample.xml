@@ -1,175 +1,276 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <dataset>
     <!-- TEST PROPERTY 1: Appartamento Base -->
-    <annuncio>
-        <info>
-            <id>TEST001</id>
-            <title>Appartamento moderno in Centro Trento</title>
-            <abstract>Bellissimo appartamento di 85 mq completamente ristrutturato</abstract>
-            <description><![CDATA[Splendido appartamento di 85 mq situato nel cuore di Trento, completamente ristrutturato con finiture di pregio. L'immobile si compone di soggiorno con angolo cottura, 2 camere da letto, bagno e ampio balcone con vista panoramica sulle montagne.]]></description>
-            <price>285000</price>
-            <mq>85</mq>
-            <categorie_id>11</categorie_id>
-            <categorie_micro_id>1</categorie_micro_id>
-            <indirizzo>Via Roma</indirizzo>
-            <civico>25</civico>
-            <zona>Centro Storico</zona>
-            <comune>Trento</comune>
-            <comune_istat>022205</comune_istat>
-            <provincia>TN</provincia>
-            <cap>38122</cap>
-            <latitude>46.0664</latitude>
-            <longitude>11.1257</longitude>
-            <age>1995</age>
-            <agency_code>AG001</agency_code>
-            <url>https://esempio.com/property/TEST001</url>
-            <ipe>65.5</ipe>
-            <ipe_unit>kWh/m²a</ipe_unit>
-            <ape>ape2015</ape>
-            <virtual_tour>https://esempio.com/tour/TEST001</virtual_tour>
-            <video_tour>https://youtube.com/watch?v=TEST001</video_tour>
-            <seo_title>Appartamento Centro Trento - 2 Camere Vista Montagna</seo_title>
-        </info>
+<annuncio>
+	<agenzia>
+		<id>692</id>
+		<ragione_sociale><![CDATA[LA BASE S.A.S.]]></ragione_sociale>
+		<referente><![CDATA[Gianni Pulze]]></referente>
+		<iva>05589840288</iva>
+		<comune istat="028037">Este</comune>
+		<provincia>Padova</provincia>
+		<indirizzo><![CDATA[Via Cavour 79]]></indirizzo>
+		<email>immobiliarelabase@gmail.com</email>
+		<url>http://www.agenzialabase.it</url>
+		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/692/640x480/logo_la_base.jpg</logo>
+		<telefono>04293678</telefono>
+		<cellulare>3388818859</cellulare>
+		<deleted>0</deleted>
+	</agenzia>
 
-        <info_inserite>
-            <info id="1"><valore_assegnato>1</valore_assegnato></info> <!-- Bathrooms -->
-            <info id="2"><valore_assegnato>2</valore_assegnato></info> <!-- Bedrooms -->
-            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
-            <info id="13"><valore_assegnato>1</valore_assegnato></info> <!-- Ascensore -->
-            <info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- Aria condizionata -->
-            <info id="15"><valore_assegnato>0</valore_assegnato></info> <!-- Arredato -->
-            <info id="16"><valore_assegnato>1</valore_assegnato></info> <!-- Riscaldamento autonomo -->
-            <info id="33"><valore_assegnato>3</valore_assegnato></info> <!-- Piano 3 -->
-            <info id="55"><valore_assegnato>3</valore_assegnato></info> <!-- Classe energetica B -->
-            <info id="56"><valore_assegnato>1</valore_assegnato></info> <!-- Posizione: Centro -->
-            <info id="57"><valore_assegnato>1</valore_assegnato></info> <!-- Stato: Ottimo -->
-            <info id="62"><valore_assegnato>1</valore_assegnato></info> <!-- Vista panoramica -->
-            <info id="65"><valore_assegnato>3</valore_assegnato></info> <!-- Rooms totali -->
-        </info_inserite>
+	<info>
+		<id>49511</id>
+		<agency_code>024</agency_code>
+		<deleted>0</deleted>
+		<mq>900</mq>
+		<price>320000</price>
+		<flag_vacanza>0</flag_vacanza>
+		<age><![CDATA[]]></age>
+		<ipe>0.00</ipe>
+		<ipe_unit>kWh/m3anno</ipe_unit>
+		<ape classe="G" flagQuasiZero="0" prestazioneEstate="" prestazioneInverno="" epglNRen="" epglRen="" kWhUnit="kWh/m3anno">ape2014</ape>
+        <title><![CDATA[Capannone a Sant'Elena con due appartamenti, ideale per attività commerciale]]></title>
+		<description><![CDATA[A Sant'Elena, proponiamo in vendita un capannone di 900 mq con la possibilità di sfruttare due appartamenti situati al primo piano. Uno degli appartamenti è già finito e abitabile, mentre l'altro si trova allo stato grezzo, offrendo ampie possibilità di personalizzazione. Al piano terra troviamo ingresso, sala d'attesa, ufficio, laboratorio di 670 mq, spogliatoio e due servizi. Il piano superiore ospita i due appartamenti composti da ingresso/soggiorno - cucina ampia - due camere da letto - ampio bagno - ripostiglio – tutto accompagnato da un'esclusiva area scoperta. Ideale per chi cerca una soluzione adatta ad attività commerciali o industriali. --- annuncio pubblicato con GESTIONALEIMMOBILIARE.it]]></description>
+		<zona><![CDATA[]]></zona>
+		<comune_istat>028083</comune_istat>
+		<indirizzo><![CDATA[]]></indirizzo>
+		<last_editor_time>2024-04-03 18:11:37</last_editor_time>
+		<categorie_id>16</categorie_id>
+		<categorie_micro_id></categorie_micro_id>
+		<url><![CDATA[https://www.prossimacasa.it/annuncio_20159427_900mq_padova_sant_elena.html]]></url>
+		<video_tour></video_tour>
+		<virtual_tour><![CDATA[]]></virtual_tour>
+		<latitude>45.1872037</latitude>
+		<longitude>11.7128148</longitude>
+	</info>
 
-        <dati_inseriti>
-            <dati id="20"><valore_assegnato>90</valore_assegnato></dati> <!-- Sup. commerciale -->
-            <dati id="21"><valore_assegnato>85</valore_assegnato></dati> <!-- Sup. utile -->
-            <dati id="6"><valore_assegnato>2.80</valore_assegnato></dati> <!-- Altezza soffitti -->
-        </dati_inseriti>
+	<i18n>
+		
+	</i18n>
 
-        <file_allegati>
-            <allegato id="1" type="image"><file_path>https://esempio.com/img/TEST001_1.jpg</file_path></allegato>
-            <allegato id="2" type="image"><file_path>https://esempio.com/img/TEST001_2.jpg</file_path></allegato>
-            <allegato id="3" type="planimetria"><file_path>https://esempio.com/img/TEST001_plan.jpg</file_path></allegato>
-        </file_allegati>
+	<file_allegati>
+		<logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/000__n-088_wmk_0.jpg]]></logo>
+		
+		<allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/000__n-088_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/001__n-089_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/002__n-091_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/003__n-093_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="4"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/004__n-086_wmk_0.jpg]]></file_path></allegato>
+	</file_allegati>
 
-        <catasto>
-            <destinazione_uso>Residenziale</destinazione_uso>
-            <rendita_catastale>650</rendita_catastale>
-            <foglio>12</foglio>
-            <particella>345</particella>
-            <subalterno>8</subalterno>
-        </catasto>
-
-        <agenzia>
-            <id>AG001</id>
-            <ragione_sociale>Immobiliare Trentino SRL</ragione_sociale>
-            <nome>Immobiliare Trentino</nome>
-            <indirizzo>Corso Italia 15</indirizzo>
-            <comune istat="022205">Trento</comune>
-            <provincia>TN</provincia>
-            <cap>38122</cap>
-            <telefono>0461 123456</telefono>
-            <email>info@immobiliaretrentino.it</email>
-            <sito_web>https://www.immobiliaretrentino.it</sito_web>
-        </agenzia>
-    </annuncio>
+	<info_inserite>
+		
+		<info id="1"><valore_assegnato>1</valore_assegnato></info>
+		<info id="2"><valore_assegnato>2</valore_assegnato></info>
+		<info id="3"><valore_assegnato>1</valore_assegnato></info>
+		<info id="4"><valore_assegnato>1</valore_assegnato></info>
+		<info id="5"><valore_assegnato>0</valore_assegnato></info>
+		<info id="6"><valore_assegnato>0</valore_assegnato></info>
+		<info id="7"><valore_assegnato>0</valore_assegnato></info>
+		<info id="8"><valore_assegnato>0</valore_assegnato></info>
+		<info id="9"><valore_assegnato>1</valore_assegnato></info>
+		<info id="10"><valore_assegnato>0</valore_assegnato></info>
+		<info id="11"><valore_assegnato>0</valore_assegnato></info>
+		<info id="12"><valore_assegnato>0</valore_assegnato></info>
+		<info id="13"><valore_assegnato>0</valore_assegnato></info>
+		<info id="14"><valore_assegnato>0</valore_assegnato></info>
+		<info id="15"><valore_assegnato>0</valore_assegnato></info>
+		<info id="16"><valore_assegnato>0</valore_assegnato></info>
+		<info id="17"><valore_assegnato>0</valore_assegnato></info>
+		<info id="18"><valore_assegnato>0</valore_assegnato></info>
+		<info id="19"><valore_assegnato>0</valore_assegnato></info>
+		<info id="20"><valore_assegnato>0</valore_assegnato></info>
+		<info id="21"><valore_assegnato>0</valore_assegnato></info>
+		<info id="22"><valore_assegnato>0</valore_assegnato></info>
+		<info id="23"><valore_assegnato>0</valore_assegnato></info>
+		<info id="24"><valore_assegnato>3</valore_assegnato></info>
+		<info id="25"><valore_assegnato>0</valore_assegnato></info>
+		<info id="26"><valore_assegnato>0</valore_assegnato></info>
+		<info id="27"><valore_assegnato>1</valore_assegnato></info>
+		<info id="28"><valore_assegnato>1</valore_assegnato></info>
+		<info id="29"><valore_assegnato>1</valore_assegnato></info>
+		<info id="30"><valore_assegnato>0</valore_assegnato></info>
+		<info id="31"><valore_assegnato>0</valore_assegnato></info>
+		<info id="32"><valore_assegnato>3</valore_assegnato></info>
+		<info id="33"><valore_assegnato>-2</valore_assegnato></info>
+		<info id="34"><valore_assegnato>0</valore_assegnato></info>
+		<info id="35"><valore_assegnato>0</valore_assegnato></info>
+		<info id="36"><valore_assegnato>0</valore_assegnato></info>
+		<info id="37"><valore_assegnato>0</valore_assegnato></info>
+		<info id="38"><valore_assegnato>0</valore_assegnato></info>
+		<info id="39"><valore_assegnato>0</valore_assegnato></info>
+		<info id="40"><valore_assegnato>0</valore_assegnato></info>
+		<info id="41"><valore_assegnato>0</valore_assegnato></info>
+		<info id="42"><valore_assegnato>0</valore_assegnato></info>
+		<info id="43"><valore_assegnato>0</valore_assegnato></info>
+		<info id="44"><valore_assegnato>0</valore_assegnato></info>
+		<info id="45"><valore_assegnato>0</valore_assegnato></info>
+		<info id="46"><valore_assegnato>0</valore_assegnato></info>
+		<info id="47"><valore_assegnato>0</valore_assegnato></info>
+		<info id="48"><valore_assegnato>0</valore_assegnato></info>
+		<info id="49"><valore_assegnato>0</valore_assegnato></info>
+		<info id="50"><valore_assegnato>0</valore_assegnato></info>
+		<info id="51"><valore_assegnato>0</valore_assegnato></info>
+		<info id="52"><valore_assegnato>0</valore_assegnato></info>
+		<info id="53"><valore_assegnato>0</valore_assegnato></info>
+		<info id="54"><valore_assegnato>0</valore_assegnato></info>
+		<info id="55"><valore_assegnato>8</valore_assegnato></info>
+		<info id="56"><valore_assegnato>0</valore_assegnato></info>
+		<info id="57"><valore_assegnato>0</valore_assegnato></info>
+		<info id="58"><valore_assegnato>0</valore_assegnato></info>
+		<info id="59"><valore_assegnato>0</valore_assegnato></info>
+		<info id="60"><valore_assegnato>0</valore_assegnato></info>
+		<info id="61"><valore_assegnato>0</valore_assegnato></info>
+		<info id="62"><valore_assegnato>0</valore_assegnato></info>
+		<info id="63"><valore_assegnato>0</valore_assegnato></info>
+		<info id="64"><valore_assegnato>0</valore_assegnato></info>
+		<info id="65"><valore_assegnato>3</valore_assegnato></info>
+		<info id="66"><valore_assegnato>0</valore_assegnato></info>
+		<info id="92"><valore_assegnato>0</valore_assegnato></info>
+		<info id="93"><valore_assegnato>0</valore_assegnato></info>
+		<info id="94"><valore_assegnato>0</valore_assegnato></info>
+		<info id="95"><valore_assegnato>0</valore_assegnato></info>
+		<info id="97"><valore_assegnato>0</valore_assegnato></info>
+		<info id="101"><valore_assegnato>0</valore_assegnato></info>
+		<info id="102"><valore_assegnato>0</valore_assegnato></info>
+		<info id="103"><valore_assegnato>0</valore_assegnato></info>
+		<info id="104"><valore_assegnato>0</valore_assegnato></info>
+		<info id="105"><valore_assegnato>0</valore_assegnato></info>
+	</info_inserite>
+</annuncio>
 
     <!-- TEST PROPERTY 2: Villa con Piscina -->
-    <annuncio>
-        <info>
-            <id>TEST002</id>
-            <title>Villa di lusso con piscina e giardino</title>
-            <abstract>Esclusiva villa di 280 mq con piscina e ampio giardino</abstract>
-            <description><![CDATA[Prestigiosa villa indipendente di 280 mq disposta su due livelli, circondata da un magnifico giardino di 800 mq con piscina riscaldata. La proprietà offre ampi spazi living, 4 camere da letto, 3 bagni, taverna e garage doppio.]]></description>
-            <price>850000</price>
-            <mq>280</mq>
-            <categorie_id>18</categorie_id>
-            <categorie_micro_id>5</categorie_micro_id>
-            <indirizzo>Via dei Cipressi</indirizzo>
-            <civico>8</civico>
-            <zona>Collina Est</zona>
-            <comune>Trento</comune>
-            <comune_istat>022205</comune_istat>
-            <provincia>TN</provincia>
-            <cap>38123</cap>
-            <latitude>46.0750</latitude>
-            <longitude>11.1350</longitude>
-            <age>2015</age>
-            <agency_code>AG001</agency_code>
-            <url>https://esempio.com/property/TEST002</url>
-            <ipe>48.2</ipe>
-            <ipe_unit>kWh/m²a</ipe_unit>
-            <ape>ape2015</ape>
-            <virtual_tour>https://esempio.com/tour/TEST002</virtual_tour>
-            <seo_title>Villa Lusso Piscina Trento - 4 Camere Giardino 800mq</seo_title>
-        </info>
+<annuncio>
+	<agenzia>
+		<id>692</id>
+		<ragione_sociale><![CDATA[LA BASE S.A.S.]]></ragione_sociale>
+		<referente><![CDATA[Gianni Pulze]]></referente>
+		<iva>05589840288</iva>
+		<comune istat="028037">Este</comune>
+		<provincia>Padova</provincia>
+		<indirizzo><![CDATA[Via Cavour 79]]></indirizzo>
+		<email>immobiliarelabase@gmail.com</email>
+		<url>http://www.agenzialabase.it</url>
+		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/692/640x480/logo_la_base.jpg</logo>
+		<telefono>04293678</telefono>
+		<cellulare>3388818859</cellulare>
+		<deleted>0</deleted>
+	</agenzia>
 
-        <info_inserite>
-            <info id="1"><valore_assegnato>3</valore_assegnato></info> <!-- Bathrooms -->
-            <info id="2"><valore_assegnato>4</valore_assegnato></info> <!-- Bedrooms -->
-            <info id="5"><valore_assegnato>2</valore_assegnato></info> <!-- Box garage -->
-            <info id="8"><valore_assegnato>1</valore_assegnato></info> <!-- Cantina -->
-            <info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- Vendita -->
-            <info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- Aria condizionata -->
-            <info id="15"><valore_assegnato>1</valore_assegnato></info> <!-- Arredato -->
-            <info id="17"><valore_assegnato>1</valore_assegnato></info> <!-- Giardino -->
-            <info id="20"><valore_assegnato>1</valore_assegnato></info> <!-- Box o garage -->
-            <info id="21"><valore_assegnato>1</valore_assegnato></info> <!-- Riscaldamento a pavimento -->
-            <info id="23"><valore_assegnato>1</valore_assegnato></info> <!-- Allarme -->
-            <info id="33"><valore_assegnato>0</valore_assegnato></info> <!-- Piano terra -->
-            <info id="36"><valore_assegnato>1</valore_assegnato></info> <!-- Montagna -->
-            <info id="46"><valore_assegnato>1</valore_assegnato></info> <!-- Camino -->
-            <info id="55"><valore_assegnato>2</valore_assegnato></info> <!-- Classe energetica A -->
-            <info id="56"><valore_assegnato>3</valore_assegnato></info> <!-- Posizione: Collinare -->
-            <info id="57"><valore_assegnato>1</valore_assegnato></info> <!-- Stato: Nuovo -->
-            <info id="62"><valore_assegnato>2</valore_assegnato></info> <!-- Vista panoramica forte -->
-            <info id="65"><valore_assegnato>8</valore_assegnato></info> <!-- Rooms totali -->
-            <info id="66"><valore_assegnato>1</valore_assegnato></info> <!-- Piscina -->
-            <info id="88"><valore_assegnato>1</valore_assegnato></info> <!-- Domotica -->
-            <info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- Porta blindata -->
-        </info_inserite>
+	<info>
+		<id>47804</id>
+		<agency_code>057</agency_code>
+		<deleted>0</deleted>
+		<mq>550</mq>
+		<price>50000</price>
+		<flag_vacanza>0</flag_vacanza>
+		<age><![CDATA[]]></age>
+		<ipe>0.00</ipe>
+		<ipe_unit>kWh/m2anno</ipe_unit>
+		<ape classe="NS" flagQuasiZero="0" prestazioneEstate="" prestazioneInverno="" epglNRen="" epglRen="" kWhUnit="kWh/m2anno">ape2014</ape>
+        <title><![CDATA[]]></title>
+		<description><![CDATA[Vendesi 550 mq. circa di terreno edificabile con progetto approvato per una casa singola, posizione interessante e comoda a tutti i servizi. --- annuncio pubblicato con GESTIONALEIMMOBILIARE.it]]></description>
+		<zona><![CDATA[]]></zona>
+		<comune_istat>028059</comune_istat>
+		<indirizzo><![CDATA[]]></indirizzo>
+		<last_editor_time>2024-10-03 11:12:44</last_editor_time>
+		<categorie_id>19</categorie_id>
+		<categorie_micro_id></categorie_micro_id>
+		<url><![CDATA[https://www.prossimacasa.it/annuncio_20166134_550mq_padova_ospedaletto-euganeo.html]]></url>
+		<video_tour></video_tour>
+		<virtual_tour><![CDATA[]]></virtual_tour>
+		<latitude>45.223188</latitude>
+		<longitude>11.611146</longitude>
+	</info>
 
-        <dati_inseriti>
-            <dati id="4"><valore_assegnato>800</valore_assegnato></dati> <!-- Garden size -->
-            <dati id="6"><valore_assegnato>3.20</valore_assegnato></dati> <!-- Altezza soffitti -->
-            <dati id="20"><valore_assegnato>320</valore_assegnato></dati> <!-- Sup. commerciale -->
-            <dati id="21"><valore_assegnato>280</valore_assegnato></dati> <!-- Sup. utile -->
-        </dati_inseriti>
+	<i18n>
+		
+	</i18n>
 
-        <file_allegati>
-            <allegato id="1" type="image"><file_path>https://esempio.com/img/TEST002_1.jpg</file_path></allegato>
-            <allegato id="2" type="image"><file_path>https://esempio.com/img/TEST002_2.jpg</file_path></allegato>
-            <allegato id="3" type="image"><file_path>https://esempio.com/img/TEST002_3.jpg</file_path></allegato>
-            <allegato id="4" type="image"><file_path>https://esempio.com/img/TEST002_4.jpg</file_path></allegato>
-            <allegato id="5" type="planimetria"><file_path>https://esempio.com/img/TEST002_plan.jpg</file_path></allegato>
-        </file_allegati>
+	<file_allegati>
+		<logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091110/47804/800x800/terreno.jpg]]></logo>
+		
+		<allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091110/47804/800x800/terreno.jpg]]></file_path></allegato>
+	</file_allegati>
 
-        <catasto>
-            <destinazione_uso>Residenziale</destinazione_uso>
-            <rendita_catastale>2850</rendita_catastale>
-            <foglio>45</foglio>
-            <particella>123</particella>
-            <subalterno>2</subalterno>
-        </catasto>
-
-        <agenzia>
-            <id>AG001</id>
-            <ragione_sociale>Immobiliare Trentino SRL</ragione_sociale>
-            <nome>Immobiliare Trentino</nome>
-            <indirizzo>Corso Italia 15</indirizzo>
-            <comune istat="022205">Trento</comune>
-            <provincia>TN</provincia>
-            <cap>38122</cap>
-            <telefono>0461 123456</telefono>
-            <email>info@immobiliaretrentino.it</email>
-            <sito_web>https://www.immobiliaretrentino.it</sito_web>
-        </agenzia>
-    </annuncio>
+	<info_inserite>
+		
+		<info id="1"><valore_assegnato>0</valore_assegnato></info>
+		<info id="2"><valore_assegnato>0</valore_assegnato></info>
+		<info id="3"><valore_assegnato>0</valore_assegnato></info>
+		<info id="4"><valore_assegnato>0</valore_assegnato></info>
+		<info id="5"><valore_assegnato>0</valore_assegnato></info>
+		<info id="6"><valore_assegnato>0</valore_assegnato></info>
+		<info id="7"><valore_assegnato>0</valore_assegnato></info>
+		<info id="8"><valore_assegnato>0</valore_assegnato></info>
+		<info id="9"><valore_assegnato>1</valore_assegnato></info>
+		<info id="10"><valore_assegnato>0</valore_assegnato></info>
+		<info id="11"><valore_assegnato>0</valore_assegnato></info>
+		<info id="12"><valore_assegnato>0</valore_assegnato></info>
+		<info id="13"><valore_assegnato>0</valore_assegnato></info>
+		<info id="14"><valore_assegnato>0</valore_assegnato></info>
+		<info id="15"><valore_assegnato>0</valore_assegnato></info>
+		<info id="16"><valore_assegnato>0</valore_assegnato></info>
+		<info id="17"><valore_assegnato>0</valore_assegnato></info>
+		<info id="18"><valore_assegnato>0</valore_assegnato></info>
+		<info id="19"><valore_assegnato>0</valore_assegnato></info>
+		<info id="20"><valore_assegnato>0</valore_assegnato></info>
+		<info id="21"><valore_assegnato>0</valore_assegnato></info>
+		<info id="22"><valore_assegnato>0</valore_assegnato></info>
+		<info id="23"><valore_assegnato>0</valore_assegnato></info>
+		<info id="24"><valore_assegnato>0</valore_assegnato></info>
+		<info id="25"><valore_assegnato>0</valore_assegnato></info>
+		<info id="26"><valore_assegnato>0</valore_assegnato></info>
+		<info id="27"><valore_assegnato>0</valore_assegnato></info>
+		<info id="28"><valore_assegnato>0</valore_assegnato></info>
+		<info id="29"><valore_assegnato>0</valore_assegnato></info>
+		<info id="30"><valore_assegnato>0</valore_assegnato></info>
+		<info id="31"><valore_assegnato>0</valore_assegnato></info>
+		<info id="32"><valore_assegnato>-2</valore_assegnato></info>
+		<info id="33"><valore_assegnato>-2</valore_assegnato></info>
+		<info id="34"><valore_assegnato>0</valore_assegnato></info>
+		<info id="35"><valore_assegnato>0</valore_assegnato></info>
+		<info id="36"><valore_assegnato>0</valore_assegnato></info>
+		<info id="37"><valore_assegnato>0</valore_assegnato></info>
+		<info id="38"><valore_assegnato>0</valore_assegnato></info>
+		<info id="39"><valore_assegnato>0</valore_assegnato></info>
+		<info id="40"><valore_assegnato>0</valore_assegnato></info>
+		<info id="41"><valore_assegnato>0</valore_assegnato></info>
+		<info id="42"><valore_assegnato>0</valore_assegnato></info>
+		<info id="43"><valore_assegnato>0</valore_assegnato></info>
+		<info id="44"><valore_assegnato>0</valore_assegnato></info>
+		<info id="45"><valore_assegnato>0</valore_assegnato></info>
+		<info id="46"><valore_assegnato>0</valore_assegnato></info>
+		<info id="47"><valore_assegnato>0</valore_assegnato></info>
+		<info id="48"><valore_assegnato>0</valore_assegnato></info>
+		<info id="49"><valore_assegnato>0</valore_assegnato></info>
+		<info id="50"><valore_assegnato>0</valore_assegnato></info>
+		<info id="51"><valore_assegnato>0</valore_assegnato></info>
+		<info id="52"><valore_assegnato>0</valore_assegnato></info>
+		<info id="53"><valore_assegnato>0</valore_assegnato></info>
+		<info id="54"><valore_assegnato>0</valore_assegnato></info>
+		<info id="55"><valore_assegnato>9</valore_assegnato></info>
+		<info id="56"><valore_assegnato>0</valore_assegnato></info>
+		<info id="57"><valore_assegnato>0</valore_assegnato></info>
+		<info id="58"><valore_assegnato>0</valore_assegnato></info>
+		<info id="59"><valore_assegnato>0</valore_assegnato></info>
+		<info id="60"><valore_assegnato>0</valore_assegnato></info>
+		<info id="61"><valore_assegnato>0</valore_assegnato></info>
+		<info id="62"><valore_assegnato>0</valore_assegnato></info>
+		<info id="63"><valore_assegnato>0</valore_assegnato></info>
+		<info id="64"><valore_assegnato>0</valore_assegnato></info>
+		<info id="65"><valore_assegnato>0</valore_assegnato></info>
+		<info id="66"><valore_assegnato>0</valore_assegnato></info>
+		<info id="92"><valore_assegnato>0</valore_assegnato></info>
+		<info id="93"><valore_assegnato>0</valore_assegnato></info>
+		<info id="94"><valore_assegnato>0</valore_assegnato></info>
+		<info id="95"><valore_assegnato>0</valore_assegnato></info>
+		<info id="97"><valore_assegnato>0</valore_assegnato></info>
+		<info id="101"><valore_assegnato>0</valore_assegnato></info>
+		<info id="102"><valore_assegnato>0</valore_assegnato></info>
+		<info id="103"><valore_assegnato>0</valore_assegnato></info>
+		<info id="104"><valore_assegnato>0</valore_assegnato></info>
+		<info id="105"><valore_assegnato>0</valore_assegnato></info>
+	</info_inserite>
+</annuncio>
 </dataset>

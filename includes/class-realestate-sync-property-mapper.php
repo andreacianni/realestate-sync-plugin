@@ -329,7 +329,10 @@ class RealEstate_Sync_Property_Mapper {
         // 🏢 AGENCY MANAGER v3.0: Process agency and get agency ID for direct association
         $agency_id = $this->process_agency_for_property($xml_property);
         $source_data = $xml_property;
-        
+
+        // 🔧 FIX: Add import_id for WP Importer (expects source_data['import_id'])
+        $source_data['import_id'] = $xml_property['id'];
+
         if ($agency_id) {
             $source_data['agency_id'] = $agency_id;
             $this->logger->log('🏢 Property Mapper: Agency processed and ID assigned', 'debug', [
