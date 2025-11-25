@@ -240,6 +240,15 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		// 7. Default fields
 		$api_body['agency_languages'] = 'Italiano';
 
+		// 8. XML Agency ID (CRITICAL for PHASE 2 lookup!)
+		// This meta field is used to link properties to agencies during import
+		if (!empty($agency_data['xml_agency_id'])) {
+			$api_body['xml_agency_id'] = $agency_data['xml_agency_id'];
+			$this->logger->log('✅ XML Agency ID added to API body: ' . $agency_data['xml_agency_id'], 'info');
+		} else {
+			$this->logger->log('⚠️ WARNING: xml_agency_id is MISSING! PHASE 2 lookup will FAIL!', 'warning');
+		}
+
 		// 🔍 DEBUG: Log formatted API body
 		$this->logger->log('🏢 [AGENCY API WRITER - STEP 6] API body formatted', 'info');
 		$this->logger->log('   API fields to send: ' . implode(', ', array_keys($api_body)), 'debug');
@@ -247,6 +256,7 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		$this->logger->log('   agency_email: ' . ($api_body['agency_email'] ?? 'MISSING'), 'debug');
 		$this->logger->log('   agency_phone: ' . ($api_body['agency_phone'] ?? 'not set'), 'debug');
 		$this->logger->log('   agency_website: ' . ($api_body['agency_website'] ?? 'not set'), 'debug');
+		$this->logger->log('   xml_agency_id: ' . ($api_body['xml_agency_id'] ?? 'MISSING!'), 'debug');
 		$this->logger->log('   Total fields: ' . count($api_body), 'debug');
 
 		return $api_body;
