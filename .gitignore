@@ -21,9 +21,7 @@ passwords.txt
 realestate-sync-plugin-backup/
 
 # SSH Configuration (sensitive data)
-.ssh-config/id_rsa
-.ssh-config/*.pem
-.ssh-config/*.key
+.ssh-config/
 
 # ZIP files and backup views
 *.zip
