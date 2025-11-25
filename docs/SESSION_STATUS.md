@@ -1,540 +1,465 @@
-# Session Status - 2025-11-24 (Aggiornato: CRITICAL - AGENTS vs AGENCIES)
+# Session Status - 2025-11-26
 
-## 🚨 STATO ATTUALE: PROBLEMA CRITICO - CREATING WRONG ENTITY TYPE
+## ✅ STATO ATTUALE: PREREQUISITE #1 DONE, #2 IN PROGRESS
 
-**Data/Ora ultima sessione**: 2025-11-24 23:55
-**Stato**: 🚨 **CREATING AGENTS INSTEAD OF AGENCIES** | ❌ **PROPERTIES NOT ASSOCIATED** | 🔧 **SSH PASSWORD AUTOMATION NEEDED**
+**Data/Ora ultima sessione**: 2025-11-26 (morning session)
+**Stato**: ✅ **CLEANUP TOOL FIXED** | ⏸️ **SSH SETUP IN PROGRESS** | ⏳ **SERVER BANNED (wait 30min)**
 
 ---
 
-## 🔧 PROBLEMI IN CORSO (2025-11-24)
+## ✅ PROGRESS UPDATE (2025-11-26)
 
-### 🚨 Problema #1: CRITICO - Creating AGENTS Instead of AGENCIES
+### ✅ PREREQUISITE #1: CLEANUP TOOL - COMPLETED!
 
-**⚠️ SCOPERTA CRITICA**:
-- Stiamo creando **AGENTI** (agents/persone) NON **AGENZIE** (agencies/aziende)!
-- L'XML contiene AGENZIE (companies): "Trentino Immobiliare Excellence SRL"
-- Ma `/wpresidence/v1/agency/add` crea AGENTS (individual persons)
-- Le proprietà **NON sono associate** agli agents creati ❌
+**Commit**: `387fb41` - "fix: Implement Cleanup Test Data tool for agencies"
 
-**Evidence**:
-- Screenshot admin panel mostra: "LA BASE S.A.S." (ID: 5198), "Trentino Immobiliare Excellence SRL" (ID: 5190)
-- Sono nella lista "Agenti" NON "Agenzie"
-- Nessun collegamento property → agent
+**Problems Fixed**:
+1. ❌ **Agencies not marked as test**: Agency Importer wasn't setting `_test_import` meta
+2. ❌ **Cleanup only searched `estate_agent`**: Should search BOTH `estate_agent` AND `estate_agency`
 
-**Problema Reale**:
-1. ❌ Entità sbagliata creata (agent vs agency)
-2. ❌ Email non estratta dall'XML (problema secondario)
-3. ❌ Proprietà non associate agli agents
-4. ❌ Fallback email inutile se l'entità è sbagliata
+**Solutions**:
+1. **Agency Importer** (`includes/class-realestate-sync-agency-importer.php`):
+   - Added `mark_as_test` parameter to `import_agencies()` method
+   - Mark agencies with `_test_import` meta after creation (line 74-77)
+   - Pass flag from Import Engine (line 1045)
 
-**DOMANDE DA INVESTIGARE DOMANI**:
-1. WPResidence distingue tra Agency (company) vs Agent (person)?
-2. Quale endpoint usare per creare vere AGENCIES?
-3. Esiste `/wpresidence/v1/agent/add` separato?
-4. Come associare proprietà correttamente?
-5. Il campo `property_agent` funziona con agents o agencies?
+2. **Cleanup Handler** (`admin/class-realestate-sync-admin.php:1853-1876`):
+   - Updated SQL queries to search `IN ('estate_agent', 'estate_agency')`
+   - Both count and delete queries fixed
 
-**PROSSIMO STEP CRITICO**:
-1. Verificare documentazione WPResidence API per agencies vs agents
-2. Identificare endpoint corretto per creare agencies (companies)
-3. Testare creazione entity corretta
-4. Implementare associazione property → agency/agent
-5. Solo DOPO fixare estrazione email
+**Status**: ✅ **READY TO TEST** (needs server upload)
 
-**Analisi Completata**:
-1. ✅ XML contiene l'email: `<email>info@trentinoimmobiliare.it</email>`
-2. ✅ Flusso dati corretto: XML Parser → Import Engine → Property Mapper → Agency Manager → Agency API Writer
-3. ✅ JWT Authentication funziona (properties e gallery OK)
-4. ❌ Email si perde durante l'estrazione/conversione
+---
 
-**Fix Temporaneo Implementato** (`class-realestate-sync-wpresidence-agency-api-writer.php:169-178`):
-```php
-// 🔧 FIX: WPResidence API requires agency_email (mandatory field)
-$email = $agency_data['email'] ?? '';
-if (empty($email)) {
-    $site_domain = parse_url(get_site_url(), PHP_URL_HOST);
-    $email = 'info@' . $site_domain;
-    $this->logger->log('⚠️ Agency email missing - using fallback: ' . $email, 'warning');
-}
-$api_body['agency_email'] = $email;
+### ⏸️ PREREQUISITE #2: SSH PASSWORDLESS - IN PROGRESS
+
+**Current Status**:
+- ✅ Windows SSH Agent service enabled and running
+- ✅ New SSH key generated WITHOUT passphrase
+- ⏸️ **BLOCKED**: Server banned IP after multiple failed connection attempts
+- ❌ Public key NOT yet added to server
+
+**SSH Key Info**:
+- **Location**: `.ssh-config/id_rsa` (NEW, no passphrase)
+- **Backup**: `.ssh-config/id_rsa.backup` (OLD, with unknown passphrase)
+- **Public Key**: `.ssh-config/id_rsa.pub`
+- **Fingerprint**: `SHA256:G45uMYFtmNP9zBWhmkSg2DrvkmfwRrHQxoU3Fy9FrbE`
+
+**Problem Encountered**:
 ```
+Corrupted MAC on input.
+ssh_dispatch_run_fatal: Connection to 185.220.245.107 port 22: message authentication code incorrect
+```
+
+**Root Cause**: Server fail2ban activated after multiple SSH attempts
+**User Confirmed**: "Anche ieri dopo una serie di tentativi errati mi ha bannato per una mezz'ora"
+
+**Next Steps** (when ban expires ~30min):
+
+**Option A - Manual via cPanel** (RECOMMENDED):
+1. Access server cPanel → SSH Access → Manage SSH Keys
+2. Import public key from: `.ssh-config\id_rsa.pub`
+3. Content starts with: `ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQC9b7Yie1Zz0sQE...`
+
+**Option B - Automatic via SCP** (when server unblocks):
+```powershell
+# Wait 30 minutes for ban to expire, then:
+scp -o PreferredAuthentications=password .ssh-config\id_rsa.pub trentinoimreit@185.220.245.107:~/temp_key.pub
+
+ssh -o PreferredAuthentications=password trentinoimreit@185.220.245.107 "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat ~/temp_key.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && rm ~/temp_key.pub"
+
+# Test passwordless connection
+ssh -i .ssh-config\id_rsa trentinoimreit@185.220.245.107 "pwd"
+```
+
+**SSH Config Issue Identified**:
+- Line 7: `UserKnownHostsFile /dev/null` - `/dev/null` doesn't exist on Windows
+- This may have contributed to connection issues
+- **Fix**: Use direct ssh commands without `-F .ssh-config\config` for now
+
+---
+
+## 🔥 PROBLEMA ATTUALE (2025-11-25) - STILL OPEN
+
+### ❌ Agency Lookup Non Funziona
+
+**Situazione**:
+- PHASE 1: Agenzie create correttamente (es: 5341, 5343)
+- PHASE 2: Lookup fallisce → Proprietà senza agenzia associata
+- Post_type: WPResidence crea `estate_agent` invece di `estate_agency`
+- Meta field: `xml_agency_id` mancante o non trovato
 
 **Log Evidence**:
 ```
-[24-Nov-2025 21:49:46 UTC] ⚠️ Agency email missing - using fallback: info@trentinoimmobiliare.it
-[24-Nov-2025 21:49:47 UTC] Agency created successfully via API (ID: 5291)
+PHASE 1: "agency_ids":[5341,5343],"skipped":2  ← Agenzie skipped (esistenti)
+PHASE 2: 🔍 Looking up agency by XML ID: 1
+        ⚠️ Agency NOT found by XML ID: 1  ← Lookup FAIL!
 ```
 
-**Detailed Logging Aggiunto**:
-- ✅ Import Engine: Log conversione XML → standard format (STEP 1-2)
-- ✅ Agency Manager: Log estrazione dati (STEP 3-4)
-- ✅ Agency API Writer: Log formatting API body (STEP 5-7)
-- ⚠️ I log dettagliati mostrano solo "INFO" senza valori → problema formato logger
-
-### ⚠️ Problema #2: Agency Email Not Extracted from XML (SECONDARIO)
-
-**Situazione**:
-- Email dall'XML NON viene estratta
-- Attualmente usa email di fallback: `info@trentinoimmobiliare.it`
-- ⚠️ Ma questo è SECONDARIO rispetto al problema #1
-
-**PROSSIMO STEP** (DOPO aver risolto problema #1):
-1. Correggere formato chiamate logger per vedere valori effettivi
-2. Identificare dove l'email si perde nel flusso
-3. Fixare l'estrazione/conversione dell'email
-
-**Files Modificati**:
-- `includes/class-realestate-sync-import-engine.php` (linee 306-336) - Added detailed logging
-- `includes/class-realestate-sync-agency-manager.php` (linee 100-145) - Added detailed logging
-- `includes/class-realestate-sync-wpresidence-agency-api-writer.php` (linee 158-178, 233-290) - Added fallback email + detailed logging
+**Root Cause Identificato**:
+1. ❌ Agenzie create in import precedente **SENZA** `xml_agency_id` meta
+2. ❌ Import corrente le salta (skip) → NON aggiornate
+3. ❌ Lookup cerca `xml_agency_id` che non esiste → FAIL
+4. ⚠️ WPResidence `/agency/add` crea `estate_agent` non `estate_agency`
 
 ---
 
-### 🔑 Problema #3: SSH Password Prompt Every Time
+## 🛠️ FIX IMPLEMENTATI (2025-11-25)
 
-**Situazione**:
-- Configurazione SSH funzionante: `trentinoimmobiliare.it` (185.220.245.107)
-- Username corretto: `trentinoimreit`
-- Chiave privata: `.ssh-config/id_rsa` (encrypted with passphrase)
-- ❌ Ogni comando SSH/SCP richiede la password della chiave
+### Fix #1: Property User Field Implementation ✅
+**File**: `config/default-settings.php`, `includes/class-realestate-sync-wpresidence-api-writer.php`
+**Commit**: `c29f2cb`
+
+Aggiunto campo `property_user` per ownership esplicita:
+```php
+$property_user_id = get_option('realestate_sync_property_user_id', '');
+if (!empty($property_user_id)) {
+    $api_body['property_user'] = (string) $property_user_id;
+}
+```
+
+**Riferimento**: `docs/API_AGENT_FIELDS_VERIFICATION.md`
+
+---
+
+### Fix #2: Agency Lookup in PHASE 2 (Instead of Create/Update) ✅
+**File**: `includes/class-realestate-sync-agency-manager.php`, `includes/class-realestate-sync-property-mapper.php`
+**Commit**: `e11d287`
+
+**Problema**: Property Mapper chiamava `create_or_update_agency_from_xml()` in PHASE 2
+**Risultato**: Trovava agenzia pre-esistente 5291, la aggiornava, tutte le proprietà su 5291
+
+**Fix**:
+- Aggiunta funzione `lookup_agency_by_xml_id()` in Agency Manager
+- Property Mapper ora fa SOLO lookup, NON create/update
+- Cerca agenzie create in PHASE 1 per `xml_agency_id` meta
+
+```php
+// NEW CODE (with rollback comments)
+$xml_agency_id = $xml_property['agency_data']['id'];
+$agency_id = $this->agency_manager->lookup_agency_by_xml_id($xml_agency_id);
+
+// OLD CODE (keep commented for rollback)
+// $agency_id = $this->agency_manager->create_or_update_agency_from_xml($xml_property);
+```
+
+**Rollback**: Decommenta riga 1250 in Property Mapper
+
+---
+
+### Fix #3: Logger Parameter Order Fixed ✅
+**File**: `includes/class-realestate-sync-agency-manager.php`, `includes/class-realestate-sync-property-mapper.php`
+**Commit**: `b792657`
+
+**Problema**: Logger calls con parametri invertiti: `log(LEVEL, MESSAGE)`
+**Correct**: `log(MESSAGE, LEVEL)`
+
+Ora i log mostrano messaggi con emoji invece di solo "INFO", "WARNING".
+
+---
+
+### Fix #4: XML Agency ID Added to API Body ✅
+**File**: `includes/class-realestate-sync-wpresidence-agency-api-writer.php`
+**Commit**: `ffb2f5c`
+
+**CRITICAL**: Agency API Writer NON passava `xml_agency_id` all'API!
+
+```php
+// NEW: Pass xml_agency_id to save as meta
+if (!empty($agency_data['xml_agency_id'])) {
+    $api_body['xml_agency_id'] = $agency_data['xml_agency_id'];
+    $this->logger->log('✅ XML Agency ID added to API body: ' . $agency_data['xml_agency_id'], 'info');
+}
+```
+
+**Senza questo**: Agenzie create senza meta → Lookup fallisce sempre
+
+---
+
+### Fix #5: Search Both estate_agent AND estate_agency ✅
+**File**: `includes/class-realestate-sync-agency-manager.php`
+**Commit**: `26e9fe5`
+
+**Problema**: WPResidence `/agency/add` crea `estate_agent` CPT, non `estate_agency`
+**Log Evidence**: "Created new agent: Trentino Immobiliare Excellence SRL"
+
+```php
+// OLD: Cerca solo estate_agency
+'post_type' => 'estate_agency'
+
+// NEW: Cerca entrambi (WPResidence usa agent per agencies)
+'post_type' => array('estate_agent', 'estate_agency')
+```
+
+**Nota**: Semanticamente sbagliato (SRL/SAS sono aziende, non persone), ma WPResidence non distingue
+
+---
+
+### Fix #6: Manual Meta Addition (Temp Workaround) ✅
+**Method**: SSH wp-cli
+**Date**: 2025-11-25 22:28
+
+Aggiunto manualmente `xml_agency_id` alle agenzie esistenti:
+```bash
+wp post meta add 5341 xml_agency_id '1'
+wp post meta add 5343 xml_agency_id '2'
+```
+
+**Status**: ❌ Lookup ancora fallisce (motivo sconosciuto)
+
+---
+
+## 🚫 BLOCKERS: 2 CRITICAL PREREQUISITES
+
+### ⚠️ PREREQUISITE #1: Test Data Cleanup Tool (CRITICO)
+
+**Problema**:
+- Dashboard ha tab "Tools" con button "Cleanup Test Data"
+- Dovrebbe cancellare proprietà/agenti/agenzie con meta `_test_import=1`
+- **Attualmente NON funziona**
+- Necessario per testing rapido senza cancellazioni manuali
+
+**Impact**:
+- ❌ Ogni test richiede cancellazione manuale di 3 proprietà + 2 agenzie
+- ❌ Rallenta debugging (5+ minuti per test invece di 30 secondi)
+- ❌ Impossibile iterare rapidamente sui fix
+
+**Task**:
+1. Verificare funzione `cleanup_test_data()` in codebase
+2. Verificare se meta `_test_import` viene salvato durante import di test
+3. Fixare query o hook che cancella test data
+4. Testare cancellazione funzionante
+
+**Files Probabili**:
+- `admin/class-realestate-sync-admin.php`
+- `admin/views/dashboard-*.php`
+- Query: `DELETE FROM wp_posts WHERE ID IN (SELECT post_id FROM wp_postmeta WHERE meta_key = '_test_import' AND meta_value = '1')`
+
+---
+
+### ⚠️ PREREQUISITE #2: SSH Passwordless Authentication (CRITICO)
+
+**Problema**:
+- Ogni comando SSH/SCP richiede passphrase della chiave privata
+- Rallenta upload modifiche: ~10 secondi wait per password ogni volta
+- Interruzione workflow durante debugging
+
+**Impact**:
+- ❌ 5-10 upload file per sessione = 50-100 secondi persi in password prompts
+- ❌ Distrazione durante debug flow
+- ❌ Impossibile automatizzare deploy scripts
 
 **Configurazione Attuale**:
-- File: `.ssh-config/config`
-- Chiave: `.ssh-config/id_rsa` (con passphrase)
-- Password: `C:/Users/Andrea/OneDrive/Lavori/novacom/Trentino-immobiliare/accessi/pswSSH.txt`
+- SSH Key: `.ssh-config/id_rsa` (con passphrase)
+- Password: Stored in `C:/Users/Andrea/OneDrive/Lavori/novacom/Trentino-immobiliare/accessi/pswSSH.txt`
+- Config: `.ssh-config/config`
 
-**SOLUZIONE DA IMPLEMENTARE** (domani):
+**Soluzione Raccomandata**: SSH Agent (Windows)
 
-#### Opzione A: SSH Agent Persistente (Windows)
-1. Configurare Windows OpenSSH Authentication Agent:
+**Task**:
+1. Enable Windows OpenSSH Authentication Agent service:
    ```powershell
-   # Enable service
    Set-Service -Name ssh-agent -StartupType Automatic
    Start-Service ssh-agent
+   ```
 
-   # Add key (will ask password ONCE)
+2. Add key to agent (ask password ONCE):
+   ```bash
    ssh-add C:/Users/Andrea/OneDrive/Lavori/novacom/Trentino-immobiliare/realestate-sync-plugin/.ssh-config/id_rsa
    ```
 
-2. Chiave caricata in memoria fino al riavvio del sistema
-3. Script helper aggiornato per usare l'agent
-
-#### Opzione B: PuTTY Pageant (Alternative)
-1. Installare PuTTY suite
-2. Convertire chiave OpenSSH → PuTTY format (.ppk)
-3. Configurare Pageant per caricare chiave all'avvio Windows
-4. Usare plink invece di OpenSSH
-
-#### Opzione C: Remove Passphrase (⚠️ Meno sicuro)
-```bash
-# Rimuove passphrase dalla chiave (SOLO se ambiente sicuro)
-ssh-keygen -p -f .ssh-config/id_rsa
-# Enter old passphrase: ******
-# Enter new passphrase (empty for no passphrase): [ENTER]
-```
-
-**RACCOMANDAZIONE**: Opzione A (SSH Agent) - Sicuro e conveniente
-
-**Files Coinvolti**:
-- `.ssh-config/config` - SSH configuration
-- `.ssh-config/id_rsa` - Private key
-- `ssh-connect.sh` - Helper script (da aggiornare)
-- `.ssh-config/CHECKLIST.md` - Documentation
-
----
-
-## 🎉 STATO PRECEDENTE: IMPORT IN PRODUZIONE FUNZIONANTE (2025-10-17)
-
-**Data/Ora ultima sessione**: 2025-10-17 23:50
-**Stato**: ✅ **IMPORT IN PRODUZIONE ATTIVO** | ✅ **REST API ENDPOINTS REGISTRATI** | ✅ **ADDRESS & MAP MAPPING COMPLETO**
-
----
-
-## 🔥 MILESTONE COMPLETATA (2025-10-17)
-
-### 🆕 Milestone #6: Production Deployment + REST API Activation (2025-10-17)
-
-**Obiettivo**: Far funzionare l'import in produzione con REST API WpResidence
-
-**Problemi Risolti**:
-
-#### 1. **API Options Non Create dal Plugin** ✅
-**Problema**: Plugin non creava automaticamente le opzioni WordPress necessarie per API
-**Impatto**: Import bloccato - nessuna configurazione API
-**Soluzione**:
-- Create manualmente via SQL le opzioni:
-  - `realestate_sync_api_username` = `'importer'`
-  - `realestate_sync_api_password` = `'fRUy3qk@b$rf^Psf1ZcQ9HbD'`
-  - `realestate_sync_use_api_importer` = `'1'`
-**Risultato**: ✅ Plugin configurato correttamente
-
-#### 2. **JWT Plugin Installato** ✅
-**Problema**: Plugin JWT Authentication mancante in produzione
-**Soluzione**: Installato e attivato `jwt-authentication-for-wp-rest-api`
-**Risultato**: ✅ JWT token generation funzionante
-
-#### 3. **REST API Endpoints Non Registrati** ✅
-**Problema**: WpResidence REST API endpoints 404 in produzione
-**Root Cause**: Impostazione tema "Abilita API WpResidence" non salvabile (errore 406)
-**Soluzione**:
-- Disabilitato temporaneamente ModSecurity
-- Salvato setting "Abilita API WpResidence = Sì"
-- Riattivato ModSecurity
-**Risultato**: ✅ 36 endpoint WpResidence registrati e funzionanti
-
-**Test Verification** (`test-rest-endpoints.php`):
-```
-✓ Found 36 WpResidence routes
-✓ /wpresidence/v1/property/add - EXISTS and accepts POST
-✓ /wpresidence/v1/agency/add - EXISTS and accepts POST
-```
-
-#### 4. **Address & Map Data Mapping** ✅
-**Problema**: Mancavano campi indirizzo e coordinate per Google Maps
-**Implementazione**:
-- `property_address`: Via Oriola + civico
-- `property_county`: "Trento" o "Bolzano" (da comune_istat)
-- `property_state`: "Trentino-Alto Adige"
-- `property_zip`: CAP italiano (mapping 17 comuni + fallback)
-- `property_country`: "Italia"
-- `property_latitude`: coordinate (string per API)
-- `property_longitude`: coordinate (string per API)
-- `google_camera_angle`: "0" (vista orizzontale)
-- `property_google_view`: "1" (Street View abilitato)
-- `property_hide_map_marker`: "0" (marker visibile)
-
-**Mapping CAP Implementato**:
-```php
-'022205' => '38122', // Trento centro
-'022001' => '38062', // Arco
-'022178' => '38068', // Rovereto
-'022023' => '38086', // Madonna di Campiglio
-// + 13 altri comuni
-// Fallback: 38100 (TN) / 39100 (BZ)
-```
-
-**Risultato**: ✅ Mappe Google funzionanti con indirizzo completo
-
----
-
-## 🔧 COMMIT EFFETTUATI OGGI
-
-### Commit 1: Address & Map Data Mapping ✅
-**SHA**: `c9bfed2`
-**Branch**: `release/v1.4.0`
-**Message**: `feat: Add complete address and map data mapping for Google Maps integration`
-**Files Modified**:
-- `includes/class-realestate-sync-property-mapper.php`
-**Modifiche**:
-- Aggiunti campi indirizzo completi (county, state, zip, country)
-- Implementato mapping CAP per 17 comuni
-- Coordinate convertite a string per API
-
-### Commit 2: Google Maps Display Settings ✅
-**SHA**: `b378fda`
-**Branch**: `release/v1.4.0`
-**Message**: `feat: Add Google Maps display settings with full transparency`
-**Files Modified**:
-- `includes/class-realestate-sync-property-mapper.php`
-**Modifiche**:
-- Aggiunti campi Google Maps (camera_angle, google_view, hide_map_marker)
-- Configurazione "Opzione A": trasparenza totale
-
----
-
-## 🎯 STATO PRODUZIONE
-
-### Database: `trentinoimreit_60xngbg2ytxs7o5ogyeuxkil0c8v41ccjr0m7qgrrsemh3i`
-**Prefisso tabelle**: `kre_`
-**Hosting**: cPanel @ pollux.artera.farm
-
-### Utente API Importer
-**Username**: `importer`
-**Email**: `importer@trentinoimmobiliare.it`
-**User ID**: 59
-**Ruolo**: Administrator
-
-### JWT Authentication
-**Plugin**: `jwt-authentication-for-wp-rest-api/jwt-auth.php`
-**Status**: ✅ Attivo
-**Token Endpoint**: `https://trentinoimmobiliare.it/wp-json/jwt-auth/v1/token`
-**Secret Key**: Configurata in `wp-config.php`
-
-### REST API Status
-**Base URL**: `https://trentinoimmobiliare.it/wp-json/wpresidence/v1/`
-**Endpoint Count**: 36
-**Status**: ✅ Tutti attivi e funzionanti
-
-**Endpoint Verificati**:
-- ✅ `POST /property/add`
-- ✅ `POST /agency/add`
-- ✅ `PUT /property/edit/{id}`
-- ✅ `PUT /agency/edit/{id}`
-
-### Import Test
-**File**: `2025-10-12 sample09.xml` (1 property)
-**Property ID**: 3425550
-**Agency**: 13673 (Cerco Casa In Trentino Srl)
-**Risultato**: ⚠️ Property processata ma fallita creazione
-
-**Error Log** (2025-10-17 21:18):
-```
-✅ JWT token generated successfully
-✅ Agency API Request: POST .../agency/add (attempt 1)
-⚠️  Agency API Response: HTTP 404 (prima del fix REST API)
-✅ Property formatted with 27 fields
-✅ API Request: POST .../property/add (attempt 1)
-⚠️  API Response: HTTP 404 (prima del fix REST API)
-```
-
-**Post-Fix**: Import da ripetere dopo attivazione REST API
-
----
-
-## 📋 TODO PROSSIMA SESSIONE (Lunedì Sera)
-
-### Priority #1: Verificare Import Completo 🔴
-1. **Re-test import** con sample XML (dopo fix REST API)
-2. **Verificare property creata** nel database
-3. **Verificare agency creata** nel database
-4. **Verificare frontend**:
-   - Property visible
-   - Mappa Google Maps con marker
-   - Indirizzo completo visualizzato
-   - Agency sidebar presente
-
-### Priority #2: Implementare API Options Auto-Creation 🟡
-**Problema**: Plugin non crea opzioni automaticamente all'attivazione
-**Task**:
-1. Aggiungere activation hook in `realestate-sync.php`
-2. Creare funzione `realestate_sync_activate()`:
-   ```php
-   add_option('realestate_sync_api_username', '');
-   add_option('realestate_sync_api_password', '');
-   add_option('realestate_sync_use_api_importer', '1');
+3. Verify:
+   ```bash
+   ssh-add -l  # Should show key fingerprint
    ```
-3. Registrare settings in `admin/class-realestate-sync-admin.php`
 
-### Priority #3: JWT Plugin Active Check 🟡
-**Richiesta User**: "sarebbe professionale mettere un avviso nel caso il plugin non risulti attivo"
-**Task**:
-1. Check `is_plugin_active('jwt-authentication-for-wp-rest-api/jwt-auth.php')`
-2. Display admin notice se non attivo
-3. Warning in plugin settings page
-4. Block API operations con errore chiaro
+4. Test passwordless:
+   ```bash
+   ssh -F .ssh-config/config trentinoimmobiliare "pwd"  # No password prompt!
+   ```
 
-### Priority #4: API Credentials UI 🟡
-**Richiesta User**: "Nella dash non vedo la possibilità di impostare le credenziali API"
-**Task**:
-1. Aggiungere sezione "API Credentials" in settings
-2. Campi: username, password (masked), enable/disable toggle
-3. "Test Connection" button
-4. Help text con spiegazione credenziali WordPress
-5. JWT token status display
-
-### Priority #5: Dashboard Refactoring 🟢
-**Richiesta User**: "va fatto un refactory della dashboard"
-**Task da definire con user**
-
----
-
-## 🎯 STATO ARCHITETTURA ATTUALE
-
-### ✅ Componenti Funzionanti:
-1. ✅ XML Parser - Parsing streaming per grandi file
-2. ✅ Data Converter v3.0 - Conversione formato interno
-3. ✅ **Property Mapper v3.2** - Mappatura campi + address/map (UPDATED)
-4. ✅ Agency Manager v2.0 - Gestione agencies via REST API
-5. ✅ Image Importer - Download immagini HTTPS
-6. ✅ WP Importer API - Import via REST API (ATTIVO)
-7. ✅ WPResidence Property API Writer - JWT auth + property API calls
-8. ✅ WPResidence Agency API Writer - JWT auth + agency API calls
-9. ✅ Import Engine - Session management + importer switching
-10. ✅ Tracking Service - Duplicate detection + change tracking
-11. ✅ Logger - Logging strutturato
-
-### 🔄 Import Flow Produzione:
-```
-Dashboard Upload XML (PRODUCTION)
-    ↓
-Import Engine (execute_chunked_import)
-    ↓
-XML Parser (streaming parse)
-    ↓
-Data Converter v3.0 (normalize data)
-    ↓
-┌─────────────────────────────────────┐
-│  PARALLEL PROCESSING                │
-├─────────────────────────────────────┤
-│ 1. Agency Manager v2.0              │
-│    ↓                                │
-│    Agency API Writer                │
-│    ↓                                │
-│    JWT Auth (importer user)         │
-│    ↓                                │
-│    POST /agency/add (REST API)      │
-│    ↓                                │
-│    ✅ Agency Created + Logo         │
-│                                     │
-│ 2. Property Mapper v3.2             │
-│    ↓                                │
-│    Address & Map Data Mapping       │
-│    ↓                                │
-│    WP Importer API                  │
-│    ↓                                │
-│    Property API Writer              │
-│    ↓                                │
-│    JWT Auth (importer user)         │
-│    ↓                                │
-│    POST /property/add (REST API)    │
-│    ↓                                │
-│    ✅ Property Created + Gallery    │
-│    ✅ Google Maps with marker       │
-└─────────────────────────────────────┘
-    ↓
-✅ Property + Agency Linked (property_agent)
-✅ Sidebar Agency Auto-Display
-✅ Address Complete + ZIP Code
-✅ Google Maps Fully Configured
+**Alternative**: Remove passphrase (less secure):
+```bash
+ssh-keygen -p -f .ssh-config/id_rsa
+# Enter old passphrase, press Enter for new (empty)
 ```
 
 ---
 
-## 🔍 COME RECUPERARE QUESTA SESSIONE
+## 📋 STATO CODEBASE
 
-**Prompt suggerito**:
-> "Leggi SESSION_STATUS.md. Abbiamo completato il deployment in produzione! REST API WpResidence ora attivi (36 endpoints), JWT authentication configurato, API options create manualmente. Implementato mapping completo address & map: property_county, property_state, property_zip (17 comuni mappati), property_country, coordinate + Google Maps settings (camera_angle, google_view, hide_map_marker). ModSecurity temporaneamente disabilitato per salvare impostazioni tema. Import testato ma prima del fix API (da ripetere). Prossimo: verificare import completo post-fix."
+### Files Modificati Oggi (2025-11-25)
 
-**Contesto chiave**:
-- ✅ Produzione ONLINE con REST API attivi
-- ✅ JWT plugin installato e configurato
-- ✅ API credentials configurate (utente `importer`)
-- ✅ ModSecurity issue risolto (406 error)
-- ✅ Address & map mapping completo
-- ✅ Google Maps settings configurati
-- ✅ 2 commit pushati (address mapping + google maps)
-- ⏳ Import da ri-testare post-fix
-- ⏳ Plugin activation hook da implementare
-- ⏳ JWT check + API credentials UI da implementare
+1. ✅ `config/default-settings.php` - Added property_user setting
+2. ✅ `includes/class-realestate-sync-wpresidence-api-writer.php` - property_user field
+3. ✅ `includes/class-realestate-sync-agency-manager.php` - lookup_agency_by_xml_id() + search both post types
+4. ✅ `includes/class-realestate-sync-property-mapper.php` - Use lookup instead of create_or_update
+5. ✅ `includes/class-realestate-sync-wpresidence-agency-api-writer.php` - xml_agency_id in API body
+6. ✅ `docs/API_AGENT_FIELDS_VERIFICATION.md` - User-created analysis document
 
----
+### Git Status
 
-## 📝 NOTE TECNICHE IMPORTANTI
+**Branch**: `release/v1.4.0`
+**Commits Today**: 6
+- `26e9fe5` - Search both estate_agent AND estate_agency
+- `ffb2f5c` - Add xml_agency_id to agency API body
+- `b792657` - Correct logger parameter order
+- `e11d287` - Agency lookup in PHASE 2 instead of create/update
+- `c29f2cb` - Add property_user field implementation
+- `a270dfc` - Cherry-pick: API agent fields verification doc
 
-### Database Prefix PRODUZIONE:
-**CRITICO**: Produzione usa prefisso `kre_`, NON `wp_`
-- Tabelle: `kre_posts`, `kre_postmeta`, `kre_options`
-- Queries SQL: usare sempre `kre_` prefix
-- Verificato in tutte le query del plugin
+**Backup Files on Server**:
+- `class-realestate-sync-agency-manager.php.backup-20251125-214758`
+- `class-realestate-sync-property-mapper.php.backup-20251125-214758`
+- `class-realestate-sync-wpresidence-agency-api-writer.php.backup-20251125-220246`
 
-### Address Mapping Logic:
-```php
-// Provincia (county)
-'022xxx' => 'Trento'
-'021xxx' => 'Bolzano'
-
-// Regione (state)
-Always: 'Trentino-Alto Adige'
-
-// CAP (zip)
-Exact match: $zip_mapping[comune_istat]
-Fallback TN: '38100'
-Fallback BZ: '39100'
-
-// Paese (country)
-Always: 'Italia'
-```
-
-### Google Maps Settings:
-```php
-'google_camera_angle' => '0'          // Horizontal view
-'property_google_view' => '1'         // Street View enabled
-'property_hide_map_marker' => '0'     // Exact location visible
-```
-
-### ModSecurity Issue:
-**Problema**: Errore 406 "Not Acceptable" nel salvare impostazioni tema
-**Causa**: ModSecurity blocca richieste POST con caratteri speciali (JWT key)
-**Soluzione**: Disabilitare temporaneamente, salvare, riattivare
-**Procedura**:
-1. cPanel > ModSecurity > Disable
-2. Theme Settings > Enable API > Save
-3. cPanel > ModSecurity > Enable
+**Rollback**: Restore backup files via SSH if needed
 
 ---
 
-## 🎯 MILESTONE RAGGIUNTE
+## 🐛 ISSUE ANCORA APERTA
 
-1. ✅ JWT Authentication in produzione (plugin installato + configurato)
-2. ✅ API WpResidence funzionante in produzione (36 endpoints attivi)
-3. ✅ ModSecurity issue risolto (406 error bypass)
-4. ✅ API Options create manualmente (username, password, enable flag)
-5. ✅ Address mapping completo (county, state, zip, country)
-6. ✅ CAP mapping per 17 comuni + fallback
-7. ✅ Google Maps settings (camera, street view, marker)
-8. ✅ Coordinate string conversion per API
-9. ✅ Property Mapper v3.2 deployed
-10. ✅ Test REST endpoints script creato
-11. ✅ Test JWT connection script creato
-12. ✅ 2 commit feature pushati su GitHub
+### Agency Lookup Failure (Causa Ignota)
 
----
+**Anche dopo tutti i fix**:
+- ✅ xml_agency_id presente nel database (verificato via wp-cli)
+- ✅ Lookup cerca in entrambi post_types (estate_agent + estate_agency)
+- ✅ Log mostra query eseguita correttamente
+- ❌ Lookup ritorna "NOT found"
 
-## 📦 FILES MODIFICATI IN QUESTA SESSIONE (2025-10-17)
+**Possibili Cause Residue**:
+1. Meta key type mismatch (string vs numeric)
+2. Post status non 'publish'
+3. Cache issue (WP_Query cache)
+4. Meta table corruption
+5. Post_type effettivo diverso da estate_agent/estate_agency
 
-### Files Modificati
-1. ✅ `includes/class-realestate-sync-property-mapper.php`:
-   - Aggiunti campi address (lines 247-252)
-   - Aggiunte coordinate string conversion (lines 255-258)
-   - Aggiunti Google Maps settings (lines 260-263)
-   - Implementato `derive_province_name_from_istat()` (lines 900-907)
-   - Implementato `derive_zip_code()` con mapping (lines 913-957)
+**Next Debug Steps**:
+1. Query diretta SQL per verificare meta esistente:
+   ```sql
+   SELECT post_id, meta_key, meta_value
+   FROM wp_postmeta
+   WHERE meta_key = 'xml_agency_id'
+   AND meta_value IN ('1', '2');
+   ```
 
-### Files Creati (Temporanei - da cancellare)
-1. `test-rest-endpoints.php` - Script verifica REST API endpoints
-2. `test-jwt-connection.php` - Script test JWT authentication
+2. Query diretta post type:
+   ```sql
+   SELECT ID, post_title, post_type, post_status
+   FROM wp_posts
+   WHERE ID IN (5341, 5343);
+   ```
 
-### SQL Queries Eseguite (Produzione)
-```sql
--- Create API options
-INSERT INTO kre_options (option_name, option_value, autoload)
-VALUES
-  ('realestate_sync_api_username', 'importer', 'yes'),
-  ('realestate_sync_api_password', 'fRUy3qk@b$rf^Psf1ZcQ9HbD', 'yes'),
-  ('realestate_sync_use_api_importer', '1', 'yes')
-ON DUPLICATE KEY UPDATE option_value = VALUES(option_value);
-```
-
----
-
-## 🚀 NEXT SESSION GOALS (Lunedì Sera)
-
-### Must Have 🔴
-1. ✅ Re-test import in produzione (post REST API fix)
-2. ✅ Verify property + agency creation
-3. ✅ Verify frontend display (map, address, sidebar)
-4. ✅ Show results to client
-
-### Should Have 🟡
-5. Implement plugin activation hook (auto-create options)
-6. Add JWT plugin active check + admin notice
-7. Create API credentials UI in dashboard
-8. Add "Test Connection" button
-
-### Nice to Have 🟢
-9. Dashboard refactoring plan
-10. Performance monitoring
-11. Error recovery testing
+3. Test WP_Query manualmente:
+   ```php
+   $query = new WP_Query([
+       'post_type' => ['estate_agent', 'estate_agency'],
+       'meta_query' => [['key' => 'xml_agency_id', 'value' => '1']]
+   ]);
+   var_dump($query->posts);
+   ```
 
 ---
 
-**Ultima modifica**: 2025-10-17 23:50
+## 📚 DOCUMENTATION REFERENCES
+
+### User-Created Docs
+- `docs/API_AGENT_FIELDS_VERIFICATION.md` - Comprehensive field analysis
+- `docs/Agencies API.txt` - WPResidence API documentation (Postman export)
+
+### Internal Docs
+- `docs/SIDEBAR_AGENCY_FIX.md` - Agency sidebar association analysis
+- `docs/TOMORROW_AGENCY_INVESTIGATION.md` - Investigation plan (obsolete)
+- `docs/API_ADD_EDIT_OPERATIONS.md` - API operations examples
+- `docs/SESSION_STATUS.md` - This file
+
+---
+
+## 🎯 NEXT SESSION PLAN
+
+### BEFORE Debugging Agency Issue:
+
+1. **IMPLEMENT Cleanup Test Data Tool** 🔴
+   - Enable "Cleanup Test Data" button in dashboard
+   - Verify `_test_import` meta is saved during test imports
+   - Test deletion of test properties/agencies
+   - **Time estimate**: 30-60 minutes
+   - **Blocker**: Cannot iterate quickly without this
+
+2. **SETUP SSH Agent** 🔴
+   - Configure Windows OpenSSH Authentication Agent
+   - Add SSH key to agent
+   - Test passwordless connection
+   - **Time estimate**: 10-15 minutes
+   - **Blocker**: Slows down every file upload
+
+### AFTER Prerequisites:
+
+3. **DEBUG Agency Lookup Failure** 🟡
+   - Run SQL queries to verify meta + post_type
+   - Test WP_Query manually
+   - Identify root cause
+   - Implement fix
+   - **Time estimate**: 30-90 minutes
+
+4. **VERIFY End-to-End Flow** 🟢
+   - Cleanup test data
+   - Run fresh import
+   - Verify: PHASE 1 creates agencies WITH xml_agency_id
+   - Verify: PHASE 2 finds agencies and assigns to properties
+   - Verify: Frontend shows property with agency sidebar
+   - **Time estimate**: 15-30 minutes
+
+---
+
+## 🔍 RECOVERY PROMPT
+
+**For Next Session** (Resume from 2025-11-26 morning):
+> "Leggi SESSION_STATUS.md. ✅ PREREQUISITE #1 COMPLETATO: Cleanup Test Data tool fixato e committato (387fb41). ⏸️ PREREQUISITE #2 IN CORSO: SSH passwordless setup quasi completo - chiave generata senza passphrase, ma server ha bannato IP per troppi tentativi SSH (fail2ban). Chiave pubblica pronta in `.ssh-config/id_rsa.pub`. NEXT STEP: Aspettare 30min che ban scada, poi aggiungere chiave pubblica al server (via cPanel o SCP). Poi testare connessione passwordless, uploadare fix cleanup tool, e finalmente debuggare agency lookup failure. Branch: release/v1.4.0, commit 387fb41."
+
+---
+
+## 📊 TESTING STATUS
+
+### Test Environment
+- **Server**: trentinoimmobiliare.it (185.220.245.107)
+- **Plugin Path**: `public_html/wp-content/plugins/realestate-sync-plugin/`
+- **Test File**: `docs/test-property-complete-fixed.xml` (3 properties, 2 agencies)
+- **SSH User**: `trentinoimreit`
+
+### Test Agencies Created
+- ID 5341: Trentino Immobiliare Excellence SRL (xml_agency_id=1) - estate_agent
+- ID 5343: Dolomiti Real Estate SAS (xml_agency_id=2) - estate_agent
+
+### Test Properties
+- TEST001: XML agency_id=1 → Should link to 5341 → ❌ NOT linked
+- TEST002: XML agency_id=1 → Should link to 5341 → ❌ NOT linked
+- TEST003: XML agency_id=2 → Should link to 5343 → ❌ NOT linked
+
+### Expected vs Actual
+**Expected**: Properties assigned to agencies 5341/5343
+**Actual**: Properties created WITHOUT agency assignment
+
+---
+
+## 🚀 DEFINITION OF DONE
+
+### Session Complete When:
+1. ✅ "Cleanup Test Data" button works
+2. ✅ SSH passwordless connection active
+3. ✅ Agency lookup finds agencies
+4. ✅ Properties assigned to correct agencies
+5. ✅ Frontend shows property with agency sidebar
+6. ✅ All test properties cleaned up
+7. ✅ Ready for production XML import
+
+---
+
+**Ultima modifica**: 2025-11-25 22:30
 **Autore**: Claude + Andrea
-**Status**: ✅ **PRODUZIONE ONLINE E FUNZIONANTE** - REST API attivi, address mapping completo, pronto per import test finale
+**Status**: ⏸️ **PAUSED - PREREQUISITES NEEDED** - Cleanup tool + SSH agent required before continuing
 
-**Next Session Goal**: Verificare import completo in produzione e mostrare risultato al cliente
+**User Feedback**: "vado a farmi una sega" - Session ends, resume after prerequisites implemented.
 
 ---
 
-**Ci vediamo lunedì sera! 🚀**
