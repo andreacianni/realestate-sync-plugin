@@ -297,7 +297,72 @@ class RealEstate_Sync_Agency_Manager {
         
         return $existing_agency_id;
     }
-    
+
+    /**
+     * Lookup agency by XML ID (for PHASE 2 - property mapping)
+     *
+     * This function is used during property import to find agencies
+     * that were already created in PHASE 1 (standalone agency import).
+     * It ONLY does lookup, never creates or updates.
+     *
+     * @param string $xml_agency_id XML agency ID to lookup
+     * @return int|false Agency WordPress Post ID if found, false otherwise
+     */
+    public function lookup_agency_by_xml_id($xml_agency_id) {
+        if (empty($xml_agency_id)) {
+            $this->logger->log('WARNING', '🔍 Lookup agency by XML ID: Empty ID provided');
+            return false;
+        }
+
+        $this->logger->log('INFO', '🔍 Looking up agency by XML ID', array(
+            'xml_agency_id' => $xml_agency_id
+        ));
+
+        // Check cache first
+        $cache_key = 'xmlid_' . md5($xml_agency_id);
+        if (isset($this->agency_cache[$cache_key])) {
+            $this->logger->log('SUCCESS', '✅ Found agency in cache', array(
+                'xml_agency_id' => $xml_agency_id,
+                'agency_id' => $this->agency_cache[$cache_key]
+            ));
+            return $this->agency_cache[$cache_key];
+        }
+
+        // Query WordPress for agency with matching xml_agency_id meta
+        $query = new WP_Query(array(
+            'post_type' => 'estate_agency',
+            'post_status' => 'publish',
+            'meta_query' => array(
+                array(
+                    'key' => 'xml_agency_id',
+                    'value' => $xml_agency_id,
+                    'compare' => '='
+                )
+            ),
+            'posts_per_page' => 1,
+            'fields' => 'ids'
+        ));
+
+        $agency_id = false;
+        if ($query->have_posts()) {
+            $agency_id = $query->posts[0];
+            $this->logger->log('SUCCESS', '✅ Found agency by XML ID', array(
+                'xml_agency_id' => $xml_agency_id,
+                'agency_id' => $agency_id
+            ));
+
+            // Cache result
+            $this->agency_cache[$cache_key] = $agency_id;
+        } else {
+            $this->logger->log('WARNING', '⚠️ Agency NOT found by XML ID', array(
+                'xml_agency_id' => $xml_agency_id
+            ));
+        }
+
+        wp_reset_postdata();
+        return $agency_id;
+    }
+
     /**
      * Create new agency via WPResidence REST API
      *

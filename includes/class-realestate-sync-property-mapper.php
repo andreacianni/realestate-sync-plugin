@@ -1212,7 +1212,7 @@ class RealEstate_Sync_Property_Mapper {
                 'agency_manager_exists' => isset($this->agency_manager),
                 'agency_manager_class' => isset($this->agency_manager) ? get_class($this->agency_manager) : 'NOT_SET'
             ));
-            
+
             // Check if agency_data exists
             if (empty($xml_property['agency_data'])) {
                 $this->logger->log('WARNING', 'No agency_data found in XML property', array(
@@ -1220,24 +1220,51 @@ class RealEstate_Sync_Property_Mapper {
                 ));
                 return false;
             }
-            
-            // Use Agency Manager to create/update agency from XML agency data
-            // 🔧 FIX: Pass entire $xml_property, not just agency_data
-            $agency_id = $this->agency_manager->create_or_update_agency_from_xml($xml_property);
-            
-            if ($agency_id) {
-                $this->logger->log('SUCCESS', 'Agency processed for property via Agency Manager', array(
-                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
-                    'agency_id' => $agency_id
-                ));
-                return $agency_id;
-            } else {
-                $this->logger->log('WARNING', 'No agency processed for property', array(
+
+            // ============================================================
+            // 🔧 NEW APPROACH (v1.5.0): LOOKUP instead of CREATE/UPDATE
+            // ============================================================
+            // In PHASE 2 (property import), agencies are ALREADY created in PHASE 1.
+            // We should LOOKUP the agency by xml_agency_id, NOT create/update it.
+            // This prevents updating pre-existing agencies (like 5291).
+            //
+            // To ROLLBACK: Comment the NEW code block below and uncomment OLD code.
+            // ============================================================
+
+            // Extract XML agency ID from agency_data
+            $xml_agency_id = isset($xml_property['agency_data']['id']) ? $xml_property['agency_data']['id'] : false;
+
+            if (!$xml_agency_id) {
+                $this->logger->log('WARNING', '⚠️ No agency ID in agency_data', array(
                     'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown'
                 ));
                 return false;
             }
-            
+
+            // NEW: Lookup agency created in PHASE 1
+            $agency_id = $this->agency_manager->lookup_agency_by_xml_id($xml_agency_id);
+
+            // ============================================================
+            // OLD CODE (for rollback - keep commented)
+            // ============================================================
+            // $agency_id = $this->agency_manager->create_or_update_agency_from_xml($xml_property);
+            // ============================================================
+
+            if ($agency_id) {
+                $this->logger->log('SUCCESS', '✅ Agency found and assigned to property', array(
+                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
+                    'xml_agency_id' => $xml_agency_id,
+                    'agency_id' => $agency_id
+                ));
+                return $agency_id;
+            } else {
+                $this->logger->log('WARNING', '⚠️ Agency NOT found for property (was it created in PHASE 1?)', array(
+                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
+                    'xml_agency_id' => $xml_agency_id
+                ));
+                return false;
+            }
+
         } catch (Exception $e) {
             $this->logger->log('ERROR', 'Error processing agency for property: ' . $e->getMessage());
             return false;
