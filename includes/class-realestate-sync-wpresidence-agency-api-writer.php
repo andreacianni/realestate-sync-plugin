@@ -155,11 +155,27 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 	public function format_api_body($agency_data) {
 		$api_body = array();
 
-		$this->logger->log('Formatting agency data for API', 'INFO');
+		// 🔍 DEBUG: Log input data from Agency Manager
+		$this->logger->log('🏢 [AGENCY API WRITER - STEP 5] Formatting agency data for WPResidence API', 'info');
+		$this->logger->log('   Input fields received: ' . implode(', ', array_keys($agency_data)), 'debug');
+		$this->logger->log('   name: ' . ($agency_data['name'] ?? 'MISSING'), 'debug');
+		$this->logger->log('   email: ' . ($agency_data['email'] ?? 'MISSING'), 'debug');
+		$this->logger->log('   phone: ' . ($agency_data['phone'] ?? 'MISSING'), 'debug');
+		$this->logger->log('   website: ' . ($agency_data['website'] ?? 'MISSING'), 'debug');
 
 		// 1. Required fields
 		$api_body['agency_name'] = $agency_data['name'] ?? '';
-		$api_body['agency_email'] = $agency_data['email'] ?? '';
+
+		// 🔧 FIX: WPResidence API requires agency_email (mandatory field)
+		// Use fallback email if not provided in XML
+		$email = $agency_data['email'] ?? '';
+		if (empty($email)) {
+			// Generate fallback email using agency name or domain
+			$site_domain = parse_url(get_site_url(), PHP_URL_HOST);
+			$email = 'info@' . $site_domain;
+			$this->logger->log('⚠️ Agency email missing - using fallback: ' . $email, 'warning');
+		}
+		$api_body['agency_email'] = $email;
 
 		// 2. Contact information
 		if (!empty($agency_data['address'])) {
@@ -224,7 +240,14 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		// 7. Default fields
 		$api_body['agency_languages'] = 'Italiano';
 
-		$this->logger->log('Agency API body formatted with ' . count($api_body) . ' fields', 'INFO');
+		// 🔍 DEBUG: Log formatted API body
+		$this->logger->log('🏢 [AGENCY API WRITER - STEP 6] API body formatted', 'info');
+		$this->logger->log('   API fields to send: ' . implode(', ', array_keys($api_body)), 'debug');
+		$this->logger->log('   agency_name: ' . ($api_body['agency_name'] ?? 'MISSING'), 'debug');
+		$this->logger->log('   agency_email: ' . ($api_body['agency_email'] ?? 'MISSING'), 'debug');
+		$this->logger->log('   agency_phone: ' . ($api_body['agency_phone'] ?? 'not set'), 'debug');
+		$this->logger->log('   agency_website: ' . ($api_body['agency_website'] ?? 'not set'), 'debug');
+		$this->logger->log('   Total fields: ' . count($api_body), 'debug');
 
 		return $api_body;
 	}
@@ -238,30 +261,43 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 	 * @return array Result array with success status, agency_id, action, and message
 	 */
 	public function create_agency($api_body) {
-		$this->logger->log('Creating agency via API', 'INFO', array(
-			'agency_name' => $api_body['agency_name'] ?? 'unknown'
-		));
+		// 🔍 DEBUG: Log API call start
+		$this->logger->log('🏢 [AGENCY API WRITER - STEP 7] Calling WPResidence API to create agency', 'info');
+		$this->logger->log('   Agency name: ' . ($api_body['agency_name'] ?? 'unknown'), 'debug');
 
 		// Get JWT token
 		$token = $this->get_jwt_token();
 		if (!$token) {
+			$this->logger->log('🏢 [AGENCY API WRITER - STEP 7] ❌ JWT token authentication FAILED', 'error');
 			return array(
 				'success' => false,
 				'error'   => 'Failed to obtain JWT authentication token',
 			);
 		}
+		$this->logger->log('   JWT token obtained: ✅', 'debug');
 
 		// Make API request
 		$endpoint = $this->api_base_url . '/agency/add';
+		$this->logger->log('   API endpoint: ' . $endpoint, 'debug');
+
 		$response = $this->make_api_request('POST', $endpoint, $api_body, $token);
 
 		// Handle errors
 		if (!$response['success']) {
-			$this->logger->log('API create_agency failed: ' . $response['error'], 'ERROR');
+			$this->logger->log('🏢 [AGENCY API WRITER - STEP 7] ❌ API request FAILED', 'error');
+			$this->logger->log('   Error: ' . $response['error'], 'error');
 			return $response;
 		}
 
 		$body = $response['body'];
+
+		// 🔍 DEBUG: Log API response
+		$this->logger->log('🏢 [AGENCY API WRITER - STEP 7] API response received', 'info');
+		$this->logger->log('   Response status: ' . ($body['status'] ?? 'not set'), 'debug');
+		$this->logger->log('   Response message: ' . ($body['message'] ?? 'not set'), 'debug');
+		if (isset($body['agency_id'])) {
+			$this->logger->log('   Agency ID: ' . $body['agency_id'], 'debug');
+		}
 
 		// Check API response status
 		if (isset($body['status']) && $body['status'] === 'success') {

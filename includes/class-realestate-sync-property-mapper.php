@@ -1222,7 +1222,8 @@ class RealEstate_Sync_Property_Mapper {
             }
             
             // Use Agency Manager to create/update agency from XML agency data
-            $agency_id = $this->agency_manager->create_or_update_agency_from_xml($xml_property['agency_data']);
+            // 🔧 FIX: Pass entire $xml_property, not just agency_data
+            $agency_id = $this->agency_manager->create_or_update_agency_from_xml($xml_property);
             
             if ($agency_id) {
                 $this->logger->log('SUCCESS', 'Agency processed for property via Agency Manager', array(

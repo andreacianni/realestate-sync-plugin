@@ -302,6 +302,15 @@ class RealEstate_Sync_Import_Engine {
         // Method 4: Direct agency data array (from XML Parser v3.0)
         if (empty($agency_data) && isset($property_data['agency_data']) && is_array($property_data['agency_data'])) {
             $agency = $property_data['agency_data'];
+
+            // 🔍 DEBUG: Log original XML agency data
+            $this->logger->log("🏢 [IMPORT ENGINE - STEP 1] Agency data found in XML", 'info');
+            $this->logger->log("   Original XML fields: " . implode(', ', array_keys($agency)), 'debug');
+            $this->logger->log("   ragione_sociale: " . ($agency['ragione_sociale'] ?? 'MISSING'), 'debug');
+            $this->logger->log("   id: " . ($agency['id'] ?? 'MISSING'), 'debug');
+            $this->logger->log("   email: " . ($agency['email'] ?? 'MISSING'), 'debug');
+            $this->logger->log("   telefono: " . ($agency['telefono'] ?? 'MISSING'), 'debug');
+
             $agency_data = [
                 'id' => $agency['id'] ?? '',
                 'name' => $agency['ragione_sociale'] ?? $agency['name'] ?? 'Agenzia Immobiliare',
@@ -317,8 +326,13 @@ class RealEstate_Sync_Import_Engine {
                 'mobile' => $agency['cellulare'] ?? ''
             ];
 
-            // 🔇 COMMENTED: Agency extraction details - info in STEP 3a
-            // $this->logger->log("🏢 IMPORT ENGINE: Agency data extracted from array structure - ID: {$agency_data['id']}, Name: {$agency_data['name']}", 'info');
+            // 🔍 DEBUG: Log converted agency data
+            $this->logger->log("🏢 [IMPORT ENGINE - STEP 2] Agency data converted", 'info');
+            $this->logger->log("   Converted fields: " . implode(', ', array_keys($agency_data)), 'debug');
+            $this->logger->log("   name: " . ($agency_data['name'] ?? 'MISSING'), 'debug');
+            $this->logger->log("   id: " . ($agency_data['id'] ?? 'MISSING'), 'debug');
+            $this->logger->log("   email: " . ($agency_data['email'] ?? 'MISSING'), 'debug');
+            $this->logger->log("   phone: " . ($agency_data['phone'] ?? 'MISSING'), 'debug');
         }
 
         // 🚨 REMOVED FALLBACK: No agency association if agency data is missing

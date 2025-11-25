@@ -11,7 +11,7 @@
 		<indirizzo><![CDATA[Corso del Lavoro e della Scienza 3]]></indirizzo>
 		<email>info@trentinoimmobiliare.it</email>
 		<url>https://www.trentinoimmobiliare.it</url>
-		<logo>https://esempio.com/logo/agency1.jpg</logo>
+		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/106/640x480/logo_2.png</logo>
 		<telefono>0461234567</telefono>
 		<cellulare>3481234567</cellulare>
 		<deleted>0</deleted>
@@ -47,17 +47,20 @@
 
 	</i18n>
 
-	<file_allegati>
-		<logo><![CDATA[https://esempio.com/img/TEST001_main.jpg]]></logo>
-
-		<allegato id="0"><file_path><![CDATA[https://esempio.com/img/TEST001_main.jpg]]></file_path></allegato>
-		<allegato id="1"><file_path><![CDATA[https://esempio.com/img/TEST001_living.jpg]]></file_path></allegato>
-		<allegato id="2"><file_path><![CDATA[https://esempio.com/img/TEST001_kitchen.jpg]]></file_path></allegato>
-		<allegato id="3"><file_path><![CDATA[https://esempio.com/img/TEST001_bedroom1.jpg]]></file_path></allegato>
-		<allegato id="4"><file_path><![CDATA[https://esempio.com/img/TEST001_bedroom2.jpg]]></file_path></allegato>
-		<allegato id="5"><file_path><![CDATA[https://esempio.com/img/TEST001_bathroom.jpg]]></file_path></allegato>
-		<allegato id="6"><file_path><![CDATA[https://esempio.com/img/TEST001_balcony.jpg]]></file_path></allegato>
-	</file_allegati>
+		<file_allegati>
+			<logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/000__8_wmk_0.jpg]]></logo>
+			
+			<allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/000__8_wmk_0.jpg]]></file_path></allegato>
+			<allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/001__1_wmk_0.jpg]]></file_path></allegato>
+			<allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/002__5_wmk_0.jpg]]></file_path></allegato>
+			<allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/4.jpg]]></file_path></allegato>
+			<allegato id="4"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/7.jpg]]></file_path></allegato>
+			<allegato id="5"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/8.jpg]]></file_path></allegato>
+			<allegato id="6"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__20241002_174643.jpg]]></file_path></allegato>
+			<allegato id="7"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__20241002_174701.jpg]]></file_path></allegato>
+			<allegato id="8"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__20241002_174903.jpg]]></file_path></allegato>
+			<allegato id="9"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__barbara_franco_splpri32_-_c_docfa4_doc_0000460_001_-_copia-1.jpg]]></file_path></allegato>
+		</file_allegati>
 
 	<info_inserite>
 
@@ -152,9 +155,9 @@
 		<comune istat="022205">Trento</comune>
 		<provincia>Trento</provincia>
 		<indirizzo><![CDATA[Corso del Lavoro e della Scienza 3]]></indirizzo>
-		<email>info@trentinoimmobiliare.it</email>
+		<email>info@pippo.it</email>
 		<url>https://www.trentinoimmobiliare.it</url>
-		<logo>https://esempio.com/logo/agency1.jpg</logo>
+		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/692/640x480/logo_la_base.jpg</logo>
 		<telefono>0461234567</telefono>
 		<cellulare>3481234567</cellulare>
 		<deleted>0</deleted>
@@ -191,14 +194,13 @@
 	</i18n>
 
 	<file_allegati>
-		<logo><![CDATA[https://esempio.com/img/TEST002_facade.jpg]]></logo>
-
-		<allegato id="0"><file_path><![CDATA[https://esempio.com/img/TEST002_facade.jpg]]></file_path></allegato>
-		<allegato id="1"><file_path><![CDATA[https://esempio.com/img/TEST002_pool.jpg]]></file_path></allegato>
-		<allegato id="2"><file_path><![CDATA[https://esempio.com/img/TEST002_living.jpg]]></file_path></allegato>
-		<allegato id="3"><file_path><![CDATA[https://esempio.com/img/TEST002_kitchen.jpg]]></file_path></allegato>
-		<allegato id="4"><file_path><![CDATA[https://esempio.com/img/TEST002_master.jpg]]></file_path></allegato>
-		<allegato id="5"><file_path><![CDATA[https://esempio.com/img/TEST002_garden.jpg]]></file_path></allegato>
+		<logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/000__n-088_wmk_0.jpg]]></logo>
+		
+		<allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/000__n-088_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/001__n-089_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/002__n-091_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/003__n-093_wmk_0.jpg]]></file_path></allegato>
+		<allegato id="4"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/091123/49511/800x800/004__n-086_wmk_0.jpg]]></file_path></allegato>
 	</file_allegati>
 
 	<info_inserite>
@@ -303,7 +305,7 @@
 		<indirizzo><![CDATA[Via Brennero 125]]></indirizzo>
 		<email>info@dolomitirealestate.com</email>
 		<url>https://www.dolomitirealestate.com</url>
-		<logo>https://esempio.com/logo/agency2.jpg</logo>
+		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/580/640x480/logo_internet.jpg</logo>
 		<telefono>0461987654</telefono>
 		<cellulare>3359876543</cellulare>
 		<deleted>0</deleted>
@@ -339,14 +341,14 @@
 
 	</i18n>
 
-	<file_allegati>
-		<logo><![CDATA[https://esempio.com/img/TEST003_terrace.jpg]]></logo>
-
-		<allegato id="0"><file_path><![CDATA[https://esempio.com/img/TEST003_terrace.jpg]]></file_path></allegato>
-		<allegato id="1"><file_path><![CDATA[https://esempio.com/img/TEST003_living.jpg]]></file_path></allegato>
-		<allegato id="2"><file_path><![CDATA[https://esempio.com/img/TEST003_kitchen.jpg]]></file_path></allegato>
-		<allegato id="3"><file_path><![CDATA[https://esempio.com/img/TEST003_bedroom.jpg]]></file_path></allegato>
-	</file_allegati>
+        <file_allegati>
+            <logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/100116/53899/800x800/000__20250702_182559.jpg]]></logo>
+            
+            <allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/100116/53899/800x800/000__20250702_182559.jpg]]></file_path></allegato>
+            <allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/100116/53899/800x800/002__20250702_182429.jpg]]></file_path></allegato>
+            <allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/100116/53899/800x800/003__20250702_182447.jpg]]></file_path></allegato>
+            <allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/100116/53899/800x800/004__20250702_182609.jpg]]></file_path></allegato>
+        </file_allegati>
 
 	<info_inserite>
 

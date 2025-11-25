@@ -97,6 +97,16 @@ class RealEstate_Sync_Agency_Manager {
         // Extract agency information from converted agency data
         // Data comes already converted from Import Engine v3.0
 
+        // 🔍 DEBUG: Log what we receive from Property Mapper
+        $this->logger->log('🏢 [AGENCY MANAGER - STEP 3] Received data from Property Mapper', 'info');
+        $this->logger->log('   Has agency_data key: ' . (isset($xml_property['agency_data']) ? 'YES' : 'NO'), 'debug');
+        if (isset($xml_property['agency_data'])) {
+            $this->logger->log('   agency_data is array: ' . (is_array($xml_property['agency_data']) ? 'YES' : 'NO'), 'debug');
+            if (is_array($xml_property['agency_data'])) {
+                $this->logger->log('   agency_data fields: ' . implode(', ', array_keys($xml_property['agency_data'])), 'debug');
+            }
+        }
+
         $agency_data = array();
 
         // 🔧 FIX: Read from agency_data subarray (converted by Import Engine)
@@ -127,13 +137,12 @@ class RealEstate_Sync_Agency_Manager {
         $agency_data['logo_url'] = $this->get_xml_value($agency_source, 'logo_url');
         
         // 🔍 DEBUG: Log tutti i campi che stiamo cercando vs quello che troviamo
-        $this->logger->log('DEBUG', 'Agency Manager field mapping attempt:', array(
-            'looking_for_name' => 'name',
-            'found_name' => $agency_data['name'],
-            'looking_for_id' => 'id', 
-            'found_xml_agency_id' => $agency_data['xml_agency_id'],
-            'available_keys' => array_keys($xml_property)
-        ));
+        $this->logger->log('🏢 [AGENCY MANAGER - STEP 4] Field mapping results', 'info');
+        $this->logger->log('   Source keys available: ' . implode(', ', array_keys($agency_source)), 'debug');
+        $this->logger->log('   Extracted name: ' . ($agency_data['name'] ?: 'EMPTY'), 'debug');
+        $this->logger->log('   Extracted id: ' . ($agency_data['xml_agency_id'] ?: 'EMPTY'), 'debug');
+        $this->logger->log('   Extracted email: ' . ($agency_data['email'] ?: 'EMPTY'), 'debug');
+        $this->logger->log('   Extracted phone: ' . ($agency_data['phone'] ?: 'EMPTY'), 'debug');
         
         // ✅ VALIDATE REQUIRED FIELDS - ROBUST LOGIC
         $missing_required = array();
