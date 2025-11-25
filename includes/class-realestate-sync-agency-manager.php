@@ -324,8 +324,10 @@ class RealEstate_Sync_Agency_Manager {
         }
 
         // Query WordPress for agency with matching xml_agency_id meta
+        // NOTE: WPResidence /agency/add creates 'estate_agent' CPT, not 'estate_agency'
+        // We search both types to handle WPResidence's behavior
         $query = new WP_Query(array(
-            'post_type' => 'estate_agency',
+            'post_type' => array('estate_agent', 'estate_agency'),
             'post_status' => 'publish',
             'meta_query' => array(
                 array(
