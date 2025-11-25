@@ -1233,11 +1233,10 @@ class RealEstate_Sync_Property_Mapper {
 
             // Extract XML agency ID from agency_data
             $xml_agency_id = isset($xml_property['agency_data']['id']) ? $xml_property['agency_data']['id'] : false;
+            $property_id = isset($xml_property['id']) ? $xml_property['id'] : 'unknown';
 
             if (!$xml_agency_id) {
-                $this->logger->log('WARNING', '⚠️ No agency ID in agency_data', array(
-                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown'
-                ));
+                $this->logger->log('⚠️ No agency ID in agency_data for property: ' . $property_id, 'warning');
                 return false;
             }
 
@@ -1251,22 +1250,15 @@ class RealEstate_Sync_Property_Mapper {
             // ============================================================
 
             if ($agency_id) {
-                $this->logger->log('SUCCESS', '✅ Agency found and assigned to property', array(
-                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
-                    'xml_agency_id' => $xml_agency_id,
-                    'agency_id' => $agency_id
-                ));
+                $this->logger->log('✅ Agency assigned to property ' . $property_id . ' - XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
                 return $agency_id;
             } else {
-                $this->logger->log('WARNING', '⚠️ Agency NOT found for property (was it created in PHASE 1?)', array(
-                    'property_id' => isset($xml_property['id']) ? $xml_property['id'] : 'unknown',
-                    'xml_agency_id' => $xml_agency_id
-                ));
+                $this->logger->log('⚠️ Agency NOT found for property ' . $property_id . ' - XML ID: ' . $xml_agency_id . ' (was it created in PHASE 1?)', 'warning');
                 return false;
             }
 
         } catch (Exception $e) {
-            $this->logger->log('ERROR', 'Error processing agency for property: ' . $e->getMessage());
+            $this->logger->log('Error processing agency for property: ' . $e->getMessage(), 'error');
             return false;
         }
     }

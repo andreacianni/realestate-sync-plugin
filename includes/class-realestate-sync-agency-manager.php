@@ -310,21 +310,16 @@ class RealEstate_Sync_Agency_Manager {
      */
     public function lookup_agency_by_xml_id($xml_agency_id) {
         if (empty($xml_agency_id)) {
-            $this->logger->log('WARNING', '🔍 Lookup agency by XML ID: Empty ID provided');
+            $this->logger->log('🔍 Lookup agency by XML ID: Empty ID provided', 'warning');
             return false;
         }
 
-        $this->logger->log('INFO', '🔍 Looking up agency by XML ID', array(
-            'xml_agency_id' => $xml_agency_id
-        ));
+        $this->logger->log('🔍 Looking up agency by XML ID: ' . $xml_agency_id, 'info');
 
         // Check cache first
         $cache_key = 'xmlid_' . md5($xml_agency_id);
         if (isset($this->agency_cache[$cache_key])) {
-            $this->logger->log('SUCCESS', '✅ Found agency in cache', array(
-                'xml_agency_id' => $xml_agency_id,
-                'agency_id' => $this->agency_cache[$cache_key]
-            ));
+            $this->logger->log('✅ Found agency in cache - XML ID: ' . $xml_agency_id . ', WP ID: ' . $this->agency_cache[$cache_key], 'info');
             return $this->agency_cache[$cache_key];
         }
 
@@ -346,17 +341,12 @@ class RealEstate_Sync_Agency_Manager {
         $agency_id = false;
         if ($query->have_posts()) {
             $agency_id = $query->posts[0];
-            $this->logger->log('SUCCESS', '✅ Found agency by XML ID', array(
-                'xml_agency_id' => $xml_agency_id,
-                'agency_id' => $agency_id
-            ));
+            $this->logger->log('✅ Found agency by XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
 
             // Cache result
             $this->agency_cache[$cache_key] = $agency_id;
         } else {
-            $this->logger->log('WARNING', '⚠️ Agency NOT found by XML ID', array(
-                'xml_agency_id' => $xml_agency_id
-            ));
+            $this->logger->log('⚠️ Agency NOT found by XML ID: ' . $xml_agency_id, 'warning');
         }
 
         wp_reset_postdata();
