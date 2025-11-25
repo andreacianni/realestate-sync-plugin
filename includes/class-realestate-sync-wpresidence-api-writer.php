@@ -212,6 +212,15 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			$api_body['sidebar_agent_option'] = 'global';
 		}
 
+		// 6b. Property owner (post_author) assignment
+		// If configured, assign property to specific WordPress user
+		// Otherwise, WPResidence API defaults to JWT authenticated user
+		$property_user_id = get_option('realestate_sync_property_user_id', '');
+		if (!empty($property_user_id)) {
+			$api_body['property_user'] = (string) $property_user_id;
+			$this->logger->log('Property User ID: ' . $api_body['property_user'], 'INFO');
+		}
+
 		// 7. Catasto data as custom fields
 		if (!empty($mapped_property['catasto']) && is_array($mapped_property['catasto'])) {
 			if (!isset($api_body['custom_fields'])) {
