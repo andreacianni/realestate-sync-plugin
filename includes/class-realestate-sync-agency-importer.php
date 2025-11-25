@@ -15,17 +15,22 @@ if (!defined('ABSPATH')) {
 }
 
 class RealEstate_Sync_Agency_Importer {
-    
+
     /**
      * Logger instance
      */
     private $logger;
-    
+
     /**
      * Media deduplicator instance
      */
     private $media_deduplicator;
-    
+
+    /**
+     * Mark agencies as test flag
+     */
+    private $mark_as_test = false;
+
     /**
      * Constructor
      */
@@ -36,13 +41,20 @@ class RealEstate_Sync_Agency_Importer {
     
     /**
      * Import agencies into WordPress
-     * 
+     *
      * @param array $agencies Array of agency data from parser
+     * @param bool $mark_as_test Whether to mark agencies with _test_import flag
      * @return array Import results with statistics
      */
-    public function import_agencies($agencies) {
+    public function import_agencies($agencies, $mark_as_test = false) {
+        $this->mark_as_test = $mark_as_test;
+
+        if ($this->mark_as_test) {
+            $this->logger->log('🔖 Test mode enabled - agencies will be marked with _test_import flag', 'info');
+        }
+
         $this->logger->log('Starting agency import: ' . count($agencies) . ' agencies to process', 'info');
-        
+
         $results = [
             'total_agencies' => count($agencies),
             'imported' => 0,
@@ -51,13 +63,19 @@ class RealEstate_Sync_Agency_Importer {
             'errors' => 0,
             'agency_ids' => []
         ];
-        
+
         foreach ($agencies as $agency_data) {
             $result = $this->import_single_agency($agency_data);
-            
+
             if ($result['success']) {
                 $results['agency_ids'][] = $result['agent_id'];
-                
+
+                // 🔖 Mark agency as test if flag is enabled
+                if ($this->mark_as_test && !empty($result['agent_id'])) {
+                    update_post_meta($result['agent_id'], '_test_import', '1');
+                    $this->logger->log('🔖 Agency marked as test import: ' . $result['agent_id'], 'debug');
+                }
+
                 if ($result['action'] === 'created') {
                     $results['imported']++;
                 } elseif ($result['action'] === 'updated') {
@@ -69,9 +87,9 @@ class RealEstate_Sync_Agency_Importer {
                 $results['errors']++;
             }
         }
-        
+
         $this->logger->log('Agency import completed: ' . json_encode($results), 'success');
-        
+
         return $results;
     }
     

@@ -1040,10 +1040,10 @@ class RealEstate_Sync_Import_Engine {
             
             // Log agency statistics
             $this->agency_parser->log_agency_statistics($agencies);
-            
-            // Import agencies using importer
-            $import_results = $this->agency_importer->import_agencies($agencies);
-            
+
+            // Import agencies using importer (pass mark_as_test flag)
+            $import_results = $this->agency_importer->import_agencies($agencies, $this->session_data['mark_as_test']);
+
             // Update statistics
             $this->stats['new_agencies'] = $import_results['imported'];
             $this->stats['updated_agencies'] = $import_results['updated'];

@@ -1850,25 +1850,26 @@ class RealEstate_Sync_Admin {
                 WHERE property_id LIKE 'TEST%' OR property_id LIKE 'SAMPLE%'
             ");
             
-            // Count agencies (if using custom post type)
+            // Count agencies (search BOTH estate_agent AND estate_agency)
+            // WPResidence creates estate_agent, but may also have estate_agency
             $test_agencies = $wpdb->get_var("
-                SELECT COUNT(*) 
-                FROM {$wpdb->posts} p 
-                JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-                WHERE p.post_type = 'estate_agent' 
-                AND pm.meta_key = '_test_import' 
+                SELECT COUNT(*)
+                FROM {$wpdb->posts} p
+                JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type IN ('estate_agent', 'estate_agency')
+                AND pm.meta_key = '_test_import'
                 AND pm.meta_value = '1'
             ");
-            
-            // Delete test agencies
+
+            // Delete test agencies (both post types)
             $deleted_agencies = $wpdb->query("
-                DELETE p, pm 
-                FROM {$wpdb->posts} p 
-                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id 
-                WHERE p.post_type = 'estate_agent' 
+                DELETE p, pm
+                FROM {$wpdb->posts} p
+                LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE p.post_type IN ('estate_agent', 'estate_agency')
                 AND p.ID IN (
                     SELECT post_id FROM (
-                        SELECT post_id FROM {$wpdb->postmeta} 
+                        SELECT post_id FROM {$wpdb->postmeta}
                         WHERE meta_key = '_test_import' AND meta_value = '1'
                     ) AS test_agents
                 )
