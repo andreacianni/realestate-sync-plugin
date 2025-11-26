@@ -767,6 +767,12 @@ class RealEstate_Sync_Import_Engine {
                     $this->stats['skipped_properties']++;
                 }
 
+                // 🔖 Mark as test if flag is enabled (for both new and updated properties)
+                if (!empty($this->session_data['mark_as_test']) && !empty($result['post_id'])) {
+                    update_post_meta($result['post_id'], '_test_import', '1');
+                    $this->logger->log("🔖 Property marked as test import", 'debug');
+                }
+
                 $this->tracking_manager->update_tracking_record(
                     $property_id,
                     $property_hash,
