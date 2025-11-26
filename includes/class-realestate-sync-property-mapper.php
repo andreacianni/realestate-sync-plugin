@@ -145,32 +145,35 @@ class RealEstate_Sync_Property_Mapper {
             10 => 'A4', 11 => 'A3', 12 => 'A2', 13 => 'A1'
         ];
 
-        // 🎯 NEW v3.2: Maintenance Status mapping (Info[57])
+        // 🎯 FIXED v3.4: Maintenance Status mapping (Info[57]) - Corrected based on analysis
+        // Scale: 1 (best condition) → 5 (worst condition)
         $this->maintenance_status_mapping = [
-            0 => 'Sconosciuto',
-            1 => 'Da ristrutturare',
-            2 => 'Ristrutturato',
-            3 => 'Discreto',
-            4 => 'Buono',
-            5 => 'Ottimo',
-            6 => 'Nuovo',
+            0 => 'Non specificato',
+            1 => 'Ottimo',              // FIXED: was "Da ristrutturare" (critical error!)
+            2 => 'Ristrutturato',       // OK
+            3 => 'Buono',               // FIXED: was "Discreto"
+            4 => 'Discreto',            // FIXED: was "Buono"
+            5 => 'Da ristrutturare',    // FIXED: was "Ottimo" (critical error!)
+            6 => 'Nuovo',               // OK
             7 => 'Impianti da fare',
             8 => 'Impianti da rifare',
             9 => 'Impianti a norma'
         ];
 
         // 🎯 NEW v3.2: Position mapping (Info[56]) - Essential for commercial properties
+        // FIXED v3.4: Corrected mapping based on real XML data analysis
+        // IDs 1, 2, 3 were COMPLETELY WRONG (centro città shown as "area industriale"!)
         $this->position_mapping = [
-            0 => 'Sconosciuto',
-            1 => 'Area industriale/artigianale',
-            2 => 'Centro commerciale',
-            3 => 'Ad angolo',
-            4 => 'Centrale',
-            5 => 'Servita',
-            6 => 'Forte passaggio',
-            7 => 'Fronte lago',
-            8 => 'Fronte strada',
-            9 => 'Interna'
+            0 => 'Non specificato',
+            1 => 'Centro città',                    // FIXED: was "Area industriale/artigianale" (critical error!)
+            2 => 'Zona semicentrale',               // FIXED: was "Centro commerciale"
+            3 => 'Zona collinare/panoramica',       // FIXED: was "Ad angolo"
+            4 => 'Zona periferica',                 // FIXED: was "Centrale"
+            5 => 'Zona residenziale',               // FIXED: was "Servita"
+            6 => 'Zona turistica',                  // FIXED: was "Forte passaggio"
+            7 => 'Zona montagna/isolata',           // FIXED: was "Fronte lago"
+            8 => 'Lungomare/lungolago',             // FIXED: was "Fronte strada"
+            9 => 'Zona commerciale'                 // FIXED: was "Interna"
         ];
 
         // 🎯 NEW v3.2: Micro-categories mapping (43 to maintain, excluding 56)
@@ -348,7 +351,7 @@ class RealEstate_Sync_Property_Mapper {
         
         return [
             'post_data' => $this->map_post_data_v3($xml_property),
-            'meta_fields' => $this->map_meta_fields_v3($xml_property),
+            'meta_fields' => $this->map_meta_fields_v3($xml_property, $agency_id),
             'taxonomies' => $this->map_taxonomies_v3($xml_property),
             'features' => $this->map_features_v3($xml_property),
             'gallery' => $this->map_gallery_v3($xml_property),
@@ -379,10 +382,19 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     /**
-     * Map meta fields v3.1 - ENHANCED with gap fixes
+     * Map meta fields v3.1 - ENHANCED with gap fixes + agency linking
      */
-    private function map_meta_fields_v3($xml_property) {
+    private function map_meta_fields_v3($xml_property, $agency_id = false) {
         $meta = [];
+
+        // 🏢 AGENCY LINKING FIX: Set property_agent if agency_id exists
+        if ($agency_id) {
+            $meta['property_agent'] = intval($agency_id);
+            $this->logger->log('🏢 Property Mapper: property_agent set', 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'agency_id' => $agency_id
+            ]);
+        }
         
         // Core property data
         $meta['property_price'] = floatval($xml_property['price'] ?? 0);
@@ -764,10 +776,10 @@ class RealEstate_Sync_Property_Mapper {
         // 🎯 FRONTEND DISPLAY: XML ID for frontend templates
         $meta['property_xml_id'] = $xml_property['id'];
         $meta['property_display_id'] = $xml_property['id'];
-        
-        // 🏢 AGENCY ASSOCIATION: Will be set by WP Importer if agency_id exists in source_data
-        // property_agent field will be populated by WP Importer using source_data['agency_id']
-        
+
+        // ✅ AGENCY ASSOCIATION: property_agent now set directly in map_meta_fields_v3() (line 387-394)
+        // Source agency_id is also stored in source_data['agency_id'] for tracking
+
         return $meta;
     }
     

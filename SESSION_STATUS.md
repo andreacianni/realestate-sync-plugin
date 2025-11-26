@@ -1,9 +1,111 @@
-# Session Status - 2025-10-17 (Aggiornato: PRODUZIONE ONLINE + ADDRESS MAPPING)
+# Session Status - 2025-11-26 (Aggiornato: ANALISI MAPPING + CLEANUP TOOL + FIX CRITICI)
 
-## 🎉 STATO ATTUALE: IMPORT IN PRODUZIONE FUNZIONANTE
+## 🎯 STATO ATTUALE: ANALISI COMPLETATA - FIX CRITICI IN CORSO
 
-**Data/Ora ultima sessione**: 2025-10-17 23:50
-**Stato**: ✅ **IMPORT IN PRODUZIONE ATTIVO** | ✅ **REST API ENDPOINTS REGISTRATI** | ✅ **ADDRESS & MAP MAPPING COMPLETO**
+**Data/Ora ultima sessione**: 2025-11-26 08:30
+**Stato**: ✅ **CLEANUP TOOL FUNZIONANTE** | 📊 **ANALISI MAPPING COMPLETA** | 🔴 **3 FIX CRITICI IDENTIFICATI**
+
+**Branch corrente**: `release/v1.4.0`
+**Ultimo commit**: `2f87d51` - Merge analysis report
+
+---
+
+## 🔥 MILESTONE #7: Mapping Analysis + Critical Fixes (2025-11-26)
+
+### 📊 Analisi Completa Mapping Eseguita
+
+**Obiettivo**: Analizzare il flusso completo XML → Mapper → Database → Front-end per identificare gap e problemi
+
+**Metodo**:
+- Analisi eseguita da Claude AI su 3 properties + 2 agents
+- Confronto tra 14 file (XML, CSV database, HTML front-end, documentazione)
+- Report completo: `docs/AnalisiCampi/ANALISI_MAPPING_REPORT.md`
+
+**Risultati Analisi**:
+- ✅ **62% campi OK** (28/45): Flusso completo funzionante
+- ⚠️ **38% campi problematici** (17/45):
+  - 🔴 **3 problemi CRITICI** (agency linking, maintenance status, position)
+  - 🟡 **9 problemi MEDI** (campi mancanti, valori errati)
+  - 🟢 **5 problemi MINORI** (nomenclatura, duplicati)
+
+---
+
+### 🔴 PROBLEMI CRITICI IDENTIFICATI
+
+#### 1. Agency Linking Completamente Rotto
+**Problema**: Properties NON collegate agli agents (property_agent = NULL)
+**Impatto**: Sidebar agenzia non appare nel front-end
+**Status**: 🔴 DA FIXARE (Priority #1)
+**Dettagli**: [ANALISI_MAPPING_REPORT.md#problemi-critici-1](docs/AnalisiCampi/ANALISI_MAPPING_REPORT.md)
+
+#### 2. Maintenance Status - Valori Errati
+**Problema**: Mapping info[57] sbagliato ("nuovo" → "da ristrutturare")
+**Impatto**: Immobili mostrati in condizioni peggiori del reale
+**Status**: 🔴 DA FIXARE (Priority #2)
+**Dettagli**: [ANALISI_MAPPING_REPORT.md#problemi-critici-2](docs/AnalisiCampi/ANALISI_MAPPING_REPORT.md)
+
+#### 3. Position - Valori Completamente Sbagliati
+**Problema**: Mapping info[56] errato ("centro" → "area industriale")
+**Impatto**: Localizzazione falsa (centro storico → periferia industriale)
+**Status**: 🔴 DA FIXARE (Priority #3)
+**Dettagli**: [ANALISI_MAPPING_REPORT.md#problemi-critici-3](docs/AnalisiCampi/ANALISI_MAPPING_REPORT.md)
+
+---
+
+### ✅ COMPLETATO OGGI (2025-11-26)
+
+#### 1. Cleanup Test Data Tool - COMPLETAMENTE FIXATO ✅
+**Commit**: `387fb41` + `f937c0c`
+**Problema risolto**: Tool ora elimina ENTRAMBI properties E agencies marcate come test
+**Fix**:
+- Agency Importer: Aggiunto mark_as_test flag
+- Import Engine: Aggiunto mark_as_test per properties UPDATE (non solo INSERT)
+- Admin Cleanup: Search esteso a estate_agent E estate_agency
+**Test**: ✅ 3 properties + 2 agencies eliminate correttamente
+
+#### 2. FTP Upload via PowerShell ✅
+**File**: `upload-ftp.ps1`
+**Setup**: FTPS over TLS configurato
+**Credenziali**: wp@trentinoimmobiliare.it
+**Status**: ✅ Funzionante (alternativa a SSH passwordless)
+
+#### 3. Analisi Mapping Completa ✅
+**Files creati**:
+- `docs/AnalisiCampi/PROPERTY_MAPPER_FIELDS.md` - Documentazione mapping
+- `docs/AnalisiCampi/PROMPT_PER_CLAUDE.md` - Prompt analisi con link GitHub
+- `docs/AnalisiCampi/ANALISI_MAPPING_REPORT.md` - Report completo da Claude AI
+**Commit**: `aaa7c52` (files), `83ae8d5` (prompt update), `2f87d51` (report merge)
+
+---
+
+### 🎯 PROSSIMI STEP (In Corso)
+
+#### Priority #1: FIX Agency Linking 🔴
+**File da modificare**: `includes/class-realestate-sync-property-mapper.php`
+**Cosa fare**:
+1. Implementare lookup agency tramite `agency_xml_id`
+2. Settare `property_agent` = POST_ID dell'agent
+3. Settare `property_user` = USER_ID del owner
+**Target**: Release v1.4.1
+
+#### Priority #2: FIX Maintenance Status Mapping 🔴
+**File da modificare**: `includes/class-realestate-sync-property-mapper.php`
+**Metodo**: `map_maintenance_status_v32()`
+**Correzione**: Aggiornare lookup table info[57]
+
+#### Priority #3: FIX Position Mapping 🔴
+**File da modificare**: `includes/class-realestate-sync-property-mapper.php`
+**Metodo**: `map_position_v32()`
+**Correzione**: Aggiornare lookup table info[56]
+
+---
+
+## 🔄 SESSIONE PRECEDENTE (2025-10-17)
+
+## 🎉 STATO: IMPORT IN PRODUZIONE FUNZIONANTE
+
+**Data/Ora**: 2025-10-17 23:50
+**Milestone**: #6 - Production Deployment + REST API Activation
 
 ---
 
