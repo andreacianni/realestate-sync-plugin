@@ -1234,21 +1234,6 @@ class RealEstate_Sync_Property_Mapper {
             }
 
             // ============================================================
-            // 🧪 TEST MODE: Hardcode agency ID for test properties
-            // ============================================================
-            // TEMPORARY FIX to test if agency linking works.
-            // If property ID starts with "TEST", use hardcoded agency ID 5491
-            // (Trentino Immobiliare Excellence SRL from test-property-complete-fixed.xml)
-            // ============================================================
-            $property_id = isset($xml_property['id']) ? $xml_property['id'] : 'unknown';
-            if (strpos($property_id, 'TEST') === 0) {
-                $this->logger->log('🧪 TEST MODE: Property ID starts with TEST - using hardcoded agency ID 5491', 'info', array(
-                    'property_id' => $property_id
-                ));
-                return 5491;
-            }
-
-            // ============================================================
             // 🔧 NEW APPROACH (v1.5.0): LOOKUP instead of CREATE/UPDATE
             // ============================================================
             // In PHASE 2 (property import), agencies are ALREADY created in PHASE 1.
