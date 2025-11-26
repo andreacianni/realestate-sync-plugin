@@ -331,7 +331,7 @@ class RealEstate_Sync_Agency_Manager {
             'post_status' => 'publish',
             'meta_query' => array(
                 array(
-                    'key' => 'xml_agency_id',
+                    'key' => 'agency_xml_id',  // Fixed: was 'xml_agency_id' (wrong order)
                     'value' => $xml_agency_id,
                     'compare' => '='
                 )
