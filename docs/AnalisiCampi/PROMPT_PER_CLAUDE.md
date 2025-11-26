@@ -10,30 +10,39 @@ Analizzare il flusso completo di import delle properties dal file XML al front-e
 
 ## 📁 FILE DA ANALIZZARE
 
-Tutti i file si trovano nella cartella:
-`docs/AnalisiCampi/`
+**Repository GitHub**: https://github.com/andreacianni/realestate-sync-plugin
+**Branch**: release/v1.4.0
+**Cartella**: docs/AnalisiCampi/
 
-### Input Files:
-1. **XML Source**:
-   - `test-property-complete.xml` - File XML originale
-   - `test-property-complete-fixed.xml` - File XML corretto
+**BASE URL**: `https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/`
 
-2. **Mapping Documentation**:
-   - `PROPERTY_MAPPER_FIELDS.md` - Documentazione completa campi mappati
+### 🔍 COME LEGGERE I FILE
 
-3. **Database Exports (CSV)**:
-   - `Dati Post (Properties + Agents).csv` - Post base
-   - `Tutti i Meta Fields (Completo).csv` - Tutti i meta fields
-   - `Meta Fields Specifici (Agency Linking).csv` - Meta fields agency
-   - `Taxonomies Associate.csv` - Tassonomie
-   - `Query Completa (Tutto in Una Vista).csv` - Vista aggregata
+Usa il tuo tool di lettura file/web per accedere ai file GitHub. Per ogni file, usa questo URL pattern:
+`https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/FILENAME`
 
-4. **Front-end HTML (view-source)**:
-   - `5461 view-source_..._.html` - Property ID 5461
-   - `5455 view-source_..._.html` - Property ID 5455
-   - `5444 view-source_..._.html` - Property ID 5444
-   - `5443 view-source_..._.html` - Agent ID 5443
-   - `5442 view-source_..._.html` - Agent ID 5442
+### 📄 LISTA FILE CON LINK DIRETTI
+
+#### 1. XML Source Files
+- [test-property-complete.xml](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/test-property-complete.xml)
+- [test-property-complete-fixed.xml](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/test-property-complete-fixed.xml)
+
+#### 2. Mapping Documentation
+- [PROPERTY_MAPPER_FIELDS.md](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/PROPERTY_MAPPER_FIELDS.md) - **LEGGI QUESTO PER PRIMO!**
+
+#### 3. Database Exports (CSV)
+- [Dati Post (Properties + Agents).csv](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/Dati%20Post%20(Properties%20+%20Agents).csv)
+- [Tutti i Meta Fields (Completo).csv](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/Tutti%20i%20Meta%20Fields%20(Completo).csv)
+- [Meta Fields Specifici (Agency Linking).csv](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/Meta%20Fields%20Specifici%20(Agency%20Linking).csv)
+- [Taxonomies Associate.csv](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/Taxonomies%20Associate.csv)
+- [Query Completa (Tutto in Una Vista).csv](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/Query%20Completa%20(Tutto%20in%20Una%20Vista).csv)
+
+#### 4. Front-end HTML (view-source)
+- [Property 5461](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/5461%20view-source_https___trentinoimmobiliare.it_proprieta_attico-panoramico-con-terrazzo-150mq_.html)
+- [Property 5455](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/5455%20view-source_https___trentinoimmobiliare.it_proprieta_villa-di-prestigio-con-piscina-classe-a4_.html)
+- [Property 5444](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/5444%20view-source_https___trentinoimmobiliare.it_proprieta_appartamento-centro-trento-classe-a_.html)
+- [Agent 5443](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/5443%20view-source_https___trentinoimmobiliare.it_agenti_dolomiti-real-estate-sas_.html)
+- [Agent 5442](https://github.com/andreacianni/realestate-sync-plugin/blob/release/v1.4.0/docs/AnalisiCampi/5442%20view-source_https___trentinoimmobiliare.it_agenti_trentino-immobiliare-excellence-srl_.html)
 
 ## 📊 ANALISI RICHIESTA
 
@@ -172,10 +181,17 @@ Crea un file Markdown con questa struttura:
 **Data**: [DATA]
 ```
 
-## 💾 SALVATAGGIO OUTPUT
+## 💾 OUTPUT DEL REPORT
 
-**IMPORTANTE**: Salva il report in:
+**FORMATO**: Markdown (come specificato sopra)
+
+**NOME FILE**: `ANALISI_MAPPING_REPORT.md`
+
+**DOVE SALVARE**:
+Fornisci il contenuto completo del report come output. L'utente lo salverà manualmente in:
 `docs/AnalisiCampi/ANALISI_MAPPING_REPORT.md`
+
+E poi lo committera su GitHub nello stesso repository.
 
 ## 🎯 PRIORITÀ ANALISI
 
