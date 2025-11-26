@@ -241,10 +241,15 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		$api_body['agency_languages'] = 'Italiano';
 
 		// 8. XML Agency ID (CRITICAL for PHASE 2 lookup!)
-		// This meta field is used to link properties to agencies during import
+		// Pass as custom_data because direct field is ignored by WPResidence API
 		if (!empty($agency_data['xml_agency_id'])) {
-			$api_body['xml_agency_id'] = $agency_data['xml_agency_id'];
-			$this->logger->log('✅ XML Agency ID added to API body: ' . $agency_data['xml_agency_id'], 'info');
+			$api_body['agency_custom_data'] = array(
+				array(
+					'label' => 'XML Agency ID',
+					'value' => (string) $agency_data['xml_agency_id']
+				)
+			);
+			$this->logger->log('✅ XML Agency ID added to agency_custom_data: ' . $agency_data['xml_agency_id'], 'info');
 		} else {
 			$this->logger->log('⚠️ WARNING: xml_agency_id is MISSING! PHASE 2 lookup will FAIL!', 'warning');
 		}
@@ -256,7 +261,7 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		$this->logger->log('   agency_email: ' . ($api_body['agency_email'] ?? 'MISSING'), 'debug');
 		$this->logger->log('   agency_phone: ' . ($api_body['agency_phone'] ?? 'not set'), 'debug');
 		$this->logger->log('   agency_website: ' . ($api_body['agency_website'] ?? 'not set'), 'debug');
-		$this->logger->log('   xml_agency_id: ' . ($api_body['xml_agency_id'] ?? 'MISSING!'), 'debug');
+		$this->logger->log('   agency_custom_data: ' . (isset($api_body['agency_custom_data']) ? 'SET (XML ID in custom data)' : 'NOT SET'), 'debug');
 		$this->logger->log('   Total fields: ' . count($api_body), 'debug');
 
 		return $api_body;
