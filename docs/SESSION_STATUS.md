@@ -1,9 +1,9 @@
 # Session Status - 2025-11-27
 
-## ✅ STATO ATTUALE: AGENCIES ✅ + GEOGRAPHIC DATA ✅ + MAPS ✅ = CRITICAL BLOCKERS RESOLVED!
+## ✅ STATO ATTUALE: CORE MAPPING COMPLETE - READY FOR INFO FIELDS VERIFICATION
 
-**Data/Ora ultima sessione**: 2025-11-27 (Geographic & Maps session)
-**Stato**: ✅ **AGENCIES WORKING** | ✅ **GEOGRAPHIC DATA COMPLETE** | ✅ **MAPS DISPLAY FIXED**
+**Data/Ora ultima sessione**: 2025-11-27 (Geographic & Maps completion)
+**Stato**: ✅ **AGENCIES** | ✅ **GEOGRAPHIC DATA** | ✅ **MAPS** | ✅ **TAXONOMIES** → 🎯 **NEXT: INFO FIELDS**
 
 ---
 
@@ -451,47 +451,119 @@ ssh-keygen -p -f .ssh-config/id_rsa
 
 ---
 
-## 🎯 NEXT SESSION PLAN
+## 🎯 ROADMAP TO PRODUCTION
 
-### BEFORE Debugging Agency Issue:
+### ✅ PHASE 1: CORE MAPPING - COMPLETATA
 
-1. **IMPLEMENT Cleanup Test Data Tool** 🔴
-   - Enable "Cleanup Test Data" button in dashboard
-   - Verify `_test_import` meta is saved during test imports
-   - Test deletion of test properties/agencies
-   - **Time estimate**: 30-60 minutes
-   - **Blocker**: Cannot iterate quickly without this
+**Status**: ✅ **DONE** (2025-11-27)
 
-2. **SETUP SSH Agent** 🔴
-   - Configure Windows OpenSSH Authentication Agent
-   - Add SSH key to agent
-   - Test passwordless connection
-   - **Time estimate**: 10-15 minutes
-   - **Blocker**: Slows down every file upload
+Tutti i componenti critici funzionanti:
+- ✅ Agency linking (import_id + agency_data fixes)
+- ✅ Geographic data (ISTAT Lookup - 282 comuni TN/BZ)
+- ✅ Maps display (coordinates + Google Maps settings + zoom)
+- ✅ Geographic taxonomies (city, area, county_state as slug arrays)
+- ✅ Cleanup Test Data tool
+- ✅ Test property import workflow
 
-### AFTER Prerequisites:
+**Note**: `build_full_address()` NON necessita fix - era frutto di errata interpretazione. Passiamo già tutti i campi necessari separatamente.
 
-3. **DEBUG Agency Lookup Failure** 🟡
-   - Run SQL queries to verify meta + post_type
-   - Test WP_Query manually
-   - Identify root cause
-   - Implement fix
-   - **Time estimate**: 30-90 minutes
+---
 
-4. **VERIFY End-to-End Flow** 🟢
-   - Cleanup test data
-   - Run fresh import
-   - Verify: PHASE 1 creates agencies WITH xml_agency_id
-   - Verify: PHASE 2 finds agencies and assigns to properties
-   - Verify: Frontend shows property with agency sidebar
-   - **Time estimate**: 15-30 minutes
+### 🎯 PHASE 2: INFO FIELDS VERIFICATION - PROSSIMO STEP
+
+**Status**: 🟡 **NEXT** (Ultimo task per mappatura completa)
+
+**Obiettivo**: Verifica puntuale di TUTTI i campi INFO[1-62] dal feed XML
+
+**Task**:
+1. **Inventario campi INFO**: Lista completa di tutti gli INFO presenti nel feed reale
+2. **Verifica mappatura esistente**: Controllare quali INFO sono già mappati correttamente
+3. **Identificare gaps**: INFO non mappati o mappati erroneamente
+4. **Implementare fix**: Mappare INFO mancanti secondo specifiche client
+5. **Test completo**: Verificare che TUTTI i campi INFO appaiano correttamente nel frontend
+
+**Deliverable**: Mappatura completa e funzionante di tutti i campi disponibili nel feed
+
+**Priorità**: 🔴 **ALTA** - Ultimo blocker per dichiarare mappatura completa
+
+**Time estimate**: 2-4 ore (dipende dal numero di INFO da fixare)
+
+---
+
+### 🚀 PHASE 3: MASSIVE XML IMPORT - PRODUCTION READY
+
+**Status**: ⏳ **PENDING** (After Phase 2)
+
+**Step 3.1: Prima Prova Import Massivo**
+1. Import XML massivo completo (tutti gli annunci)
+2. Monitoraggio log per errori
+3. Verifica sample properties nel frontend
+4. Identificare eventuali edge cases
+5. Fix rapidi se necessari
+
+**Step 3.2: Batch Notturno Automatizzato**
+1. Setup cron job per import automatico notturno
+2. Configurare email notifications per errori
+3. Implementare retry logic per failures
+4. Test batch import in produzione
+5. Monitoraggio performance (memoria, tempo esecuzione)
+
+**Deliverable**: Sistema di import automatizzato funzionante in produzione
+
+**Priorità**: 🟢 **MEDIA** - Dopo verifica INFO fields
+
+**Time estimate**: 1-2 giorni (setup + testing + monitoring)
+
+---
+
+### 🧹 PHASE 4: CLEANUP & REFACTORING - FINAL POLISH
+
+**Status**: ⏳ **PENDING** (After Production Deployment)
+
+**Step 4.1: Rimozione Debug**
+1. Rimuovere log verbosi di debug
+2. Mantenere solo log essenziali (errors, warnings)
+3. Ottimizzare performance rimuovendo check non necessari
+4. Code cleanup (commenti obsoleti, codice morto)
+
+**Step 4.2: Dashboard Refactoring**
+1. Semplificare interfaccia per admin non-programmatore
+2. Aggiungere tooltips e help text
+3. Nascondere opzioni tecniche avanzate
+4. Migliorare UX per operazioni comuni
+5. Aggiungere validation e feedback chiari
+
+**Deliverable**: Plugin production-ready con interfaccia user-friendly
+
+**Priorità**: 🟢 **BASSA** - Nice to have, non blocker
+
+**Time estimate**: 2-3 giorni
+
+---
+
+## 📊 PROGRESS TRACKER
+
+```
+[████████████████████████████░░░░] 85% Complete
+
+✅ Core Architecture
+✅ Agency System
+✅ Geographic Data (ISTAT)
+✅ Maps Integration
+✅ Taxonomies
+✅ Test Tools
+🎯 INFO Fields Verification (Next)
+⏳ Massive Import
+⏳ Automation
+⏳ Production Polish
+```
 
 ---
 
 ## 🔍 RECOVERY PROMPT
 
-**For Next Session** (Resume from 2025-11-26 morning):
-> "Leggi SESSION_STATUS.md. ✅ PREREQUISITE #1 COMPLETATO: Cleanup Test Data tool fixato e committato (387fb41). ⏸️ PREREQUISITE #2 IN CORSO: SSH passwordless setup quasi completo - chiave generata senza passphrase, ma server ha bannato IP per troppi tentativi SSH (fail2ban). Chiave pubblica pronta in `.ssh-config/id_rsa.pub`. NEXT STEP: Aspettare 30min che ban scada, poi aggiungere chiave pubblica al server (via cPanel o SCP). Poi testare connessione passwordless, uploadare fix cleanup tool, e finalmente debuggare agency lookup failure. Branch: release/v1.4.0, commit 387fb41."
+**For Next Session** (Resume from 2025-11-27):
+> "Leggi SESSION_STATUS.md. ✅ **FASE 1 COMPLETATA**: Tutte le funzionalità core sono operative - Agencies, Geographic Data (ISTAT Lookup 282 comuni), Maps (con zoom fix), Taxonomies geografiche. Removed obsolete `docs/NEXT_FIX_build_full_address.md` (non necessario, passiamo già tutti i campi separatamente). 🎯 **NEXT PHASE**: INFO Fields Verification - verifica puntuale di TUTTI i campi INFO[1-62] dal feed XML, ultimo task per mappatura completa. Poi: import massivo → batch notturno → cleanup/refactoring. Branch: release/v1.4.0, ultimo commit: dbcd449."
 
 ---
 
@@ -520,22 +592,39 @@ ssh-keygen -p -f .ssh-config/id_rsa
 
 ## 🚀 DEFINITION OF DONE
 
-### Session Complete When:
+### Phase 1 (Core Mapping): ✅ COMPLETE
 1. ✅ "Cleanup Test Data" button works
-2. ✅ SSH passwordless connection active
-3. ✅ Agency lookup finds agencies
-4. ✅ Properties assigned to correct agencies
-5. ✅ Frontend shows property with agency sidebar
-6. ✅ All test properties cleaned up
-7. ✅ Ready for production XML import
+2. ✅ Agency lookup finds agencies
+3. ✅ Properties assigned to correct agencies
+4. ✅ Geographic data complete (ISTAT Lookup)
+5. ✅ Maps display correctly with zoom
+6. ✅ Geographic taxonomies as slug arrays
+7. ✅ All test properties work end-to-end
+
+### Phase 2 (INFO Fields): 🎯 IN PROGRESS
+1. ⏳ Complete inventory of INFO[1-62] fields
+2. ⏳ Verify all INFO mappings
+3. ⏳ Fix missing/incorrect INFO mappings
+4. ⏳ Test all INFO fields in frontend
+5. ⏳ Declare mapping 100% complete
+
+### Phase 3 (Production): ⏳ PENDING
+1. ⏳ Massive XML import successful
+2. ⏳ Batch automation configured
+3. ⏳ Monitoring and alerts active
+
+### Phase 4 (Polish): ⏳ PENDING
+1. ⏳ Debug logs removed
+2. ⏳ Dashboard refactored for non-tech admin
+3. ⏳ Documentation complete
 
 ---
 
-**Ultima modifica**: 2025-11-25 22:30
+**Ultima modifica**: 2025-11-27 (Geographic & Maps completion)
 **Autore**: Claude + Andrea
-**Status**: ⏸️ **PAUSED - PREREQUISITES NEEDED** - Cleanup tool + SSH agent required before continuing
+**Status**: ✅ **PHASE 1 COMPLETE** - Ready for INFO fields verification
 
-**User Feedback**: "vado a farmi una sega" - Session ends, resume after prerequisites implemented.
+**User Direction**: "build_full_address() non serve, è frutto di errore interpretazione. Prossimo step: verifica puntuale INFO fields, ultimo task per mappatura completa. Poi: import massivo → batch notturno → cleanup/refactoring."
 
 ---
 
