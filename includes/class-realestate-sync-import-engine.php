@@ -158,6 +158,12 @@ class RealEstate_Sync_Import_Engine {
             'dati_inseriti' => $dati_inseriti,
             'file_allegati' => $media_files, // 🖼️ Complete media structure
             'agency_data' => $agency_data,   // 🏢 Complete agency structure (null if no agency)
+            // 🌍 GEOGRAPHIC DATA: Extract from XML for Italia → USA mapping
+            'city' => $property_data['comune'] ?? '',        // Comune → City
+            'zone' => $property_data['zona'] ?? '',          // Zona → Neighborhood/Area
+            'province' => $property_data['provincia'] ?? '', // Provincia → County
+            'region' => $property_data['regione'] ?? '',     // Regione → State
+            'zip_code' => $property_data['cap'] ?? '',       // CAP → ZIP code
             'catasto' => [ // Default empty catasto info
                 'destinazione_uso' => 'Residenziale',
                 'rendita_catastale' => '',
