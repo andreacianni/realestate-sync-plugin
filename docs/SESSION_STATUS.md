@@ -1,9 +1,85 @@
-# Session Status - 2025-11-26
+# Session Status - 2025-11-27
 
-## ✅ STATO ATTUALE: PREREQUISITE #1 DONE, #2 IN PROGRESS
+## ✅ STATO ATTUALE: AGENCIES ✅ + GEOGRAPHIC DATA ✅ + MAPS ✅ = CRITICAL BLOCKERS RESOLVED!
 
-**Data/Ora ultima sessione**: 2025-11-26 (morning session)
-**Stato**: ✅ **CLEANUP TOOL FIXED** | ⏸️ **SSH SETUP IN PROGRESS** | ⏳ **SERVER BANNED (wait 30min)**
+**Data/Ora ultima sessione**: 2025-11-27 (Geographic & Maps session)
+**Stato**: ✅ **AGENCIES WORKING** | ✅ **GEOGRAPHIC DATA COMPLETE** | ✅ **MAPS DISPLAY FIXED**
+
+---
+
+## 🎉 MAJOR BREAKTHROUGH (2025-11-27)
+
+### ✅ CRITICAL FIX #1: AGENCIES NOW WORKING!
+
+**Problem Fixed**: Agency lookup era fallito nelle sessioni precedenti
+**Root Cause**: Missing `import_id` in Property Mapper source_data
+
+**Solution Implemented**:
+1. **Property Mapper** (`includes/class-realestate-sync-property-mapper.php:334`):
+   - Added explicit `import_id` field to source_data
+   - Now WP Importer can create properties with correct agency linkage
+
+2. **Agency Manager** (`includes/class-realestate-sync-agency-manager.php:103`):
+   - Fixed data structure reading: now reads from `agency_data` subarray
+   - Correctly processes agency email and other fields
+
+**Result**: ✅ Properties now correctly linked to agencies!
+
+---
+
+### ✅ CRITICAL FIX #2: GEOGRAPHIC DATA COMPLETE (ISTAT Lookup System)
+
+**Problem**: XML feed provides ONLY `comune_istat` code and `zona`, missing actual comune name, provincia, regione, CAP
+
+**Solution**: Complete ISTAT Lookup Service
+1. **ISTAT Lookup Table** (`data/istat-lookup-tn-bz.php`):
+   - 282 comuni for Trentino-Alto Adige (116 Bolzano + 166 Trento)
+   - Maps ISTAT codes → comune name, provincia, regione, CAP
+   - Source: GitHub matteocontrini/comuni-json
+
+2. **ISTAT Lookup Service** (`includes/class-realestate-sync-istat-lookup.php`):
+   - Static lookup methods (no database queries)
+   - Fallback logic: try XML first, then ISTAT lookup
+
+3. **Import Engine** (`includes/class-realestate-sync-import-engine.php:142-243`):
+   - New `derive_geographic_data()` method
+   - Automatically enriches XML data with missing geographic fields
+   - Passes complete data to Property Mapper
+
+**Mapping (Italia → USA structure)**:
+- Zona → Area (property_area taxonomy)
+- Comune → City (property_city taxonomy)
+- Provincia → County (property_county meta + property_county_state taxonomy)
+- Regione → State (property_state meta)
+- CAP → ZIP (property_zip meta)
+
+**Result**: ✅ All geographic taxonomies and meta fields now populated!
+
+---
+
+### ✅ CRITICAL FIX #3: MAPS DISPLAY FIXED
+
+**Problem**: Map rendering issues - wrong zoom, coordinates not displaying correctly
+
+**Solutions Applied** (`includes/class-realestate-sync-property-mapper.php:404-420`):
+
+1. **Coordinates**: Pass as-is from XML (string) without conversions
+   ```php
+   $meta['property_latitude'] = $xml_property['latitude'];   // No floatval()
+   $meta['property_longitude'] = $xml_property['longitude']; // No strval()
+   ```
+
+2. **Google Maps Settings**:
+   ```php
+   $meta['google_camera_angle'] = '45';         // Camera angle
+   $meta['property_google_view'] = '1';         // Enable Street View
+   $meta['property_hide_map_marker'] = '0';     // Show exact marker
+   $meta['page_custom_zoom'] = '15';            // Map zoom level (1-20)
+   ```
+
+**Key Field Discovered**: `page_custom_zoom` - controls property page map zoom (default: 15)
+
+**Result**: ✅ Maps now display correctly with proper zoom and Street View!
 
 ---
 

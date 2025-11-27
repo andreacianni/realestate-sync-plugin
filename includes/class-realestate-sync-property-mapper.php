@@ -416,7 +416,8 @@ class RealEstate_Sync_Property_Mapper {
         // Google Maps display settings
         $meta['google_camera_angle'] = '45';         // Angolazione camera
         $meta['property_google_view'] = '1';         // Abilita Street View
-        $meta['property_hide_map_marker'] = '1';     // Nascondi marker esatto
+        $meta['property_hide_map_marker'] = '0';     // Mostra marker esatto
+        $meta['page_custom_zoom'] = '15';            // Livello zoom mappa (1-20, default 15)
 
         // 🎯 STEP 3 FIX: Zone/Area mapping
         if (!empty($xml_property['zona'])) {
