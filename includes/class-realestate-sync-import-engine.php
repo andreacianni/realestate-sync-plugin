@@ -15,6 +15,9 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+// Load ISTAT Lookup Service
+require_once plugin_dir_path(__FILE__) . 'class-realestate-sync-istat-lookup.php';
+
 class RealEstate_Sync_Import_Engine {
     
     /**
@@ -139,6 +142,10 @@ class RealEstate_Sync_Import_Engine {
             }
         }
         
+        // 🌍 GEOGRAPHIC DATA: Derive from ISTAT code if not in XML
+        $comune_istat = $property_data['comune_istat'] ?? '';
+        $geo_data = $this->derive_geographic_data($property_data, $comune_istat);
+
         // 🎯 Build v3.0 compatible structure with COMPLETE data
         return [
             'id' => $property_data['id'] ?? '',
@@ -147,7 +154,7 @@ class RealEstate_Sync_Import_Engine {
             'mq' => intval($property_data['mq'] ?? 0),
             'indirizzo' => $property_data['indirizzo'] ?? '',
             'civico' => $this->extract_civico_from_address($property_data['indirizzo'] ?? ''),
-            'comune_istat' => $property_data['comune_istat'] ?? '',
+            'comune_istat' => $comune_istat,
             'latitude' => floatval($property_data['latitude'] ?? 0),
             'longitude' => floatval($property_data['longitude'] ?? 0),
             'description' => $property_data['description'] ?? '',
@@ -158,12 +165,12 @@ class RealEstate_Sync_Import_Engine {
             'dati_inseriti' => $dati_inseriti,
             'file_allegati' => $media_files, // 🖼️ Complete media structure
             'agency_data' => $agency_data,   // 🏢 Complete agency structure (null if no agency)
-            // 🌍 GEOGRAPHIC DATA: Extract from XML for Italia → USA mapping
-            'city' => $property_data['comune'] ?? '',        // Comune → City
-            'zone' => $property_data['zona'] ?? '',          // Zona → Neighborhood/Area
-            'province' => $property_data['provincia'] ?? '', // Provincia → County
-            'region' => $property_data['regione'] ?? '',     // Regione → State
-            'zip_code' => $property_data['cap'] ?? '',       // CAP → ZIP code
+            // 🌍 GEOGRAPHIC DATA: From XML or ISTAT lookup
+            'city' => $geo_data['city'],
+            'zone' => $geo_data['zone'],
+            'province' => $geo_data['province'],
+            'region' => $geo_data['region'],
+            'zip_code' => $geo_data['zip_code'],
             'catasto' => [ // Default empty catasto info
                 'destinazione_uso' => 'Residenziale',
                 'rendita_catastale' => '',
@@ -173,7 +180,68 @@ class RealEstate_Sync_Import_Engine {
             ]
         ];
     }
-    
+
+    /**
+     * 🌍 Derive geographic data from XML or ISTAT lookup
+     *
+     * Tries to get data from XML first, falls back to ISTAT lookup if missing
+     *
+     * @param array $property_data Raw XML property data
+     * @param string $comune_istat ISTAT code
+     * @return array Geographic data (city, zone, province, region, zip_code)
+     */
+    private function derive_geographic_data($property_data, $comune_istat) {
+        // Initialize with empty values
+        $geo_data = [
+            'city' => '',
+            'zone' => '',
+            'province' => '',
+            'region' => '',
+            'zip_code' => ''
+        ];
+
+        // 1. ZONE: Always from XML (zona field exists in GestionaleImmobiliare feed)
+        $geo_data['zone'] = $property_data['zona'] ?? '';
+
+        // 2. CITY/PROVINCE/REGION/ZIP: Try XML first, fallback to ISTAT lookup
+        $geo_data['city'] = $property_data['comune'] ?? '';
+        $geo_data['province'] = $property_data['provincia'] ?? '';
+        $geo_data['region'] = $property_data['regione'] ?? '';
+        $geo_data['zip_code'] = $property_data['cap'] ?? '';
+
+        // If any field is missing and we have ISTAT code, use lookup
+        if (!empty($comune_istat) && (
+            empty($geo_data['city']) ||
+            empty($geo_data['province']) ||
+            empty($geo_data['region']) ||
+            empty($geo_data['zip_code'])
+        )) {
+            $istat_data = RealEstate_Sync_ISTAT_Lookup::get_comune_data($comune_istat);
+
+            if ($istat_data) {
+                // Fill missing fields from ISTAT lookup
+                if (empty($geo_data['city'])) {
+                    $geo_data['city'] = $istat_data['nome'];
+                }
+                if (empty($geo_data['province'])) {
+                    $geo_data['province'] = $istat_data['provincia'];
+                }
+                if (empty($geo_data['region'])) {
+                    $geo_data['region'] = $istat_data['regione'];
+                }
+                if (empty($geo_data['zip_code'])) {
+                    $geo_data['zip_code'] = $istat_data['cap'];
+                }
+
+                $this->logger->log("✅ ISTAT Lookup: Filled missing geo data for comune $comune_istat ({$istat_data['nome']})", 'debug');
+            } else {
+                $this->logger->log("⚠️ ISTAT Lookup: Code $comune_istat not found in lookup table", 'warning');
+            }
+        }
+
+        return $geo_data;
+    }
+
     /**
      * 🖼️ Extract media files from XML data with enhanced structure
      *
