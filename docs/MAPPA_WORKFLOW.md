@@ -489,5 +489,242 @@ $longitude = get_post_meta($post->ID, 'property_longitude', true);
 
 ---
 
+## 10. Problemi Identificati e Modifiche Necessarie
+
+### 🔴 PROBLEMA CRITICO: Taxonomies vs Meta Fields
+
+**Scoperto**: 2025-11-26 (Analisi API WPResidence)
+
+Le API WPResidence distinguono tra:
+1. **Meta Fields** (stringhe) - Salvati in `postmeta`
+2. **Taxonomies** (array di slug) - Salvati come termini WordPress
+
+**Attualmente SBAGLIATO**: Passiamo tutto come meta fields (stringhe).
+
+---
+
+### 10.1 Campi Taxonomy Mancanti/Errati
+
+#### ❌ `property_city` (Taxonomy)
+
+**API si aspetta**:
+```json
+"property_city": ["trento"]  // Array di slug
+```
+
+**Noi passiamo**:
+```json
+"property_city": "Trento"    // Stringa (meta field)
+```
+
+**Problema**:
+- Le API NON salvano la taxonomy
+- Il filtro di ricerca per città NON funziona
+- La mappa geografica potrebbe non funzionare
+
+**Soluzione necessaria**:
+```php
+// Nel Property Mapper - map_taxonomies_v3()
+$taxonomies['property_city'] = [$this->slugify($xml_property['city'])];
+// Input: "Trento" → Output: ["trento"]
+```
+
+**File da modificare**: `class-realestate-sync-property-mapper.php`
+**Metodo**: `map_taxonomies_v3()`
+
+---
+
+#### ❌ `property_area` (Taxonomy)
+
+**API si aspetta**:
+```json
+"property_area": ["centro-storico"]  // Array di slug
+```
+
+**Noi passiamo**:
+```json
+"property_area": "Centro Storico"    // Stringa (meta field)
+```
+
+**Problema**:
+- La zona NON viene salvata come taxonomy
+- Il filtro per zona NON funziona
+- Le properties non vengono categorizzate per area
+
+**Soluzione necessaria**:
+```php
+// Nel Property Mapper - map_taxonomies_v3()
+$taxonomies['property_area'] = [$this->slugify($xml_property['zone'])];
+// Input: "Centro Storico" → Output: ["centro-storico"]
+```
+
+**File da modificare**: `class-realestate-sync-property-mapper.php`
+**Metodo**: `map_taxonomies_v3()`
+
+---
+
+#### ❌ `property_county_state` (Taxonomy) - MANCANTE
+
+**API si aspetta**:
+```json
+"property_county_state": ["trentino-alto-adige"]  // Array di slug
+```
+
+**Noi passiamo**:
+```json
+// ❌ Non lo passiamo affatto
+```
+
+**Problema**:
+- La regione/provincia NON viene salvata come taxonomy
+- Il filtro geografico regionale NON funziona
+- Impossibile filtrare properties per provincia
+
+**Soluzione necessaria**:
+```php
+// Nel Property Mapper - map_taxonomies_v3()
+$taxonomies['property_county_state'] = [$this->slugify($xml_property['province'])];
+// Input: "Trento" → Output: ["trento"]
+
+// Oppure usare la regione se più appropriato:
+// Input: "Trentino-Alto Adige" → Output: ["trentino-alto-adige"]
+```
+
+**File da modificare**: `class-realestate-sync-property-mapper.php`
+**Metodo**: `map_taxonomies_v3()`
+
+---
+
+#### ❌ `property_country` (Meta Field) - MANCANTE
+
+**API si aspetta**:
+```json
+"property_country": "Italy"  // Stringa
+```
+
+**Noi passiamo**:
+```json
+// ❌ Non lo passiamo affatto
+```
+
+**Problema**:
+- Il paese NON viene salvato
+- Problemi per siti multi-nazione
+- Mappa potrebbe non funzionare correttamente
+
+**Soluzione necessaria**:
+```php
+// Nel Property Mapper - map_meta_fields_v3()
+$meta['property_country'] = 'Italy';  // Hardcoded per Italia
+// Oppure prendere da XML se disponibile
+```
+
+**File da modificare**: `class-realestate-sync-property-mapper.php`
+**Metodo**: `map_meta_fields_v3()`
+
+---
+
+### 10.2 Metodo Helper Necessario: slugify()
+
+Per convertire i nomi in slug per le taxonomies:
+
+```php
+/**
+ * Convert string to URL-friendly slug for taxonomies
+ *
+ * @param string $text Text to slugify
+ * @return string Slug
+ */
+private function slugify($text) {
+    // Convert to lowercase
+    $text = mb_strtolower($text, 'UTF-8');
+
+    // Replace accented characters
+    $transliteration = [
+        'à' => 'a', 'è' => 'e', 'é' => 'e', 'ì' => 'i', 'ò' => 'o', 'ù' => 'u',
+        'À' => 'a', 'È' => 'e', 'É' => 'e', 'Ì' => 'i', 'Ò' => 'o', 'Ù' => 'u'
+    ];
+    $text = strtr($text, $transliteration);
+
+    // Replace spaces and special chars with hyphens
+    $text = preg_replace('/[^a-z0-9]+/', '-', $text);
+
+    // Remove leading/trailing hyphens
+    $text = trim($text, '-');
+
+    return $text;
+}
+```
+
+**Esempi**:
+- "Trento" → "trento"
+- "Centro Storico" → "centro-storico"
+- "Trentino-Alto Adige" → "trentino-alto-adige"
+
+---
+
+### 10.3 Confronto: Prima vs Dopo
+
+#### PRIMA (Attuale - Sbagliato):
+```php
+// API Writer output
+$api_body = [
+    'property_city' => 'Trento',           // ❌ Stringa (dovrebbe essere taxonomy)
+    'property_area' => 'Centro Storico',   // ❌ Stringa (dovrebbe essere taxonomy)
+    'property_county' => 'Trento',         // ✅ OK (meta field)
+    'property_state' => 'Trentino-Alto Adige', // ✅ OK (meta field)
+    // ❌ property_county_state mancante
+    // ❌ property_country mancante
+];
+```
+
+#### DOPO (Corretto):
+```php
+// Property Mapper output
+$mapped = [
+    'meta_fields' => [
+        // Meta fields (stringhe)
+        'property_address' => 'Piazza Duomo, Trento, Trento',
+        'property_county' => 'Trento',
+        'property_state' => 'Trentino-Alto Adige',
+        'property_zip' => '38122',
+        'property_country' => 'Italy',  // ✅ AGGIUNTO
+        'property_latitude' => '46.0664',
+        'property_longitude' => '11.1257',
+    ],
+    'taxonomies' => [
+        // Taxonomies (array di slug)
+        'property_city' => ['trento'],  // ✅ CORRETTO
+        'property_area' => ['centro-storico'],  // ✅ CORRETTO
+        'property_county_state' => ['trento'],  // ✅ AGGIUNTO
+    ]
+];
+```
+
+---
+
+### 10.4 Impatto delle Modifiche
+
+**Benefici**:
+1. ✅ Filtri di ricerca per città/zona funzionanti
+2. ✅ Mappa geografica corretta
+3. ✅ Categorizzazione properties per location
+4. ✅ Compatibilità completa con WPResidence
+5. ✅ SEO migliorato (URL con slug corretti)
+
+**Rischi**:
+- ⚠️ Le taxonomies devono esistere in WordPress prima dell'import
+- ⚠️ Possibile necessità di re-import delle properties esistenti
+
+---
+
+### 10.5 Priorità Implementazione
+
+🔴 **ALTA**: `property_city`, `property_area` (critici per filtri)
+🟡 **MEDIA**: `property_county_state` (utile per filtri regionali)
+🟢 **BASSA**: `property_country` (hardcoded "Italy" accettabile)
+
+---
+
 **Ultima modifica**: 2025-11-26
 **Autore**: Claude Code
