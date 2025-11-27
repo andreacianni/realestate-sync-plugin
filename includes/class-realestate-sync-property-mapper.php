@@ -407,12 +407,11 @@ class RealEstate_Sync_Property_Mapper {
             $meta['property_longitude'] = strval($xml_property['longitude']); // String for API
         }
 
-        // Address components for Google Maps
-        $comune_istat = $xml_property['comune_istat'] ?? '';
-        $meta['property_county'] = $this->derive_province_name_from_istat($comune_istat); // "Trento" or "Bolzano"
-        $meta['property_state'] = 'Trentino-Alto Adige'; // Always for this region
-        $meta['property_zip'] = $this->derive_zip_code($xml_property); // CAP from comune_istat + zona
-        $meta['property_country'] = 'Italia'; // Always Italia
+        // Address components (Italia → USA mapping)
+        $meta['property_county'] = $xml_property['province'] ?? '';      // Provincia → County
+        $meta['property_state'] = $xml_property['region'] ?? '';         // Regione → State
+        $meta['property_zip'] = $xml_property['zip_code'] ?? '';         // CAP → ZIP
+        $meta['property_country'] = 'Italy';                             // Italia → Italy (inglese per API)
 
         // Google Maps display settings - Opzione A: Trasparenza totale
         $meta['google_camera_angle'] = '0';          // Vista orizzontale standard
@@ -799,17 +798,26 @@ class RealEstate_Sync_Property_Mapper {
             $taxonomies['property_category'] = [$this->gi_categories[$categoria_id]];
         }
         
-        // Geographic taxonomies
-        $city = $this->derive_city_from_comune_istat($xml_property['comune_istat'] ?? '');
-        if ($city) {
-            $taxonomies['property_city'] = [$city];
+        // Geographic taxonomies (Italia → USA mapping)
+        // City: Comune → City (taxonomy con slug)
+        if (!empty($xml_property['city'])) {
+            $taxonomies['property_city'] = [$this->slugify($xml_property['city'])];
         }
-        
-        $county = $this->derive_county_from_comune_istat($xml_property['comune_istat'] ?? '');
-        if ($county) {
-            $taxonomies['property_county_state'] = [$county];
+
+        // Area: Zona → Neighborhood (taxonomy con slug)
+        if (!empty($xml_property['zone'])) {
+            $taxonomies['property_area'] = [$this->slugify($xml_property['zone'])];
         }
-        
+
+        // County/State: Provincia o Regione → County/State (taxonomy con slug)
+        // Usiamo la regione per evitare duplicati quando provincia = comune
+        if (!empty($xml_property['region'])) {
+            $taxonomies['property_county_state'] = [$this->slugify($xml_property['region'])];
+        } elseif (!empty($xml_property['province'])) {
+            // Fallback a provincia se regione non disponibile
+            $taxonomies['property_county_state'] = [$this->slugify($xml_property['province'])];
+        }
+
         return $taxonomies;
     }
     
@@ -1273,7 +1281,43 @@ class RealEstate_Sync_Property_Mapper {
             return false;
         }
     }
-    
+
+    /**
+     * Convert string to URL-friendly slug for taxonomies
+     *
+     * Handles Italian characters and converts to lowercase slug format
+     *
+     * @param string $text Text to slugify
+     * @return string URL-friendly slug
+     */
+    private function slugify($text) {
+        if (empty($text)) {
+            return '';
+        }
+
+        // Convert to lowercase
+        $text = mb_strtolower($text, 'UTF-8');
+
+        // Replace Italian accented characters
+        $transliteration = [
+            'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+            'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
+            'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+            'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u',
+            'ñ' => 'n', 'ç' => 'c'
+        ];
+        $text = strtr($text, $transliteration);
+
+        // Replace spaces and special chars with hyphens
+        $text = preg_replace('/[^a-z0-9]+/', '-', $text);
+
+        // Remove leading/trailing hyphens
+        $text = trim($text, '-');
+
+        return $text;
+    }
+
     /**
      * Validation methods
      */
