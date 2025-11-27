@@ -155,8 +155,8 @@ class RealEstate_Sync_Import_Engine {
             'indirizzo' => $property_data['indirizzo'] ?? '',
             'civico' => $this->extract_civico_from_address($property_data['indirizzo'] ?? ''),
             'comune_istat' => $comune_istat,
-            'latitude' => floatval($property_data['latitude'] ?? 0),
-            'longitude' => floatval($property_data['longitude'] ?? 0),
+            'latitude' => $property_data['latitude'] ?? '',
+            'longitude' => $property_data['longitude'] ?? '',
             'description' => $property_data['description'] ?? '',
             'abstract' => substr($property_data['description'] ?? '', 0, 200),
             'title' => $property_data['title'] ?? '', // 🎯 FIX: Use 'title' not 'seo_title'

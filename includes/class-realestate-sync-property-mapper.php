@@ -401,10 +401,10 @@ class RealEstate_Sync_Property_Mapper {
         $meta['property_size'] = $this->get_best_surface_area($xml_property);
         $meta['property_address'] = $this->build_full_address($xml_property);
         
-        // Coordinates
+        // Coordinates - pass as-is (string from XML)
         if (!empty($xml_property['latitude']) && !empty($xml_property['longitude'])) {
-            $meta['property_latitude'] = strval($xml_property['latitude']); // String for API
-            $meta['property_longitude'] = strval($xml_property['longitude']); // String for API
+            $meta['property_latitude'] = $xml_property['latitude'];   // String as-is
+            $meta['property_longitude'] = $xml_property['longitude']; // String as-is
         }
 
         // Address components (Italia → USA mapping)
@@ -413,10 +413,10 @@ class RealEstate_Sync_Property_Mapper {
         $meta['property_zip'] = $xml_property['zip_code'] ?? '';         // CAP → ZIP
         $meta['property_country'] = 'Italy';                             // Italia → Italy (inglese per API)
 
-        // Google Maps display settings - Opzione A: Trasparenza totale
-        $meta['google_camera_angle'] = '0';          // Vista orizzontale standard
+        // Google Maps display settings
+        $meta['google_camera_angle'] = '45';         // Angolazione camera
         $meta['property_google_view'] = '1';         // Abilita Street View
-        $meta['property_hide_map_marker'] = '0';     // Mostra posizione esatta
+        $meta['property_hide_map_marker'] = '1';     // Nascondi marker esatto
 
         // 🎯 STEP 3 FIX: Zone/Area mapping
         if (!empty($xml_property['zona'])) {
