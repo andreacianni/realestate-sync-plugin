@@ -491,158 +491,109 @@ $longitude = get_post_meta($post->ID, 'property_longitude', true);
 
 ## 10. Problemi Identificati e Modifiche Necessarie
 
-### 🔴 PROBLEMA CRITICO: Taxonomies vs Meta Fields
+### ✅ PROBLEMA CRITICO RISOLTO: Taxonomies vs Meta Fields
 
 **Scoperto**: 2025-11-26 (Analisi API WPResidence)
+**Risolto**: 2025-11-27 (Commit `8bf23a6`)
 
 Le API WPResidence distinguono tra:
 1. **Meta Fields** (stringhe) - Salvati in `postmeta`
 2. **Taxonomies** (array di slug) - Salvati come termini WordPress
 
-**Attualmente SBAGLIATO**: Passiamo tutto come meta fields (stringhe).
+**Era SBAGLIATO**: Passavamo tutto come meta fields (stringhe).
+**ORA CORRETTO**: Taxonomies passate come array di slug.
 
 ---
 
-### 10.1 Campi Taxonomy Mancanti/Errati
+### 10.1 Campi Taxonomy - TUTTI RISOLTI ✅
 
-#### ❌ `property_city` (Taxonomy)
+#### ✅ `property_city` (Taxonomy) - FIXED
 
-**API si aspetta**:
-```json
-"property_city": ["trento"]  // Array di slug
-```
+**Commit**: `8bf23a6` (2025-11-27)
 
-**Noi passiamo**:
-```json
-"property_city": "Trento"    // Stringa (meta field)
-```
-
-**Problema**:
-- Le API NON salvano la taxonomy
-- Il filtro di ricerca per città NON funziona
-- La mappa geografica potrebbe non funzionare
-
-**Soluzione necessaria**:
+**Soluzione implementata** (`class-realestate-sync-property-mapper.php:804-806`):
 ```php
-// Nel Property Mapper - map_taxonomies_v3()
-$taxonomies['property_city'] = [$this->slugify($xml_property['city'])];
+if (!empty($xml_property['city'])) {
+    $taxonomies['property_city'] = [$this->slugify($xml_property['city'])];
+}
 // Input: "Trento" → Output: ["trento"]
 ```
 
-**File da modificare**: `class-realestate-sync-property-mapper.php`
-**Metodo**: `map_taxonomies_v3()`
+**Risultato**: ✅ Filtri di ricerca per città ora funzionanti
 
 ---
 
-#### ❌ `property_area` (Taxonomy)
+#### ✅ `property_area` (Taxonomy) - FIXED
 
-**API si aspetta**:
-```json
-"property_area": ["centro-storico"]  // Array di slug
-```
+**Commit**: `8bf23a6` (2025-11-27)
 
-**Noi passiamo**:
-```json
-"property_area": "Centro Storico"    // Stringa (meta field)
-```
-
-**Problema**:
-- La zona NON viene salvata come taxonomy
-- Il filtro per zona NON funziona
-- Le properties non vengono categorizzate per area
-
-**Soluzione necessaria**:
+**Soluzione implementata** (`class-realestate-sync-property-mapper.php:808-811`):
 ```php
-// Nel Property Mapper - map_taxonomies_v3()
-$taxonomies['property_area'] = [$this->slugify($xml_property['zone'])];
+if (!empty($xml_property['zone'])) {
+    $taxonomies['property_area'] = [$this->slugify($xml_property['zone'])];
+}
 // Input: "Centro Storico" → Output: ["centro-storico"]
 ```
 
-**File da modificare**: `class-realestate-sync-property-mapper.php`
-**Metodo**: `map_taxonomies_v3()`
+**Risultato**: ✅ Filtri per zona ora funzionanti
 
 ---
 
-#### ❌ `property_county_state` (Taxonomy) - MANCANTE
+#### ✅ `property_county_state` (Taxonomy) - FIXED
 
-**API si aspetta**:
-```json
-"property_county_state": ["trentino-alto-adige"]  // Array di slug
-```
+**Commit**: `8bf23a6` (2025-11-27)
 
-**Noi passiamo**:
-```json
-// ❌ Non lo passiamo affatto
-```
-
-**Problema**:
-- La regione/provincia NON viene salvata come taxonomy
-- Il filtro geografico regionale NON funziona
-- Impossibile filtrare properties per provincia
-
-**Soluzione necessaria**:
+**Soluzione implementata** (`class-realestate-sync-property-mapper.php:813-820`):
 ```php
-// Nel Property Mapper - map_taxonomies_v3()
-$taxonomies['property_county_state'] = [$this->slugify($xml_property['province'])];
-// Input: "Trento" → Output: ["trento"]
-
-// Oppure usare la regione se più appropriato:
+// Usa regione (preferito) o provincia come fallback
+if (!empty($xml_property['region'])) {
+    $taxonomies['property_county_state'] = [$this->slugify($xml_property['region'])];
+} elseif (!empty($xml_property['province'])) {
+    $taxonomies['property_county_state'] = [$this->slugify($xml_property['province'])];
+}
 // Input: "Trentino-Alto Adige" → Output: ["trentino-alto-adige"]
 ```
 
-**File da modificare**: `class-realestate-sync-property-mapper.php`
-**Metodo**: `map_taxonomies_v3()`
+**Risultato**: ✅ Filtri geografici regionali ora funzionanti
 
 ---
 
-#### ❌ `property_country` (Meta Field) - MANCANTE
+#### ✅ `property_country` (Meta Field) - FIXED
 
-**API si aspetta**:
-```json
-"property_country": "Italy"  // Stringa
-```
+**Commit**: `8bf23a6` (2025-11-27)
 
-**Noi passiamo**:
-```json
-// ❌ Non lo passiamo affatto
-```
-
-**Problema**:
-- Il paese NON viene salvato
-- Problemi per siti multi-nazione
-- Mappa potrebbe non funzionare correttamente
-
-**Soluzione necessaria**:
+**Soluzione implementata** (`class-realestate-sync-property-mapper.php:414`):
 ```php
-// Nel Property Mapper - map_meta_fields_v3()
-$meta['property_country'] = 'Italy';  // Hardcoded per Italia
-// Oppure prendere da XML se disponibile
+$meta['property_country'] = 'Italy';  // Italia → Italy (inglese per API)
 ```
 
-**File da modificare**: `class-realestate-sync-property-mapper.php`
-**Metodo**: `map_meta_fields_v3()`
+**Risultato**: ✅ Campo country correttamente popolato in inglese
 
 ---
 
-### 10.2 Metodo Helper Necessario: slugify()
+### 10.2 Metodo Helper: slugify() - IMPLEMENTATO ✅
 
-Per convertire i nomi in slug per le taxonomies:
+**Commit**: `8bf23a6` (2025-11-27)
+
+**Implementazione** (`class-realestate-sync-property-mapper.php:1294-1320`):
 
 ```php
-/**
- * Convert string to URL-friendly slug for taxonomies
- *
- * @param string $text Text to slugify
- * @return string Slug
- */
 private function slugify($text) {
+    if (empty($text)) {
+        return '';
+    }
+
     // Convert to lowercase
     $text = mb_strtolower($text, 'UTF-8');
 
-    // Replace accented characters
+    // Replace Italian accented characters
     $transliteration = [
-        'à' => 'a', 'è' => 'e', 'é' => 'e', 'ì' => 'i', 'ò' => 'o', 'ù' => 'u',
-        'À' => 'a', 'È' => 'e', 'É' => 'e', 'Ì' => 'i', 'Ò' => 'o', 'Ù' => 'u'
+        'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a',
+        'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+        'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
+        'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o',
+        'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u',
+        'ñ' => 'n', 'ç' => 'c'
     ];
     $text = strtr($text, $transliteration);
 
@@ -656,10 +607,15 @@ private function slugify($text) {
 }
 ```
 
-**Esempi**:
+**Supporto caratteri**:
+- Tutti i caratteri accentati italiani
+- Caratteri speciali spagnoli (ñ) e francesi (ç)
+- Conversione spazi e caratteri speciali in trattini
+
+**Esempi di conversione**:
 - "Trento" → "trento"
 - "Centro Storico" → "centro-storico"
-- "Trentino-Alto Adige" → "trentino-alto-adige"
+- "Trentino-Alto Adige/Südtirol" → "trentino-alto-adige-sudtirol"
 
 ---
 
@@ -718,13 +674,18 @@ $mapped = [
 
 ---
 
-### 10.5 Priorità Implementazione
+### 10.5 Stato Implementazione
 
-🔴 **ALTA**: `property_city`, `property_area` (critici per filtri)
-🟡 **MEDIA**: `property_county_state` (utile per filtri regionali)
-🟢 **BASSA**: `property_country` (hardcoded "Italy" accettabile)
+✅ **COMPLETATO**: Tutti i campi geografici implementati e testati
+- ✅ `property_city` - Taxonomy con slug
+- ✅ `property_area` - Taxonomy con slug
+- ✅ `property_county_state` - Taxonomy con slug (regione preferred)
+- ✅ `property_country` - Meta field (hardcoded "Italy")
+- ✅ `slugify()` - Helper method per conversione slug
+
+**Risultato finale**: Sistema geografico completo e compatibile con WPResidence API
 
 ---
 
-**Ultima modifica**: 2025-11-26
+**Ultima modifica**: 2025-11-27
 **Autore**: Claude Code
