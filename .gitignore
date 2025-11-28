@@ -23,6 +23,10 @@ realestate-sync-plugin-backup/
 # SSH Configuration (sensitive data)
 .ssh-config/
 
+# FTP deployment scripts (sensitive credentials)
+upload-ftp.ps1
+create-ftp-data-dir.ps1
+
 # ZIP files and backup views
 *.zip
 admin/views/appo-dash.php
