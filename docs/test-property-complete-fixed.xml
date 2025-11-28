@@ -35,7 +35,7 @@
 		<indirizzo><![CDATA[Piazza Duomo]]></indirizzo>
 		<last_editor_time>2025-01-15 10:30:00</last_editor_time>
 		<categorie_id>11</categorie_id>
-		<categorie_micro_id>1</categorie_micro_id>
+		<categorie_micro_id>47</categorie_micro_id>
 		<url><![CDATA[https://esempio.com/property/TEST001]]></url>
 		<video_tour>https://youtube.com/watch?v=TEST001</video_tour>
 		<virtual_tour><![CDATA[https://esempio.com/tour3d/TEST001]]></virtual_tour>
@@ -180,8 +180,8 @@
 		<comune_istat>022205</comune_istat>
 		<indirizzo><![CDATA[Via Belvedere]]></indirizzo>
 		<last_editor_time>2025-01-15 11:00:00</last_editor_time>
-		<categorie_id>18</categorie_id>
-		<categorie_micro_id>5</categorie_micro_id>
+		<categorie_id>10</categorie_id>
+		<categorie_micro_id>8</categorie_micro_id>
 		<url><![CDATA[https://esempio.com/property/TEST002]]></url>
 		<video_tour>https://youtube.com/watch?v=TEST002</video_tour>
 		<virtual_tour><![CDATA[https://esempio.com/tour3d/TEST002]]></virtual_tour>

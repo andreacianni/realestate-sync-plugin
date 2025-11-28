@@ -46,13 +46,17 @@ class RealEstate_Sync_Property_Mapper {
     
     public function __construct($logger = null) {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
-        
+
         // Initialize Agency Manager for direct property→agency mapping
         require_once dirname(__FILE__) . '/class-realestate-sync-agency-manager.php';
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
-        
+
         $this->init_mappings();
-        $this->logger->log('Property Mapper v3.3 initialized - OPZIONE A Phase 1 & 2 complete (80+ new fields: 33 amenities, 48 property details)', 'info');
+
+        // Ensure hierarchical category terms exist with correct parent-child relationships
+        $this->ensure_hierarchical_category_terms();
+
+        $this->logger->log('Property Mapper v3.4 initialized - Hierarchical categories + Phase 1 & 2 complete', 'info');
     }
     
     private function init_mappings() {
@@ -92,9 +96,6 @@ class RealEstate_Sync_Property_Mapper {
             23 => 'allarme',
             46 => 'camino',
             66 => 'piscina',
-            88 => 'domotica',
-            90 => 'porta-blindata',
-
             // 🆕 NEW v3.2 Phase 2: Info[1-54] Amenities & Features (17 additions)
             11 => 'mansarda',
             12 => 'taverna',
@@ -114,66 +115,81 @@ class RealEstate_Sync_Property_Mapper {
             50 => 'pannelli-fotovoltaici',
             51 => 'impianto-geotermico',
 
-            // 🆕 NEW v3.2 Phase 2: Info[55-105] Advanced Amenities & Features (16 additions)
-            60 => 'aria-condizionata-canalizzata',
-            61 => 'doppi-servizi',
-            64 => 'piscina-condominiale',
-            69 => 'portierato',
-            71 => 'soppalco',
-            79 => 'arredamento-cucina',
-            82 => 'sala-hobby',
-            83 => 'libreria',
-            84 => 'dependance',
-            85 => 'recintato',
-            86 => 'finiture-di-pregio',
-            89 => 'fibra-ottica',
-            91 => 'inferriate',
-            92 => 'videocitofono',
-            95 => 'parcheggio-condominiale',
-            98 => 'parquet',
+            // 🆕 NEW v3.2 Phase 2: Info[55-105] Advanced Amenities & Features
+            63 => 'piano-semi-interrato',
+            64 => 'piano-rialzato',
+            67 => 'porticato',
+            68 => 'soppalco',
+            69 => 'sottotetto',
+            71 => 'accesso-disabili',
+            72 => 'area-fitness',
+            73 => 'frigorifero',
+            74 => 'lavatrice',
+            75 => 'lavastoviglie',
+            76 => 'posto-spiaggia',
+            77 => 'cassaforte',
+            78 => 'animali-ammessi',
+            79 => 'televisione',
+            80 => 'forno',
+            81 => 'vasca-idromassaggio',
+            82 => 'caldaia-a-condensazione',
+            83 => 'riscaldamento-semi-autonomo',
+            84 => 'riscaldamento-termopompa',
+            85 => 'raffreddamento',
+            86 => 'cucina-arredata',
+            89 => 'tapparelle-motorizzate',
+            103 => 'canna-fumaria',
 
             // REMOVED v3.2: Info[62] panorama eliminated per client specifications
+            // REMOVED v3.2 Phase 2: Info[60,61,88,90,91,92,95,98] per NON MAPPARE list
             // MOVED v3.2 Phase 2: Info[5,8,36,37] moved to property details
         ];
         
-        // Energy class mapping (UPDATED v3.2: added missing values 0 and 9)
+        // Info[55] Energy class mapping - From GestionaleImmobiliare specifications
         $this->energy_class_mapping = [
             0 => 'In fase di definizione',
-            1 => 'A+', 2 => 'A', 3 => 'B', 4 => 'C',
-            5 => 'D', 6 => 'E', 7 => 'F', 8 => 'G',
-            9 => 'Non soggetto a certificazione',
-            10 => 'A4', 11 => 'A3', 12 => 'A2', 13 => 'A1'
+            1 => 'A+/passivo (solo per vecchie certificazioni energetiche)',
+            2 => 'A',
+            3 => 'B',
+            4 => 'C',
+            5 => 'D',
+            6 => 'E',
+            7 => 'F',
+            8 => 'G',
+            9 => 'Non soggetto a Certificazione',
+            10 => 'A4 (solo per APE 2015)',
+            11 => 'A3 (solo per APE 2015)',
+            12 => 'A2 (solo per APE 2015)',
+            13 => 'A1 (solo per APE 2015)'
         ];
 
-        // 🎯 FIXED v3.4: Maintenance Status mapping (Info[57]) - Corrected based on analysis
-        // Scale: 1 (best condition) → 5 (worst condition)
+        // Info[57] Maintenance Status mapping - Mapped to WPResidence dropdown values
+        // Gestionale values → WPResidence backend dropdown values
         $this->maintenance_status_mapping = [
-            0 => 'Non specificato',
-            1 => 'Ottimo',              // FIXED: was "Da ristrutturare" (critical error!)
-            2 => 'Ristrutturato',       // OK
-            3 => 'Buono',               // FIXED: was "Discreto"
-            4 => 'Discreto',            // FIXED: was "Buono"
-            5 => 'Da ristrutturare',    // FIXED: was "Ottimo" (critical error!)
-            6 => 'Nuovo',               // OK
-            7 => 'Impianti da fare',
-            8 => 'Impianti da rifare',
-            9 => 'Impianti a norma'
+            0 => 'Da ristrutturare',        // sconosciuto → default to worst case
+            1 => 'Da ristrutturare',        // da ristrutturare
+            2 => 'Ottimo/Ristrutturato',    // ristrutturato
+            3 => 'Buono/Abitabile',         // discreto
+            4 => 'Buono/Abitabile',         // buono
+            5 => 'Ottimo/Ristrutturato',    // ottimo
+            6 => 'Nuovo',                   // nuovo
+            7 => 'Da ristrutturare',        // impianti da fare
+            8 => 'Da ristrutturare',        // impianti da rifare
+            9 => 'Buono/Abitabile'          // impianti a norma
         ];
 
-        // 🎯 NEW v3.2: Position mapping (Info[56]) - Essential for commercial properties
-        // FIXED v3.4: Corrected mapping based on real XML data analysis
-        // IDs 1, 2, 3 were COMPLETELY WRONG (centro città shown as "area industriale"!)
+        // Info[56] Position mapping - From GestionaleImmobiliare specifications
         $this->position_mapping = [
-            0 => 'Non specificato',
-            1 => 'Centro città',                    // FIXED: was "Area industriale/artigianale" (critical error!)
-            2 => 'Zona semicentrale',               // FIXED: was "Centro commerciale"
-            3 => 'Zona collinare/panoramica',       // FIXED: was "Ad angolo"
-            4 => 'Zona periferica',                 // FIXED: was "Centrale"
-            5 => 'Zona residenziale',               // FIXED: was "Servita"
-            6 => 'Zona turistica',                  // FIXED: was "Forte passaggio"
-            7 => 'Zona montagna/isolata',           // FIXED: was "Fronte lago"
-            8 => 'Lungomare/lungolago',             // FIXED: was "Fronte strada"
-            9 => 'Zona commerciale'                 // FIXED: was "Interna"
+            0 => 'sconosciuto',
+            1 => 'area industriale/artigianale',
+            2 => 'centro commerciale',
+            3 => 'ad angolo',
+            4 => 'centrale',
+            5 => 'servita',
+            6 => 'forte passaggio',
+            7 => 'fronte lago',
+            8 => 'fronte strada',
+            9 => 'interna'
         ];
 
         // 🎯 NEW v3.2: Micro-categories mapping (43 to maintain, excluding 56)
@@ -181,12 +197,13 @@ class RealEstate_Sync_Property_Mapper {
     }
 
     /**
-     * Initialize micro-categories mapping (43 categories to maintain)
-     * Based on CLIENT_MAPPING_SPECS.md - excluding 56 unwanted micro-categories
+     * Initialize micro-categories mapping (50 categories total)
+     * Based on "Catogerie e Microcat mappatura.csv" - maintaining only specified micro-categories
+     * Micro-categories marked "eliminare" are ignored - only parent category is assigned
      */
     private function init_micro_categories() {
         return [
-            // Appartamento (8 micro-cat)
+            // Appartamento (categorie_id: 11) - 8 micro-cat
             44 => 'Monolocale',
             45 => 'Bilocale',
             46 => 'Trilocale',
@@ -196,29 +213,29 @@ class RealEstate_Sync_Property_Mapper {
             50 => 'Duplex',
             51 => 'Mansarda',
 
-            // Terreno (5 micro-cat)
+            // Terreno (categorie_id: 19) - 5 micro-cat
             20 => 'Terreno agricolo/coltura',
             21 => 'Terreno boschivo',
             22 => 'Terreno edificabile commerciale',
             23 => 'Terreno edificabile industriale',
             24 => 'Terreno edificabile residenziale',
 
-            // Posto auto (3 micro-cat)
+            // Posto auto (categorie_id: 21) - 3 micro-cat
             61 => 'Posto auto singolo',
             62 => 'Posto auto doppio',
             63 => 'Posto auto triplo',
 
-            // Stanze (2 micro-cat)
+            // Stanze (categorie_id: 28) - 2 micro-cat
             74 => 'Stanze per studenti',
             75 => 'Stanze per lavoratori',
 
-            // Casa singola (1 micro-cat)
+            // Casa singola (categorie_id: 1) - 1 micro-cat
             94 => 'Terratetto',
 
-            // Rustico (1 micro-cat)
+            // Rustico (categorie_id: 13) - 1 micro-cat
             93 => 'Casa colonica',
 
-            // Attività commerciale (23 micro-cat)
+            // Attività commerciale (categorie_id: 10) - 30 micro-cat
             1 => 'Alimentari',
             3 => 'Autorimesse',
             4 => 'Bar',
@@ -260,7 +277,134 @@ class RealEstate_Sync_Property_Mapper {
             97 => 'Rosticcerie'
         ];
     }
-    
+
+    /**
+     * Map micro-category ID to parent category name
+     * Used to establish hierarchical relationship in property_category taxonomy
+     */
+    private function get_micro_category_parent($micro_id) {
+        $parent_mapping = [
+            // Appartamento (11)
+            44 => 'Appartamenti', 45 => 'Appartamenti', 46 => 'Appartamenti', 47 => 'Appartamenti',
+            48 => 'Appartamenti', 49 => 'Appartamenti', 50 => 'Appartamenti', 51 => 'Appartamenti',
+
+            // Terreno (19)
+            20 => 'Terreni', 21 => 'Terreni', 22 => 'Terreni', 23 => 'Terreni', 24 => 'Terreni',
+
+            // Posto auto (21) - Maps to "Garage e Posti auto"
+            61 => 'Garage e Posti auto', 62 => 'Garage e Posti auto', 63 => 'Garage e Posti auto',
+
+            // Stanze (28)
+            74 => 'Camere e Posti letto', 75 => 'Camere e Posti letto',
+
+            // Casa singola (1)
+            94 => 'Case singole',
+
+            // Rustico (13)
+            93 => 'Rustici e Case rurali',
+
+            // Attività commerciale (10) - All map to "Uffici e Commerciali"
+            1 => 'Uffici e Commerciali', 3 => 'Uffici e Commerciali', 4 => 'Uffici e Commerciali',
+            5 => 'Uffici e Commerciali', 6 => 'Uffici e Commerciali', 7 => 'Uffici e Commerciali',
+            8 => 'Uffici e Commerciali', 9 => 'Uffici e Commerciali', 10 => 'Uffici e Commerciali',
+            11 => 'Uffici e Commerciali', 12 => 'Uffici e Commerciali', 13 => 'Uffici e Commerciali',
+            14 => 'Uffici e Commerciali', 15 => 'Uffici e Commerciali', 16 => 'Uffici e Commerciali',
+            17 => 'Uffici e Commerciali', 18 => 'Uffici e Commerciali', 19 => 'Uffici e Commerciali',
+            25 => 'Uffici e Commerciali', 26 => 'Uffici e Commerciali', 27 => 'Uffici e Commerciali',
+            28 => 'Uffici e Commerciali', 29 => 'Uffici e Commerciali', 30 => 'Uffici e Commerciali',
+            32 => 'Uffici e Commerciali', 33 => 'Uffici e Commerciali', 34 => 'Uffici e Commerciali',
+            35 => 'Uffici e Commerciali', 36 => 'Uffici e Commerciali', 37 => 'Uffici e Commerciali',
+            38 => 'Uffici e Commerciali', 39 => 'Uffici e Commerciali', 40 => 'Uffici e Commerciali',
+            41 => 'Uffici e Commerciali', 42 => 'Uffici e Commerciali', 43 => 'Uffici e Commerciali',
+            92 => 'Uffici e Commerciali', 96 => 'Uffici e Commerciali', 97 => 'Uffici e Commerciali',
+        ];
+
+        return $parent_mapping[$micro_id] ?? null;
+    }
+
+    /**
+     * Ensure all category and micro-category terms exist with correct hierarchical relationships
+     * Creates parent terms and child terms, establishing parent-child relationships
+     * Called once during plugin initialization to prepare the taxonomy structure
+     */
+    private function ensure_hierarchical_category_terms() {
+        // Group micro-categories by parent category
+        $hierarchical_structure = [
+            'Appartamenti' => [
+                'Monolocale', 'Bilocale', 'Trilocale', 'Quadrilocale',
+                'Pentalocale', 'Più di 5 locali', 'Duplex', 'Mansarda'
+            ],
+            'Terreni' => [
+                'Terreno agricolo/coltura', 'Terreno boschivo',
+                'Terreno edificabile commerciale', 'Terreno edificabile industriale',
+                'Terreno edificabile residenziale'
+            ],
+            'Garage e Posti auto' => [
+                'Posto auto singolo', 'Posto auto doppio', 'Posto auto triplo'
+            ],
+            'Camere e Posti letto' => [
+                'Stanze per studenti', 'Stanze per lavoratori'
+            ],
+            'Case singole' => [
+                'Terratetto'
+            ],
+            'Rustici e Case rurali' => [
+                'Casa colonica'
+            ],
+            'Uffici e Commerciali' => [
+                'Alimentari', 'Autorimesse', 'Bar', 'Centro commerciale', 'Edicole',
+                'Farmacie', 'Ferramenta/casalinghi', 'Sale gioco/scommesse', 'Gelaterie',
+                'Palestre', 'Panifici', 'Pasticcerie', 'Parrucchiere uomo/donna',
+                'Pubs e locali serali', 'Ristoranti', 'Pizzerie', 'Solarium e centri estetica',
+                'Tabaccherie', 'Telefonia/informatica', 'Tintorie/lavanderie', 'Video noleggi',
+                'Showroom', 'Abbigliamento', 'Cartoleria/libreria', 'Fruttivendolo',
+                'Macelleria', 'Gastronomia', 'Enoteca', 'Negozio di giocattoli',
+                'Articoli sanitari', 'Calzature', 'Prodotti per animali',
+                'Tessuti e tende/merceria', 'Borse e pelletterie', 'Fioreria',
+                'Oreficeria', 'Azienda agricola', 'Friggitorie', 'Rosticcerie'
+            ]
+        ];
+
+        foreach ($hierarchical_structure as $parent_name => $children) {
+            // Check/create parent term
+            $parent = term_exists($parent_name, 'property_category');
+            if (!$parent) {
+                $parent = wp_insert_term($parent_name, 'property_category');
+                if (is_wp_error($parent)) {
+                    $this->logger->log("Failed to create parent category '$parent_name': " . $parent->get_error_message(), 'error');
+                    continue;
+                }
+            }
+            $parent_id = is_array($parent) ? $parent['term_id'] : $parent;
+
+            // Check/create child terms with parent relationship
+            foreach ($children as $child_name) {
+                $child = term_exists($child_name, 'property_category');
+                if (!$child) {
+                    // Create child term with parent
+                    $result = wp_insert_term($child_name, 'property_category', [
+                        'parent' => $parent_id
+                    ]);
+                    if (is_wp_error($result)) {
+                        $this->logger->log("Failed to create child category '$child_name' under '$parent_name': " . $result->get_error_message(), 'error');
+                    }
+                } else {
+                    // Term exists - ensure parent is correct
+                    $child_id = is_array($child) ? $child['term_id'] : $child;
+                    $term = get_term($child_id, 'property_category');
+                    if ($term && $term->parent != $parent_id) {
+                        // Update parent if different
+                        wp_update_term($child_id, 'property_category', [
+                            'parent' => $parent_id
+                        ]);
+                    }
+                }
+            }
+        }
+
+        $this->logger->log('Hierarchical category terms initialized successfully', 'info');
+    }
+
     /**
      * Check if property is in enabled provinces
      */
@@ -450,10 +594,8 @@ class RealEstate_Sync_Property_Mapper {
             $meta['property_energy_certificate'] = trim($xml_property['ape']);
         }
         
-        // 🎯 STEP 3 FIX: Micro category mapping
-        if (!empty($xml_property['categorie_micro_id'])) {
-            $meta['property_subcategory'] = intval($xml_property['categorie_micro_id']);
-        }
+        // Micro-category: Now handled via hierarchical taxonomy in map_taxonomies_v3()
+        // No longer storing as meta fields - removed property_subcategory, property_micro_category, micro_categoria
         
         // 🎯 STEP 3 FIX: Source URL reference
         if (!empty($xml_property['url'])) {
@@ -472,24 +614,17 @@ class RealEstate_Sync_Property_Mapper {
         $maintenance_status = $this->map_maintenance_status_v32($xml_property);
         if ($maintenance_status) {
             $meta['property_maintenance_status'] = $maintenance_status;
-            $meta['stato_immobile'] = $maintenance_status; // Italian field name for frontend
+            $meta['stato-immobile'] = $maintenance_status; // WPResidence custom field (with dash)
         }
 
         // 🎯 NEW v3.2: Info[56] Position (Essential for commercial properties)
         $position = $this->map_position_v32($xml_property);
         if ($position) {
             $meta['property_position'] = $position;
-            $meta['posizione'] = $position; // Italian field name for frontend
+            $meta['posizione'] = $position; // WPResidence custom field (no dash needed - single word)
         }
 
-        // 🎯 NEW v3.2: Micro-category readable name (in addition to ID already stored)
-        if (!empty($xml_property['categorie_micro_id'])) {
-            $micro_id = intval($xml_property['categorie_micro_id']);
-            if (isset($this->micro_categories[$micro_id])) {
-                $meta['property_micro_category'] = $this->micro_categories[$micro_id];
-                $meta['micro_categoria'] = $this->micro_categories[$micro_id]; // Italian field name
-            }
-        }
+        // Micro-category: Removed meta field storage - now using hierarchical taxonomy only
 
         // 🎯 NEW v3.2 Phase 2: Corrected mappings - from features to property details (4 fields)
         // Info[5] Garage/Box
@@ -792,11 +927,39 @@ class RealEstate_Sync_Property_Mapper {
         // Property action category
         $action = $this->determine_action_category($xml_property);
         $taxonomies['property_action_category'] = [$action];
-        
-        // Property category
+
+        // Property category with hierarchical micro-category support
         $categoria_id = intval($xml_property['categorie_id'] ?? 0);
+        $micro_id = intval($xml_property['categorie_micro_id'] ?? 0);
+
         if (isset($this->gi_categories[$categoria_id])) {
-            $taxonomies['property_category'] = [$this->gi_categories[$categoria_id]];
+            $parent_category = $this->gi_categories[$categoria_id];
+
+            // Check if there's a valid micro-category to add as child term
+            if ($micro_id > 0 && isset($this->micro_categories[$micro_id])) {
+                // Verify micro-category belongs to this parent category
+                $expected_parent = $this->get_micro_category_parent($micro_id);
+
+                if ($expected_parent === $parent_category) {
+                    // Valid micro-category for this parent
+                    $micro_category = $this->micro_categories[$micro_id];
+
+                    // Assign BOTH parent and child terms
+                    // WordPress will automatically handle the hierarchical relationship
+                    $taxonomies['property_category'] = [
+                        $parent_category,    // Parent term
+                        $micro_category      // Child term
+                    ];
+                } else {
+                    // Micro-category doesn't belong to this parent - ignore it
+                    // Log warning for data quality monitoring
+                    $this->logger->log("Micro-category mismatch: micro_id=$micro_id (expected parent: '$expected_parent') does not match categoria_id=$categoria_id (parent: '$parent_category'). Assigning only parent category.", 'warning');
+                    $taxonomies['property_category'] = [$parent_category];
+                }
+            } else {
+                // Micro-category not found or marked "eliminare"
+                $taxonomies['property_category'] = [$parent_category];
+            }
         }
         
         // Geographic taxonomies (Italia → USA mapping)
@@ -1084,29 +1247,29 @@ class RealEstate_Sync_Property_Mapper {
 
             if (isset($dati[20]) && $dati[20] > 0) {
                 $meta['property_commercial_size'] = intval($dati[20]);
-                $meta['superficie_commerciale'] = intval($dati[20]); // Italian field name
+                $meta['superficie-commerciale'] = intval($dati[20]); // WPResidence custom field
             }
             if (isset($dati[21]) && $dati[21] > 0) {
                 $meta['property_useful_size'] = intval($dati[21]);
-                $meta['superficie_utile'] = intval($dati[21]); // Italian field name
+                $meta['superficie-utile'] = intval($dati[21]); // WPResidence custom field
             }
             if (isset($dati[4]) && $dati[4] > 0) {
                 $meta['property_garden_size'] = intval($dati[4]);
-                $meta['mq_giardino'] = intval($dati[4]); // Italian field name
+                $meta['mq-giardino'] = intval($dati[4]); // WPResidence custom field
             }
             // 🎯 NEW v3.2: dati_inseriti[5] - mq aree esterne
             if (isset($dati[5]) && $dati[5] > 0) {
                 $meta['property_outdoor_size'] = intval($dati[5]);
-                $meta['mq_aree_esterne'] = intval($dati[5]); // Italian field name
+                $meta['mq-aree-esterne'] = intval($dati[5]); // WPResidence custom field
             }
             if (isset($dati[6]) && $dati[6] > 0) {
                 $meta['property_ceiling_height'] = floatval($dati[6]);
-                $meta['altezza_soffitti'] = floatval($dati[6]); // Italian field name
+                $meta['altezza-soffitti'] = floatval($dati[6]); // WPResidence custom field
             }
             // 🎯 NEW v3.2: dati_inseriti[18] - mq ufficio
             if (isset($dati[18]) && $dati[18] > 0) {
                 $meta['property_office_size'] = intval($dati[18]);
-                $meta['mq_ufficio'] = intval($dati[18]); // Italian field name
+                $meta['mq-ufficio'] = intval($dati[18]); // WPResidence custom field
             }
         }
     }

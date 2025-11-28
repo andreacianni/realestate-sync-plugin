@@ -32,3 +32,6 @@ create-ftp-data-dir.ps1
 admin/views/appo-dash.php
 admin/views/dashboard-main-backup.php
 TabelleCliente.xlsx
+
+# Info Verification documentation (internal analysis)
+docs/Info-Verification/
