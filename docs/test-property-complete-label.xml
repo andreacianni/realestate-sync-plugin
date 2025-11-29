@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+<annuncio>
+	<agenzia> <!-- Agency Data - Processed by Agency Manager -->
+		<id>1</id> <!-- meta: agency_xml_id (internal tracking) | SOURCE for property_agent lookup -->
+		<ragione_sociale><![CDATA[Trentino Immobiliare Excellence SRL]]></ragione_sociale> <!-- meta: property_agency_name -->
+		<referente><![CDATA[Marco Rossi]]></referente> <!-- AGENCY meta: agency_contact_person -->
+		<iva>02345678901</iva> <!-- AGENCY meta: agency_vat -->
+		<comune istat="022205">Trento</comune> <!-- AGENCY meta: agency_city -->
+		<provincia>Trento</provincia> <!-- AGENCY meta: agency_province -->
+		<indirizzo><![CDATA[Corso del Lavoro e della Scienza 3]]></indirizzo> <!-- AGENCY meta: agency_address -->
+		<email>info@trentinoimmobiliare.it</email> <!-- AGENCY meta: agency_email -->
+		<url>https://www.trentinoimmobiliare.it</url> <!-- AGENCY meta: agency_website -->
+		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/106/640x480/logo_2.png</logo> <!-- AGENCY: featured image -->
+		<telefono>0461234567</telefono> <!-- AGENCY meta: agency_phone -->
+		<cellulare>3481234567</cellulare> <!-- AGENCY meta: agency_mobile -->
+		<deleted>0</deleted> <!-- AGENCY: publish status -->
+	</agenzia>
+
+	<info> <!-- Property Core Data -->
+		<id>TEST001</id> <!-- meta: property_ref=TI-TEST001, property_import_id, property_xml_id, property_display_id, import_id (source_data) -->
+		<agency_code>AG001</agency_code> <!-- meta: property_agency_code -->
+		<deleted>0</deleted> <!-- post_status: publish (if 0) or draft (if 1) -->
+		<mq>85</mq> <!-- meta: property_size (fallback if dati[21] and dati[20] not available) -->
+		<price>385000</price> <!-- meta: property_price -->
+		<flag_vacanza>0</flag_vacanza> <!-- Used for taxonomy: property_category mapping logic -->
+		<age><![CDATA[2022]]></age> <!-- meta: property_year, property_year_built (if >= 1800 and <= 2030) -->
+		<ipe>18.50</ipe> <!-- meta: property_energy_index (if > 0) -->
+		<ipe_unit>kWh/m²a</ipe_unit> <!-- meta: property_energy_unit -->
+		<ape classe="A+" flagQuasiZero="0" prestazioneEstate="" prestazioneInverno="" epglNRen="" epglRen="" kWhUnit="kWh/m²a">ape2015</ape> <!-- meta: property_energy_certificate (if not "ape2015") | attribute classe → used for display -->
+		<title><![CDATA[Appartamento Centro Trento - Classe A+]]></title> <!-- post_title | PRIORITY: used first if present -->
+		<description><![CDATA[Splendido appartamento moderno di 85 mq nel cuore di Trento. Completamente ristrutturato nel 2022 con criteri di massima efficienza energetica (Classe A+). Dotato di impianto fotovoltaico, riscaldamento a pavimento, domotica completa. Ampio soggiorno con cucina open space, 2 camere matrimoniali, 2 bagni, balcone panoramico con vista sulle Dolomiti. Cantina e posto auto coperto inclusi.]]></description> <!-- post_content -->
+		<zona><![CDATA[Centro Storico]]></zona> <!-- meta: property_area, property_neighborhood | taxonomy: property_area (slugified) -->
+		<comune_istat>022205</comune_istat> <!-- Used to derive: city (Trento), province (Trento), region (Trentino-Alto Adige), ZIP (38122) -->
+		<indirizzo><![CDATA[Piazza Duomo]]></indirizzo> <!-- meta: property_address (combined with civico if present) -->
+		<last_editor_time>2025-01-15 10:30:00</last_editor_time> <!-- Internal tracking, not passed -->
+		<categorie_id>11</categorie_id> <!-- taxonomy: property_category → "Appartamenti" (parent term) -->
+		<categorie_micro_id>47</categorie_micro_id> <!-- taxonomy: property_category → "Quadrilocale" (child term, parent=Appartamenti) -->
+		<url><![CDATA[https://esempio.com/property/TEST001]]></url> <!-- meta: property_source_url -->
+		<video_tour>https://youtube.com/watch?v=TEST001</video_tour> <!-- meta: property_video_tour -->
+		<virtual_tour><![CDATA[https://esempio.com/tour3d/TEST001]]></virtual_tour> <!-- meta: property_virtual_tour -->
+		<latitude>46.0664</latitude> <!-- meta: property_latitude (string as-is) -->
+		<longitude>11.1257</longitude> <!-- meta: property_longitude (string as-is) -->
+	</info>
+
+	<i18n>
+		<!-- Translations section - currently empty, not processed -->
+	</i18n>
+
+		<file_allegati> <!-- Gallery Images -->
+			<logo><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/000__8_wmk_0.jpg]]></logo> <!-- Featured image marker (same as allegato id=0) -->
+
+			<allegato id="0"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/000__8_wmk_0.jpg]]></file_path></allegato> <!-- Gallery: is_featured=true, order=0, type=image, alt="Appartamento Centro Trento - Classe A+", caption="Foto principale - Trento" -->
+			<allegato id="1"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/001__1_wmk_0.jpg]]></file_path></allegato> <!-- Gallery: order=1, type=image, alt="Appartamento Centro Trento - Classe A+ - Foto 2", caption="Foto aggiuntiva - Trento" -->
+			<allegato id="2"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/002__5_wmk_0.jpg]]></file_path></allegato> <!-- Gallery: order=2, type=image -->
+			<allegato id="3"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/4.jpg]]></file_path></allegato> <!-- Gallery: order=3, type=image -->
+			<allegato id="4"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/7.jpg]]></file_path></allegato> <!-- Gallery: order=4, type=image -->
+			<allegato id="5"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/8.jpg]]></file_path></allegato> <!-- Gallery: order=5, type=image -->
+			<allegato id="6"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__20241002_174643.jpg]]></file_path></allegato> <!-- Gallery: order=6, type=image -->
+			<allegato id="7"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__20241002_174701.jpg]]></file_path></allegato> <!-- Gallery: order=7, type=image -->
+			<allegato id="8"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__20241002_174903.jpg]]></file_path></allegato> <!-- Gallery: order=8, type=image -->
+			<allegato id="9"><file_path><![CDATA[https://images.gestionaleimmobiliare.it/foto/annunci/090428/31538/800x800/999__barbara_franco_splpri32_-_c_docfa4_doc_0000460_001_-_copia-1.jpg]]></file_path></allegato> <!-- Gallery: order=9, type=image -->
+		</file_allegati>
+
+	<info_inserite> <!-- Property Features and Characteristics -->
+		<!-- Format: <info id="X"><valore_assegnato>Y</valore_assegnato></info> -->
+		<!-- If Y > 0: feature/characteristic is ACTIVE -->
+		<!-- If Y = 0: feature/characteristic is INACTIVE (not passed) -->
+		<!-- If Y > 1: numeric value (e.g., 2 bagni, 3 balconi, etc.) -->
+
+		<info id="1"><valore_assegnato>2</valore_assegnato></info> <!-- value=2 | meta: property_bathrooms=2 -->
+		<info id="2"><valore_assegnato>2</valore_assegnato></info> <!-- value=2 | meta: property_bedrooms=2 -->
+		<info id="3"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | meta: property_has_kitchen=Sì, cucina=Sì -->
+		<info id="4"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (soggiorno) -->
+		<info id="5"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | meta: property_has_garage=Sì, garage=Sì -->
+		<info id="6"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (asta) -->
+		<info id="7"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (ripostigli) -->
+		<info id="8"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | meta: property_has_cantina=Sì, cantina=Sì -->
+		<info id="9"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | Used to determine taxonomy: property_action_category=Vendita -->
+		<info id="10"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | Used to determine taxonomy: property_action_category (Affitto if =1) -->
+		<info id="11"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: mansarda) -->
+		<info id="12"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: taverna) -->
+		<info id="13"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | taxonomy: property_features[] = 'ascensore' -->
+		<info id="14"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | taxonomy: property_features[] = 'aria-condizionata' -->
+		<info id="15"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: arredato) -->
+		<info id="16"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | taxonomy: property_features[] = 'riscaldamento-autonomo-centralizzato' -->
+		<info id="17"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: giardino) -->
+		<info id="18"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: ingresso-indipendente) -->
+		<info id="19"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: garage-doppio) -->
+		<info id="20"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | taxonomy: property_features[] = 'box-o-garage' -->
+		<info id="21"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | taxonomy: property_features[] = 'riscaldamento-a-pavimento' -->
+		<info id="22"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: soggiorno-angolo-cottura) -->
+		<info id="23"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | taxonomy: property_features[] = 'allarme' -->
+		<info id="24"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: terrazzi) -->
+		<info id="25"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: poggioli) -->
+		<info id="26"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: lavanderia) -->
+		<info id="27"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: piano_interrato) -->
+		<info id="28"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: piano_terra) -->
+		<info id="29"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: primo_piano) -->
+		<info id="30"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: piano_intermedio) -->
+		<info id="31"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: ultimo_piano) -->
+		<info id="32"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: totale_piani) -->
+		<info id="33"><valore_assegnato>4</valore_assegnato></info> <!-- value=4 | meta: piano=4 (floor number) -->
+		<info id="34"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: riscaldamento-centralizzato) -->
+		<info id="35"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: zona_mare) -->
+		<info id="36"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: zona_montagna) -->
+		<info id="37"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: zona_lago) -->
+		<info id="38"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: terme) -->
+		<info id="39"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: zona_collina) -->
+		<info id="40"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: zona_campagna) -->
+		<info id="41"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: immobile_nuovo) -->
+		<info id="42"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="43"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: giardino_condominiale) -->
+		<info id="44"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: soffitta) -->
+		<info id="45"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: grezzo) -->
+		<info id="46"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: camino) -->
+		<info id="47"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: predisposizione-aria-condizionata) -->
+		<info id="48"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: predisposizione-allarme) -->
+		<info id="49"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: pannelli-solari) -->
+		<info id="50"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: pannelli-fotovoltaici) -->
+		<info id="51"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: impianto-geotermico) -->
+		<info id="52"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED -->
+		<info id="53"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: ribalte) -->
+		<info id="54"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: urbanizzato) -->
+		<info id="55"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | meta: energy_class='A+/passivo (solo per vecchie certificazioni energetiche)' -->
+		<info id="56"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | meta: property_position='area industriale/artigianale', posizione='area industriale/artigianale' -->
+		<info id="57"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | meta: property_maintenance_status='Da ristrutturare', stato-immobile='Da ristrutturare' (CUSTOM FIELD with dash) -->
+		<info id="58"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="59"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="60"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="61"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="62"><valore_assegnato>2</valore_assegnato></info> <!-- value=2 | NON MAPPARE - NOT PASSED (panorama removed) -->
+		<info id="63"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: piano-semi-interrato) -->
+		<info id="64"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: piano-rialzato) -->
+		<info id="65"><valore_assegnato>4</valore_assegnato></info> <!-- value=4 | meta: property_rooms=4 (total rooms) -->
+		<info id="66"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: piscina) -->
+		<info id="88"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="90"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="91"><valore_assegnato>1</valore_assegnato></info> <!-- value=1 | NON MAPPARE - NOT PASSED -->
+		<info id="92"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="93"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="94"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="95"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="97"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (meta: disponibilita_immediata) -->
+		<info id="101"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="102"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="103"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NOT PASSED (taxonomy feature: canna-fumaria) -->
+		<info id="104"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+		<info id="105"><valore_assegnato>0</valore_assegnato></info> <!-- value=0 | NON MAPPARE - NOT PASSED -->
+	</info_inserite>
+</annuncio>
+
+<!-- ADDITIONAL ANNOTATIONS -->
+
+<!-- DATI_INSERITI Section (NOT PRESENT in this XML) -->
+<!-- If present, would contain: -->
+<!-- <dati_inseriti> -->
+<!--   <dato id="4">...</dato> = meta: property_garden_size, mq-giardino (CUSTOM FIELD with dash) -->
+<!--   <dato id="5">...</dato> = meta: property_outdoor_size, mq-aree-esterne (CUSTOM FIELD with dash) -->
+<!--   <dato id="6">...</dato> = meta: property_ceiling_height, altezza-soffitti (CUSTOM FIELD with dash) -->
+<!--   <dato id="18">...</dato> = meta: property_office_size, mq-ufficio (CUSTOM FIELD with dash) -->
+<!--   <dato id="20">...</dato> = meta: property_commercial_size, superficie-commerciale (CUSTOM FIELD with dash) | PRIORITY for property_size -->
+<!--   <dato id="21">...</dato> = meta: property_useful_size, superficie-utile (CUSTOM FIELD with dash) | FALLBACK for property_size -->
+<!-- </dati_inseriti> -->
+
+<!-- DERIVED META FIELDS (computed from comune_istat, not directly in XML) -->
+<!-- meta: property_county = 'Trento' (from comune_istat=022205) -->
+<!-- meta: property_state = '' (region, if available) -->
+<!-- meta: property_zip = '38122' (derived from comune_istat=022205) -->
+<!-- meta: property_country = 'Italy' (hardcoded) -->
+<!-- taxonomy: property_city = 'trento' (slugified, derived from comune_istat) -->
+<!-- taxonomy: property_county_state = 'trentino-alto-adige' (slugified region/province) -->
+
+<!-- GOOGLE MAPS SETTINGS (hardcoded defaults) -->
+<!-- meta: google_camera_angle = '45' -->
+<!-- meta: property_google_view = '1' (enable Street View) -->
+<!-- meta: property_hide_map_marker = '0' (show exact marker) -->
+<!-- meta: page_custom_zoom = '15' (map zoom level 1-20) -->
+
+<!-- TRACKING & REFERENCE FIELDS (internal) -->
+<!-- meta: property_import_source = 'GestionaleImmobiliare' -->
+<!-- meta: property_import_date = current_time('mysql') -->
+<!-- meta: property_content_hash_v3 = md5(serialize(hash_fields)) -->
+<!-- source_data: complete XML property array for debugging -->
+
+<!-- AGENCY ASSOCIATION -->
+<!-- meta: property_agent = (integer) WP agency post ID (looked up by agency XML id=1) -->
+<!-- REQUIRES: Agency with XML id=1 must exist from PHASE 1 import -->
+
+</dataset>

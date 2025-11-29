@@ -614,7 +614,7 @@ class RealEstate_Sync_Property_Mapper {
         $maintenance_status = $this->map_maintenance_status_v32($xml_property);
         if ($maintenance_status) {
             $meta['property_maintenance_status'] = $maintenance_status;
-            $meta['stato-immobile'] = $maintenance_status; // WPResidence custom field (with dash)
+            $meta['statoimmobile'] = $maintenance_status; // WPResidence custom field (no separators)
         }
 
         // 🎯 NEW v3.2: Info[56] Position (Essential for commercial properties)
@@ -1247,29 +1247,29 @@ class RealEstate_Sync_Property_Mapper {
 
             if (isset($dati[20]) && $dati[20] > 0) {
                 $meta['property_commercial_size'] = intval($dati[20]);
-                $meta['superficie-commerciale'] = intval($dati[20]); // WPResidence custom field
+                $meta['superficiecommerciale'] = intval($dati[20]); // WPResidence custom field (no separators)
             }
             if (isset($dati[21]) && $dati[21] > 0) {
                 $meta['property_useful_size'] = intval($dati[21]);
-                $meta['superficie-utile'] = intval($dati[21]); // WPResidence custom field
+                $meta['superficieutile'] = intval($dati[21]); // WPResidence custom field (no separators)
             }
             if (isset($dati[4]) && $dati[4] > 0) {
                 $meta['property_garden_size'] = intval($dati[4]);
-                $meta['mq-giardino'] = intval($dati[4]); // WPResidence custom field
+                $meta['mqgiardino'] = intval($dati[4]); // WPResidence custom field (no separators)
             }
             // 🎯 NEW v3.2: dati_inseriti[5] - mq aree esterne
             if (isset($dati[5]) && $dati[5] > 0) {
                 $meta['property_outdoor_size'] = intval($dati[5]);
-                $meta['mq-aree-esterne'] = intval($dati[5]); // WPResidence custom field
+                $meta['mqareeesterne'] = intval($dati[5]); // WPResidence custom field (no separators)
             }
             if (isset($dati[6]) && $dati[6] > 0) {
                 $meta['property_ceiling_height'] = floatval($dati[6]);
-                $meta['altezza-soffitti'] = floatval($dati[6]); // WPResidence custom field
+                $meta['altezzasoffitti'] = floatval($dati[6]); // WPResidence custom field (no separators)
             }
             // 🎯 NEW v3.2: dati_inseriti[18] - mq ufficio
             if (isset($dati[18]) && $dati[18] > 0) {
                 $meta['property_office_size'] = intval($dati[18]);
-                $meta['mq-ufficio'] = intval($dati[18]); // WPResidence custom field
+                $meta['mqufficio'] = intval($dati[18]); // WPResidence custom field (no separators)
             }
         }
     }
