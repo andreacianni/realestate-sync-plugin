@@ -150,6 +150,7 @@ class RealEstate_Sync_Import_Engine {
         return [
             'id' => $property_data['id'] ?? '',
             'categorie_id' => intval($property_data['categorie_id'] ?? 11),
+            'categorie_micro_id' => intval($property_data['categorie_micro_id'] ?? 0),
             'price' => floatval($property_data['price'] ?? 0),
             'mq' => intval($property_data['mq'] ?? 0),
             'indirizzo' => $property_data['indirizzo'] ?? '',

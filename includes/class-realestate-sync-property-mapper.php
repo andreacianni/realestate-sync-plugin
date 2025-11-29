@@ -53,34 +53,39 @@ class RealEstate_Sync_Property_Mapper {
 
         $this->init_mappings();
 
-        // Ensure hierarchical category terms exist with correct parent-child relationships
-        $this->ensure_hierarchical_category_terms();
-
-        $this->logger->log('Property Mapper v3.4 initialized - Hierarchical categories + Phase 1 & 2 complete', 'info');
+        $this->logger->log('Property Mapper v3.6 initialized - Hierarchical categories + Custom fields no-separators', 'info');
     }
     
     private function init_mappings() {
         // GI Categories → WpResidence Categories (ENHANCED v3.1)
         $this->gi_categories = [
-            1 => 'Case singole',
-            2 => 'Case singole', 
-            8 => 'Garage e Posti auto',
-            9 => 'Garage e Posti auto',
-            11 => 'Appartamenti',
-            12 => 'Appartamenti',
-            13 => 'Rustici e Case rurali',
-            14 => 'Uffici e Commerciali',
-            15 => 'Uffici e Commerciali',
-            16 => 'Uffici e Commerciali',
-            17 => 'Uffici e Commerciali',
-            18 => 'Ville',
-            19 => 'Terreni',
-            20 => 'Rustici e Case rurali',
-            21 => 'Ville',
-            22 => 'Case vacanza',
-            23 => 'Loft e Mansarde',
-            25 => 'Case vacanza',
-            28 => 'Camere e Posti letto'
+            1 => 'Casa singola',
+            2 => 'Bifamiliare',
+            3 => 'Trifamiliare',
+            4 => 'Casa a schiera',
+            5 => 'Monolocale',
+            7 => 'Cantina',
+            8 => 'Garage',
+            9 => 'Magazzino',
+            10 => 'Attivita commerciale',
+            11 => 'Appartamento',
+            12 => 'Attico',
+            13 => 'Rustico',
+            14 => 'Negozio',
+            15 => 'Quadrifamiliare',
+            16 => 'Capannone',
+            17 => 'Ufficio',
+            18 => 'Villa',
+            19 => 'Terreno',
+            20 => 'Laboratorio',
+            21 => 'Posto auto',
+            22 => 'Bed and Breakfast',
+            23 => 'Loft',
+            24 => 'Multiproprietà',
+            25 => 'Agriturismo',
+            26 => 'Palazzo',
+            27 => 'Hotel - Albergo',
+            28 => 'Stanze',
         ];
         
         // GI Features → WpResidence Features (UPDATED v3.2 Phase 2: +17 new amenities)
@@ -280,129 +285,49 @@ class RealEstate_Sync_Property_Mapper {
 
     /**
      * Map micro-category ID to parent category name
-     * Used to establish hierarchical relationship in property_category taxonomy
+     * Used to validate hierarchical relationship in property_category taxonomy
      */
     private function get_micro_category_parent($micro_id) {
-        $parent_mapping = [
-            // Appartamento (11)
-            44 => 'Appartamenti', 45 => 'Appartamenti', 46 => 'Appartamenti', 47 => 'Appartamenti',
-            48 => 'Appartamenti', 49 => 'Appartamenti', 50 => 'Appartamenti', 51 => 'Appartamenti',
+        // Map from "Catogerie e Microcat mappatura.csv"
+        $micro_to_parent = [
+            // Appartamento (categorie_id: 11) - 8 micro-cat
+            44 => 'Appartamento', 45 => 'Appartamento', 46 => 'Appartamento',
+            47 => 'Appartamento', 48 => 'Appartamento', 49 => 'Appartamento',
+            50 => 'Appartamento', 51 => 'Appartamento',
 
-            // Terreno (19)
-            20 => 'Terreni', 21 => 'Terreni', 22 => 'Terreni', 23 => 'Terreni', 24 => 'Terreni',
+            // Terreno (categorie_id: 19) - 5 micro-cat
+            20 => 'Terreno', 21 => 'Terreno', 22 => 'Terreno',
+            23 => 'Terreno', 24 => 'Terreno',
 
-            // Posto auto (21) - Maps to "Garage e Posti auto"
-            61 => 'Garage e Posti auto', 62 => 'Garage e Posti auto', 63 => 'Garage e Posti auto',
+            // Posto auto (categorie_id: 21) - 3 micro-cat
+            61 => 'Posto auto', 62 => 'Posto auto', 63 => 'Posto auto',
 
-            // Stanze (28)
-            74 => 'Camere e Posti letto', 75 => 'Camere e Posti letto',
+            // Stanze (categorie_id: 28) - 2 micro-cat
+            74 => 'Stanze', 75 => 'Stanze',
 
-            // Casa singola (1)
-            94 => 'Case singole',
+            // Casa singola (categorie_id: 1) - 1 micro-cat
+            94 => 'Casa singola',
 
-            // Rustico (13)
-            93 => 'Rustici e Case rurali',
+            // Rustico (categorie_id: 13) - 1 micro-cat
+            93 => 'Rustico',
 
-            // Attività commerciale (10) - All map to "Uffici e Commerciali"
-            1 => 'Uffici e Commerciali', 3 => 'Uffici e Commerciali', 4 => 'Uffici e Commerciali',
-            5 => 'Uffici e Commerciali', 6 => 'Uffici e Commerciali', 7 => 'Uffici e Commerciali',
-            8 => 'Uffici e Commerciali', 9 => 'Uffici e Commerciali', 10 => 'Uffici e Commerciali',
-            11 => 'Uffici e Commerciali', 12 => 'Uffici e Commerciali', 13 => 'Uffici e Commerciali',
-            14 => 'Uffici e Commerciali', 15 => 'Uffici e Commerciali', 16 => 'Uffici e Commerciali',
-            17 => 'Uffici e Commerciali', 18 => 'Uffici e Commerciali', 19 => 'Uffici e Commerciali',
-            25 => 'Uffici e Commerciali', 26 => 'Uffici e Commerciali', 27 => 'Uffici e Commerciali',
-            28 => 'Uffici e Commerciali', 29 => 'Uffici e Commerciali', 30 => 'Uffici e Commerciali',
-            32 => 'Uffici e Commerciali', 33 => 'Uffici e Commerciali', 34 => 'Uffici e Commerciali',
-            35 => 'Uffici e Commerciali', 36 => 'Uffici e Commerciali', 37 => 'Uffici e Commerciali',
-            38 => 'Uffici e Commerciali', 39 => 'Uffici e Commerciali', 40 => 'Uffici e Commerciali',
-            41 => 'Uffici e Commerciali', 42 => 'Uffici e Commerciali', 43 => 'Uffici e Commerciali',
-            92 => 'Uffici e Commerciali', 96 => 'Uffici e Commerciali', 97 => 'Uffici e Commerciali',
+            // Attività commerciale (categorie_id: 10) - 30 micro-cat
+            1 => 'Attivita commerciale', 3 => 'Attivita commerciale', 4 => 'Attivita commerciale',
+            5 => 'Attivita commerciale', 6 => 'Attivita commerciale', 7 => 'Attivita commerciale',
+            8 => 'Attivita commerciale', 9 => 'Attivita commerciale', 10 => 'Attivita commerciale',
+            11 => 'Attivita commerciale', 12 => 'Attivita commerciale', 13 => 'Attivita commerciale',
+            14 => 'Attivita commerciale', 15 => 'Attivita commerciale', 16 => 'Attivita commerciale',
+            17 => 'Attivita commerciale', 18 => 'Attivita commerciale', 19 => 'Attivita commerciale',
+            25 => 'Attivita commerciale', 26 => 'Attivita commerciale', 27 => 'Attivita commerciale',
+            28 => 'Attivita commerciale', 29 => 'Attivita commerciale', 30 => 'Attivita commerciale',
+            32 => 'Attivita commerciale', 33 => 'Attivita commerciale', 34 => 'Attivita commerciale',
+            35 => 'Attivita commerciale', 36 => 'Attivita commerciale', 37 => 'Attivita commerciale',
+            38 => 'Attivita commerciale', 39 => 'Attivita commerciale', 40 => 'Attivita commerciale',
+            41 => 'Attivita commerciale', 42 => 'Attivita commerciale', 43 => 'Attivita commerciale',
+            92 => 'Attivita commerciale', 96 => 'Attivita commerciale', 97 => 'Attivita commerciale'
         ];
 
-        return $parent_mapping[$micro_id] ?? null;
-    }
-
-    /**
-     * Ensure all category and micro-category terms exist with correct hierarchical relationships
-     * Creates parent terms and child terms, establishing parent-child relationships
-     * Called once during plugin initialization to prepare the taxonomy structure
-     */
-    private function ensure_hierarchical_category_terms() {
-        // Group micro-categories by parent category
-        $hierarchical_structure = [
-            'Appartamenti' => [
-                'Monolocale', 'Bilocale', 'Trilocale', 'Quadrilocale',
-                'Pentalocale', 'Più di 5 locali', 'Duplex', 'Mansarda'
-            ],
-            'Terreni' => [
-                'Terreno agricolo/coltura', 'Terreno boschivo',
-                'Terreno edificabile commerciale', 'Terreno edificabile industriale',
-                'Terreno edificabile residenziale'
-            ],
-            'Garage e Posti auto' => [
-                'Posto auto singolo', 'Posto auto doppio', 'Posto auto triplo'
-            ],
-            'Camere e Posti letto' => [
-                'Stanze per studenti', 'Stanze per lavoratori'
-            ],
-            'Case singole' => [
-                'Terratetto'
-            ],
-            'Rustici e Case rurali' => [
-                'Casa colonica'
-            ],
-            'Uffici e Commerciali' => [
-                'Alimentari', 'Autorimesse', 'Bar', 'Centro commerciale', 'Edicole',
-                'Farmacie', 'Ferramenta/casalinghi', 'Sale gioco/scommesse', 'Gelaterie',
-                'Palestre', 'Panifici', 'Pasticcerie', 'Parrucchiere uomo/donna',
-                'Pubs e locali serali', 'Ristoranti', 'Pizzerie', 'Solarium e centri estetica',
-                'Tabaccherie', 'Telefonia/informatica', 'Tintorie/lavanderie', 'Video noleggi',
-                'Showroom', 'Abbigliamento', 'Cartoleria/libreria', 'Fruttivendolo',
-                'Macelleria', 'Gastronomia', 'Enoteca', 'Negozio di giocattoli',
-                'Articoli sanitari', 'Calzature', 'Prodotti per animali',
-                'Tessuti e tende/merceria', 'Borse e pelletterie', 'Fioreria',
-                'Oreficeria', 'Azienda agricola', 'Friggitorie', 'Rosticcerie'
-            ]
-        ];
-
-        foreach ($hierarchical_structure as $parent_name => $children) {
-            // Check/create parent term
-            $parent = term_exists($parent_name, 'property_category');
-            if (!$parent) {
-                $parent = wp_insert_term($parent_name, 'property_category');
-                if (is_wp_error($parent)) {
-                    $this->logger->log("Failed to create parent category '$parent_name': " . $parent->get_error_message(), 'error');
-                    continue;
-                }
-            }
-            $parent_id = is_array($parent) ? $parent['term_id'] : $parent;
-
-            // Check/create child terms with parent relationship
-            foreach ($children as $child_name) {
-                $child = term_exists($child_name, 'property_category');
-                if (!$child) {
-                    // Create child term with parent
-                    $result = wp_insert_term($child_name, 'property_category', [
-                        'parent' => $parent_id
-                    ]);
-                    if (is_wp_error($result)) {
-                        $this->logger->log("Failed to create child category '$child_name' under '$parent_name': " . $result->get_error_message(), 'error');
-                    }
-                } else {
-                    // Term exists - ensure parent is correct
-                    $child_id = is_array($child) ? $child['term_id'] : $child;
-                    $term = get_term($child_id, 'property_category');
-                    if ($term && $term->parent != $parent_id) {
-                        // Update parent if different
-                        wp_update_term($child_id, 'property_category', [
-                            'parent' => $parent_id
-                        ]);
-                    }
-                }
-            }
-        }
-
-        $this->logger->log('Hierarchical category terms initialized successfully', 'info');
+        return $micro_to_parent[$micro_id] ?? null;
     }
 
     /**
@@ -928,38 +853,20 @@ class RealEstate_Sync_Property_Mapper {
         $action = $this->determine_action_category($xml_property);
         $taxonomies['property_action_category'] = [$action];
 
-        // Property category with hierarchical micro-category support
+        // Property category - HIERARCHICAL taxonomy (parent + child)
         $categoria_id = intval($xml_property['categorie_id'] ?? 0);
         $micro_id = intval($xml_property['categorie_micro_id'] ?? 0);
 
         if (isset($this->gi_categories[$categoria_id])) {
             $parent_category = $this->gi_categories[$categoria_id];
+            $categories = [$this->slugify($parent_category)]; // Convert to slug
 
-            // Check if there's a valid micro-category to add as child term
+            // Add micro-category if exists
             if ($micro_id > 0 && isset($this->micro_categories[$micro_id])) {
-                // Verify micro-category belongs to this parent category
-                $expected_parent = $this->get_micro_category_parent($micro_id);
-
-                if ($expected_parent === $parent_category) {
-                    // Valid micro-category for this parent
-                    $micro_category = $this->micro_categories[$micro_id];
-
-                    // Assign BOTH parent and child terms
-                    // WordPress will automatically handle the hierarchical relationship
-                    $taxonomies['property_category'] = [
-                        $parent_category,    // Parent term
-                        $micro_category      // Child term
-                    ];
-                } else {
-                    // Micro-category doesn't belong to this parent - ignore it
-                    // Log warning for data quality monitoring
-                    $this->logger->log("Micro-category mismatch: micro_id=$micro_id (expected parent: '$expected_parent') does not match categoria_id=$categoria_id (parent: '$parent_category'). Assigning only parent category.", 'warning');
-                    $taxonomies['property_category'] = [$parent_category];
-                }
-            } else {
-                // Micro-category not found or marked "eliminare"
-                $taxonomies['property_category'] = [$parent_category];
+                $categories[] = $this->slugify($this->micro_categories[$micro_id]); // Convert to slug
             }
+
+            $taxonomies['property_category'] = $categories;
         }
         
         // Geographic taxonomies (Italia → USA mapping)

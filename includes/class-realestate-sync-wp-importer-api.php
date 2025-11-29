@@ -175,7 +175,10 @@ class RealEstate_Sync_WP_Importer_API {
 				}
 			}
 
-			// 5. Update tracking metadata (only if API call succeeded)
+			// ✅ Micro-categories handled by API via property_category array
+			// API accepts ["parent-slug", "child-slug"] and assigns both terms correctly
+
+			// 6. Update tracking metadata (only if API call succeeded)
 			if ($result['success']) {
 				$this->update_tracking_metadata($result['post_id'], $mapped_property, $import_id);
 
@@ -241,12 +244,11 @@ class RealEstate_Sync_WP_Importer_API {
 				continue;
 			}
 
+			// Create all terms (flat taxonomy - API handles assignment)
 			foreach ($terms as $term_slug) {
-				// Check if term exists
 				$term = term_exists($term_slug, $taxonomy);
 
 				if (!$term) {
-					// Create term with slug as name (humanize later if needed)
 					$term_name = $this->humanize_term_name($term_slug);
 					$result = wp_insert_term($term_name, $taxonomy, array(
 						'slug' => $term_slug,
