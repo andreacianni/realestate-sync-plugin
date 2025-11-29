@@ -49,16 +49,29 @@ $import_stats = $tracking_manager->get_import_statistics();
             <!-- Manual Import Section -->
             <div class="rs-card">
                 <h3><span class="dashicons dashicons-download"></span> Import Manuale</h3>
-                
+
                 <div class="rs-info-box">
                     <strong>Import Immediato</strong><br>
                     Scarica e importa immediatamente i dati XML da GestionaleImmobiliare.it
                 </div>
-                
+
+                <div style="margin: 15px 0; padding: 12px; background: #fff3cd; border-left: 3px solid #f0ad4e; border-radius: 4px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="mark-as-test-manual-import" checked style="margin: 0 8px 0 0; width: 18px; height: 18px;">
+                        <span style="font-weight: 500;">
+                            <span class="dashicons dashicons-flag" style="color: #f0ad4e; vertical-align: middle;"></span>
+                            Marca come Test Import
+                        </span>
+                    </label>
+                    <small style="display: block; margin-top: 5px; color: #666; padding-left: 26px;">
+                        Le proprietà, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
+                    </small>
+                </div>
+
                 <button type="button" class="rs-button-primary" id="start-manual-import">
                     <span class="dashicons dashicons-download"></span> Scarica e Importa Ora
                 </button>
-                
+
                 <button type="button" class="rs-button-secondary" id="rs-test-connection">
                     <span class="dashicons dashicons-networking"></span> Test Connessione
                 </button>
@@ -1264,7 +1277,11 @@ jQuery(document).ready(function($) {
             $.ajax({
                 url: realestateSync.ajax_url,
                 type: 'POST',
-                data: { action: 'realestate_sync_manual_import', nonce: realestateSync.nonce },
+                data: {
+                    action: 'realestate_sync_manual_import',
+                    nonce: realestateSync.nonce,
+                    mark_as_test: $('#mark-as-test-manual-import').is(':checked') ? '1' : '0'
+                },
                 success: function(response) {
                     if (response.success) {
                         dashboard.showAlert('Import completato con successo!', 'success');

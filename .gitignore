@@ -24,7 +24,9 @@ realestate-sync-plugin-backup/
 .ssh-config/
 
 # FTP deployment scripts (sensitive credentials)
-upload-ftp.ps1
+# Ignore all PowerShell scripts with upload/ftp patterns
+upload*.ps1
+*-ftp.ps1
 create-ftp-data-dir.ps1
 
 # ZIP files and backup views

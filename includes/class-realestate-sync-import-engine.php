@@ -929,7 +929,10 @@ class RealEstate_Sync_Import_Engine {
         
         // Cleanup old tracking records
         $this->tracking_manager->cleanup_old_tracking_records();
-        
+
+        // Reset logger to daily log file (import session log is complete)
+        $this->logger->reset_to_daily_log();
+
         $this->logger->log("Post-import cleanup completed", 'info');
     }
     
@@ -1028,6 +1031,9 @@ class RealEstate_Sync_Import_Engine {
     private function cleanup_on_error() {
         delete_transient('realestate_sync_import_progress');
         $this->logger->log("Import session {$this->session_data['import_id']} terminated due to error", 'error');
+
+        // Reset logger to daily log file even on error
+        $this->logger->reset_to_daily_log();
     }
     
     private function format_duration($seconds) {

@@ -237,11 +237,12 @@ class RealEstate_Sync_Logger {
         
         // Write to log file
         $result = file_put_contents($this->log_file, $log_entry, FILE_APPEND | LOCK_EX);
-        
-        // Also log to WordPress debug log if WP_DEBUG is enabled
-        if (defined('WP_DEBUG') && WP_DEBUG && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
-            error_log("RealEstate Sync [{$level}]: {$message}");
-        }
+
+        // WordPress debug.log disabled for this plugin - use plugin logs instead
+        // All logs are written to logs/import-logs/ with 30-day auto-cleanup
+        // if (defined('WP_DEBUG') && WP_DEBUG && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
+        //     error_log("RealEstate Sync [{$level}]: {$message}");
+        // }
         
         // Store last error in options for quick access
         if ($level === 'error') {

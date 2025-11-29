@@ -707,11 +707,11 @@ class RealEstate_Sync_Admin {
      */
     public function handle_manual_import() {
         check_ajax_referer('realestate_sync_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_die('Unauthorized');
         }
-        
+
         try {
             // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
             $settings = array(
@@ -719,33 +719,42 @@ class RealEstate_Sync_Admin {
                 'username' => 'trentinoimmobiliare_it',
                 'password' => 'dget6g52'
             );
-            
+
             $this->logger->log('HARDCODE: Using hardcoded credentials for testing', 'info');
-            
+
+            // Check if user wants to mark properties as test
+            $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
+
+            if ($mark_as_test) {
+                $this->logger->log('🔖 Manual import: Test mode enabled - data will be marked with _test_import flag', 'info');
+            }
+
             // Download XML
             $downloader = new RealEstate_Sync_XML_Downloader();
             $xml_file = $downloader->download_xml($settings['xml_url'], $settings['username'], $settings['password']);
-            
+
             if (!$xml_file) {
                 throw new Exception('Impossibile scaricare il file XML');
             }
-            
-            // Execute import
+
+            // Execute import with test flag option
             $import_engine = new RealEstate_Sync_Import_Engine();
             $import_engine->configure($settings);
-            
-            $results = $import_engine->execute_chunked_import($xml_file);
-            
+
+            $results = $import_engine->execute_chunked_import($xml_file, array(
+                'mark_as_test' => $mark_as_test
+            ));
+
             // Cleanup
             if (file_exists($xml_file)) {
                 unlink($xml_file);
             }
-            
+
             wp_send_json_success(array(
                 'message' => 'Import completato con successo',
                 'results' => $results
             ));
-            
+
         } catch (Exception $e) {
             $this->logger->log("Manual import failed: " . $e->getMessage(), 'error');
             wp_send_json_error($e->getMessage());
