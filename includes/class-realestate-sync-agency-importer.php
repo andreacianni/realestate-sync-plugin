@@ -357,15 +357,18 @@ class RealEstate_Sync_Agency_Importer {
         );
         
         if ($logo_attachment_id) {
+            // Set as featured image (WordPress standard)
+            set_post_thumbnail($agent_id, $logo_attachment_id);
+
             // Set as agent logo in WpResidence format
             update_post_meta($agent_id, '_agent_logo_attachment_id', $logo_attachment_id);
-            
+
             // Also store for WpResidence compatibility
             $logo_url = wp_get_attachment_url($logo_attachment_id);
             if ($logo_url) {
                 update_post_meta($agent_id, 'agent_logo', $logo_url);
             }
-            
+
             $this->logger->log("Logo imported for agent {$agent_id}: {$agency_data['logo']}", 'success');
         }
     }

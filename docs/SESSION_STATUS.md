@@ -201,13 +201,63 @@ Risultati delle query eseguite sul database (evidence dei bug).
 3. ⏳ Fix missing/incorrect INFO mappings
 4. ⏳ Test all INFO fields in frontend
 
-### ⏳ PHASE 3: MASSIVE IMPORT & AUTOMATION - IN PROGRESS
+### 🔄 PHASE 3: MASSIVE IMPORT & AUTOMATION - IN PROGRESS
+
+**Completed Tasks**:
+1. ✅ Agency API Integration - Featured image per agenti
 
 **Next Tasks**:
-1. ⏳ Featured image per agenti
 2. ⏳ Test import massivo
 3. ⏳ Attivazione batch notturno
 4. ⏳ Refactory della dashboard
+
+---
+
+## ✅ AGENCY API INTEGRATION (2025-11-29)
+
+### 🏢 Refactoring Completo del Sistema Agenzie
+
+**Problema Iniziale**: Agency_Importer usava `wp_insert_post()` diretto invece delle API WPResidence
+
+**Soluzione Implementata**:
+
+1. **Agency_Manager Refactoring**:
+   - ✅ Aggiunto metodo `import_agencies()` che sostituisce `Agency_Importer`
+   - ✅ Usa `WPResidence_Agency_API_Writer` per creare/aggiornare agenzie
+   - ✅ Featured image supportato tramite API (`featured_image` field)
+   - ✅ Conversione dati da Agency Parser a formato API
+
+2. **Import_Engine Update**:
+   - ✅ Sostituito `Agency_Importer->import_agencies()` con `Agency_Manager->import_agencies()`
+   - ✅ Rimosso riferimento a `Agency_Importer` dal costruttore
+
+3. **Fix Property→Agency Linking**:
+   - 🐛 **Bug trovato**: Mismatch tra meta key salvato (`xml_agency_id`) e cercato (`agency_xml_id`)
+   - ✅ **Fix**: Allineato a `agency_xml_id` ovunque (create, update, lookup)
+   - ✅ Aggiunto logging di verifica per debug
+
+**Nuovo Flusso Agenzie**:
+```
+PHASE 1 (Import Agenzie):
+XML → Agency Parser → Agency_Manager->import_agencies() → API Writer → WPResidence API
+                                                                              ↓
+                                                                      featured_image ✅
+                                                                      agency_xml_id meta ✅
+
+PHASE 2 (Import Proprietà):
+XML → Property Mapper → lookup_agency_by_xml_id('agency_xml_id') → trova agency_id
+                              ↓
+                        property_agent = agency_id ✅
+```
+
+**Files Modificati**:
+- `includes/class-realestate-sync-agency-manager.php` (import_agencies + meta fix)
+- `includes/class-realestate-sync-import-engine.php` (usa Agency_Manager)
+
+**Status**: ✅ **TESTATO E FUNZIONANTE**
+- Agenzie create via API con featured image
+- Property→Agency linking funzionante
+- Meta `agency_xml_id` salvato correttamente
 
 ### ⏳ PHASE 4: PRODUCTION DEPLOYMENT - PENDING
 After Phase 3 complete
@@ -217,10 +267,10 @@ After Phase 3 complete
 ## 📊 PROGRESS TRACKER
 
 ```
-[████████████████████████████████░░] 85% Complete
+[██████████████████████████████████] 90% Complete
 
 ✅ Core Architecture
-✅ Agency System
+✅ Agency System (API-based with featured image)
 ✅ Geographic Data (ISTAT)
 ✅ Maps Integration
 ✅ Taxonomies (28 parent + 50 micro)
@@ -228,7 +278,7 @@ After Phase 3 complete
 ✅ Custom Fields (8 campi senza separatori)
 ✅ Micro-categories (flat taxonomy)
 ✅ INFO Fields Verification
-⏳ Featured Images (agenti)
+✅ Agency API Integration (featured image + linking)
 ⏳ Massive Import
 ⏳ Batch Automation
 ⏳ Dashboard Refactory
@@ -236,8 +286,8 @@ After Phase 3 complete
 
 ---
 
-**Ultima modifica**: 2025-11-29 (Phase 2 COMPLETATA - Micro-categories + Custom Fields FIXED)
+**Ultima modifica**: 2025-11-29 (Agency API Integration COMPLETATA)
 **Autore**: Claude + Andrea
-**Status**: ✅ **PHASE 2 COMPLETE** - Ready for Phase 3 (Massive Import & Automation)
+**Status**: ✅ **PHASE 2 & AGENCY API COMPLETE** - Ready for Massive Import & Automation
 
 ---

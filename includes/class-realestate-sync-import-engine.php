@@ -87,7 +87,7 @@ class RealEstate_Sync_Import_Engine {
 
         // 🔧 FIX: Initialize agency & media components (required for import workflow)
         $this->agency_parser = new RealEstate_Sync_Agency_Parser();
-        $this->agency_importer = new RealEstate_Sync_Agency_Importer();
+        // ✅ Agency_Importer replaced by Agency_Manager (API-based import)
         $this->media_deduplicator = new RealEstate_Sync_Media_Deduplicator();
         $this->property_agent_linker = new RealEstate_Sync_Property_Agent_Linker();
 
@@ -1122,16 +1122,17 @@ class RealEstate_Sync_Import_Engine {
             // Log agency statistics
             $this->agency_parser->log_agency_statistics($agencies);
 
-            // Import agencies using importer (pass mark_as_test flag)
-            $import_results = $this->agency_importer->import_agencies($agencies, $this->session_data['mark_as_test']);
+            // Import agencies using Agency Manager (API-based) instead of legacy Agency_Importer
+            $agency_manager = new RealEstate_Sync_Agency_Manager();
+            $import_results = $agency_manager->import_agencies($agencies, $this->session_data['mark_as_test']);
 
             // Update statistics
             $this->stats['new_agencies'] = $import_results['imported'];
             $this->stats['updated_agencies'] = $import_results['updated'];
             $this->stats['skipped_agencies'] = $import_results['skipped'];
-            
+
             // Get logo statistics
-            $logo_stats = $this->agency_importer->get_import_statistics();
+            $logo_stats = $agency_manager->get_import_statistics();
             $this->stats['agencies_with_logo'] = $logo_stats['agents_with_logo'];
             
             $this->logger->log('PHASE 1: Agencies import completed: ' . json_encode($import_results), 'success');

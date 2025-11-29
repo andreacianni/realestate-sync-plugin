@@ -32,11 +32,246 @@ class RealEstate_Sync_Agency_Manager {
     private $api_writer;
 
     /**
+     * Import statistics
+     */
+    private $import_stats = array(
+        'total' => 0,
+        'created' => 0,
+        'updated' => 0,
+        'skipped' => 0,
+        'errors' => 0,
+        'with_logo' => 0
+    );
+
+    /**
      * Constructor
      */
     public function __construct() {
         $this->logger = RealEstate_Sync_Logger::get_instance();
         $this->api_writer = new RealEstate_Sync_WPResidence_Agency_API_Writer($this->logger);
+    }
+
+    /**
+     * Import multiple agencies from Agency Parser
+     *
+     * Replaces Agency_Importer->import_agencies() with API-based import
+     *
+     * @param array $agencies Array of agency data from Agency Parser
+     * @param bool $mark_as_test Mark agencies as test imports
+     * @return array Import results with statistics
+     */
+    public function import_agencies($agencies, $mark_as_test = false) {
+        $this->logger->log('Starting agency import via API: ' . count($agencies) . ' agencies', 'INFO');
+
+        if ($mark_as_test) {
+            $this->logger->log('🔖 Test mode enabled - agencies will be marked with _test_import flag', 'INFO');
+        }
+
+        // Reset statistics
+        $this->import_stats = array(
+            'total' => count($agencies),
+            'imported' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'errors' => 0,
+            'agency_ids' => array()
+        );
+
+        foreach ($agencies as $agency_data) {
+            try {
+                // Convert Agency Parser format to Agency Manager format
+                $converted_data = $this->convert_parser_data_to_manager_format($agency_data);
+
+                // Find existing agency by XML ID
+                $existing_id = $this->find_agency_by_xml_id($converted_data['xml_agency_id']);
+
+                if ($existing_id) {
+                    // Update existing
+                    $result = $this->update_agency_via_api($existing_id, $converted_data, $mark_as_test);
+                    if ($result) {
+                        $this->import_stats['updated']++;
+                        $this->import_stats['agency_ids'][] = $existing_id;
+                    } else {
+                        $this->import_stats['errors']++;
+                    }
+                } else {
+                    // Create new
+                    $new_id = $this->create_agency_via_api($converted_data, $mark_as_test);
+                    if ($new_id) {
+                        $this->import_stats['imported']++;
+                        $this->import_stats['agency_ids'][] = $new_id;
+                    } else {
+                        $this->import_stats['errors']++;
+                    }
+                }
+
+                // Count logos
+                if (!empty($converted_data['logo_url'])) {
+                    $this->import_stats['with_logo']++;
+                }
+
+            } catch (Exception $e) {
+                $this->logger->log('Error importing agency: ' . $e->getMessage(), 'ERROR');
+                $this->import_stats['errors']++;
+            }
+        }
+
+        $this->logger->log('Agency import completed via API', 'SUCCESS', $this->import_stats);
+
+        return $this->import_stats;
+    }
+
+    /**
+     * Convert Agency Parser data format to Agency Manager format
+     *
+     * @param array $parser_data Data from Agency Parser
+     * @return array Data in Agency Manager format
+     */
+    private function convert_parser_data_to_manager_format($parser_data) {
+        return array(
+            'name' => $parser_data['ragione_sociale'] ?? 'Agenzia Immobiliare',
+            'xml_agency_id' => $parser_data['id'] ?? '',
+            'address' => $this->build_parser_address($parser_data),
+            'phone' => $parser_data['telefono'] ?? '',
+            'email' => $parser_data['email'] ?? '',
+            'website' => $parser_data['url'] ?? '',
+            'logo_url' => $parser_data['logo'] ?? '',
+            'contact_person' => $parser_data['referente'] ?? '',
+            'vat_number' => $parser_data['iva'] ?? '',
+            'province' => $parser_data['provincia'] ?? '',
+            'city' => $parser_data['comune'] ?? '',
+            'mobile' => $parser_data['cellulare'] ?? ''
+        );
+    }
+
+    /**
+     * Build address from Agency Parser data
+     *
+     * @param array $parser_data Agency Parser data
+     * @return string Full address
+     */
+    private function build_parser_address($parser_data) {
+        $parts = array();
+
+        if (!empty($parser_data['indirizzo'])) {
+            $parts[] = $parser_data['indirizzo'];
+        }
+
+        if (!empty($parser_data['comune'])) {
+            $city_part = $parser_data['comune'];
+            if (!empty($parser_data['provincia'])) {
+                $city_part .= ' (' . $parser_data['provincia'] . ')';
+            }
+            $parts[] = $city_part;
+        }
+
+        return implode(', ', $parts);
+    }
+
+    /**
+     * Find agency by XML ID
+     *
+     * @param string $xml_id XML agency ID
+     * @return int|false Agency post ID if found, false otherwise
+     */
+    private function find_agency_by_xml_id($xml_id) {
+        $args = array(
+            'post_type' => 'estate_agent',
+            'meta_key' => 'agency_xml_id',  // Fixed: match lookup query
+            'meta_value' => $xml_id,
+            'posts_per_page' => 1,
+            'fields' => 'ids'
+        );
+
+        $query = new WP_Query($args);
+
+        if ($query->have_posts()) {
+            return $query->posts[0];
+        }
+
+        return false;
+    }
+
+    /**
+     * Create agency via API
+     *
+     * @param array $agency_data Agency data
+     * @param bool $mark_as_test Mark as test import
+     * @return int|false Agency ID on success, false on failure
+     */
+    private function create_agency_via_api($agency_data, $mark_as_test = false) {
+        // Format for API
+        $api_body = $this->api_writer->format_api_body($agency_data);
+
+        // Create via API
+        $result = $this->api_writer->create_agency($api_body);
+
+        if (!$result['success']) {
+            $this->logger->log('Failed to create agency via API: ' . $result['error'], 'ERROR');
+            return false;
+        }
+
+        $agency_id = $result['agency_id'];
+
+        // Store XML ID for tracking (CRITICAL for property→agency lookup in PHASE 2)
+        // NOTE: Using 'agency_xml_id' (not 'xml_agency_id') to match lookup query
+        $xml_id = $agency_data['xml_agency_id'];
+        update_post_meta($agency_id, 'agency_xml_id', $xml_id);
+        $this->logger->log("Stored agency_xml_id meta: agency_id=$agency_id, xml_id=$xml_id", 'INFO');
+
+        // Verify it was saved
+        $saved_value = get_post_meta($agency_id, 'agency_xml_id', true);
+        $this->logger->log("Verified agency_xml_id meta: saved_value=$saved_value", 'INFO');
+
+        // Mark as test if requested
+        if ($mark_as_test) {
+            update_post_meta($agency_id, '_test_import', 1);
+        }
+
+        return $agency_id;
+    }
+
+    /**
+     * Update agency via API
+     *
+     * @param int $agency_id Agency post ID
+     * @param array $agency_data Agency data
+     * @param bool $mark_as_test Mark as test import
+     * @return bool Success status
+     */
+    private function update_agency_via_api($agency_id, $agency_data, $mark_as_test = false) {
+        // Format for API
+        $api_body = $this->api_writer->format_api_body($agency_data);
+
+        // Update via API
+        $result = $this->api_writer->update_agency($agency_id, $api_body);
+
+        if (!$result['success']) {
+            $this->logger->log("Failed to update agency $agency_id via API: " . $result['error'], 'ERROR');
+            return false;
+        }
+
+        // Update XML ID (in case it changed)
+        // NOTE: Using 'agency_xml_id' (not 'xml_agency_id') to match lookup query
+        update_post_meta($agency_id, 'agency_xml_id', $agency_data['xml_agency_id']);
+
+        // Mark as test if requested
+        if ($mark_as_test) {
+            update_post_meta($agency_id, '_test_import', 1);
+        }
+
+        return true;
+    }
+
+    /**
+     * Get import statistics
+     *
+     * @return array Import statistics
+     */
+    public function get_import_statistics() {
+        return array(
+            'agents_with_logo' => $this->import_stats['with_logo']
+        );
     }
     
     /**
@@ -323,9 +558,8 @@ class RealEstate_Sync_Agency_Manager {
             return $this->agency_cache[$cache_key];
         }
 
-        // Query WordPress for agency with matching xml_agency_id meta
-        // NOTE: WPResidence /agency/add creates 'estate_agent' CPT, not 'estate_agency'
-        // We search both types to handle WPResidence's behavior
+        // STRATEGY 1: Try direct meta lookup (for agencies with xml_agency_id meta)
+        $this->logger->log('🔍 Strategy 1: Looking for xml_agency_id meta', 'debug');
         $query = new WP_Query(array(
             'post_type' => array('estate_agent', 'estate_agency'),
             'post_status' => 'publish',
