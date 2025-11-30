@@ -346,7 +346,12 @@ class RealEstate_Sync {
         
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         $result = dbDelta($sql);
-        
+
+        // ✅ BATCH SYSTEM: Create import queue table
+        require_once plugin_dir_path(__FILE__) . 'includes/class-realestate-sync-queue-manager.php';
+        $queue_manager = new RealEstate_Sync_Queue_Manager();
+        $queue_manager->create_table();
+
         // Log database creation with detailed info
         if (class_exists('RealEstate_Sync_Logger')) {
             $logger = RealEstate_Sync_Logger::get_instance();
