@@ -27,6 +27,7 @@ realestate-sync-plugin-backup/
 # Ignore all PowerShell scripts with upload/ftp patterns
 upload*.ps1
 *-ftp.ps1
+*.ps1
 create-ftp-data-dir.ps1
 
 # ZIP files and backup views

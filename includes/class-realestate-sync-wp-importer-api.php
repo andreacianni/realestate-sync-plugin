@@ -2,6 +2,13 @@
 /**
  * WordPress Property Importer - API-Based Version
  *
+ * ⚠️ CRITICAL FILE - PROTECTED - DO NOT MODIFY
+ * This file is part of the WORKING import system (commit cbbc9c0 / tag: working-import-cbbc9c0)
+ * Verified working: 30-Nov-2025 - Creates properties via API and links to agencies
+ *
+ * Any batch system modifications must go through wrapper/adapter pattern
+ * DO NOT modify the core process_property() method
+ *
  * NEW implementation using WPResidence REST API instead of direct meta field manipulation.
  * This class replaces the legacy WP_Importer approach with API Writer integration,
  * ensuring proper gallery handling and WPResidence compatibility.
@@ -23,6 +30,7 @@
  * @package    RealEstate_Sync
  * @subpackage RealEstate_Sync/includes
  * @since      1.4.0
+ * @protected-since 30-Nov-2025
  */
 
 if (!defined('ABSPATH')) {

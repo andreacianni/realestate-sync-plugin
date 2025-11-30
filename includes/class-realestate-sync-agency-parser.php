@@ -1,12 +1,20 @@
 <?php
 /**
  * Agency Parser Class
- * 
+ *
+ * ⚠️ CRITICAL FILE - PROTECTED - DO NOT MODIFY
+ * This file is part of the WORKING import system (commit cbbc9c0 / tag: working-import-cbbc9c0)
+ * Verified working: 30-Nov-2025 - Extracts agency data from XML
+ *
+ * Any batch system modifications must go through wrapper/adapter pattern
+ * DO NOT modify the core extract_agencies_from_xml() method
+ *
  * Extracts and validates agency data from XML <agenzia> section
- * 
+ *
  * @package RealEstate_Sync
  * @version 1.3.0
  * @since 1.3.0
+ * @protected-since 30-Nov-2025
  */
 
 if (!defined('ABSPATH')) {

@@ -1,13 +1,21 @@
 <?php
 /**
  * RealEstate Sync Agency Manager
- * 
+ *
+ * ⚠️ CRITICAL FILE - PROTECTED - DO NOT MODIFY
+ * This file is part of the WORKING import system (commit cbbc9c0 / tag: working-import-cbbc9c0)
+ * Verified working: 30-Nov-2025 - Creates agencies WITH logos via API
+ *
+ * Any batch system modifications must go through wrapper/adapter pattern
+ * DO NOT modify the core import_agencies() method
+ *
  * Handles agency creation and management from XML data
  * Direct mapping: XML agency data → WordPress estate_agency CPT
- * 
+ *
  * @package RealEstateSync
  * @version 1.0.0
  * @since 1.1.0
+ * @protected-since 30-Nov-2025
  */
 
 if (!defined('ABSPATH')) {

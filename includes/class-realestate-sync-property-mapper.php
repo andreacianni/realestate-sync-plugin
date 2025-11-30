@@ -2,6 +2,13 @@
 /**
  * RealEstate Sync Plugin - Property Mapper v3.3
  *
+ * ⚠️ CRITICAL FILE - PROTECTED - DO NOT MODIFY
+ * This file is part of the WORKING import system (commit cbbc9c0 / tag: working-import-cbbc9c0)
+ * Verified working: 30-Nov-2025 - Maps XML property data to WPResidence format
+ *
+ * Any batch system modifications must go through wrapper/adapter pattern
+ * DO NOT modify the core map_property() method
+ *
  * OPZIONE A FULL IMPLEMENTATION - Phase 1 & 2 Complete
  * Based on MAPPING_GAP_ANALYSIS.md and CLIENT_MAPPING_SPECS.md
  *
@@ -22,6 +29,8 @@
  * - 33 new amenities & features
  * - 48 new property details
  * - 80+ total new fields mapped
+ *
+ * @protected-since 30-Nov-2025
  *
  * @package RealEstateSync
  * @version 3.3.0
