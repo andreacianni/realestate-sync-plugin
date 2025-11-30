@@ -737,22 +737,48 @@ class RealEstate_Sync_Admin {
                 throw new Exception('Impossibile scaricare il file XML');
             }
 
-            // Execute import with test flag option
-            $import_engine = new RealEstate_Sync_Import_Engine();
-            $import_engine->configure($settings);
+            // ✅ BATCH SYSTEM: Initiate background import
+            $session_id = 'import_' . uniqid('', true);
 
-            $results = $import_engine->execute_chunked_import($xml_file, array(
-                'mark_as_test' => $mark_as_test
+            error_log("[REALESTATE-SYNC] ========== STARTING BATCH IMPORT ==========");
+            error_log("[REALESTATE-SYNC] Session: {$session_id}");
+            error_log("[REALESTATE-SYNC] XML file: {$xml_file}");
+            error_log("[REALESTATE-SYNC] Test mode: " . ($mark_as_test ? 'YES' : 'NO'));
+
+            // Set progress tracking
+            update_option('realestate_sync_background_import_progress', array(
+                'session_id' => $session_id,
+                'xml_file_path' => $xml_file,
+                'mark_as_test' => $mark_as_test,
+                'start_time' => time(),
+                'status' => 'processing'
             ));
 
-            // Cleanup
-            if (file_exists($xml_file)) {
-                unlink($xml_file);
+            // Initialize batch processor
+            $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file);
+
+            // Scan and populate queue
+            error_log("[REALESTATE-SYNC] >>> Scanning XML and populating queue...");
+            $scan_result = $batch_processor->scan_and_populate_queue($mark_as_test);
+            error_log("[REALESTATE-SYNC] <<< Queue populated: {$scan_result['queue_items']} items");
+
+            // Process first batch IMMEDIATELY (no shutdown hook)
+            error_log("[REALESTATE-SYNC] >>> Processing first batch NOW (direct execution)");
+            $first_batch_result = $batch_processor->process_next_batch();
+            error_log("[REALESTATE-SYNC] <<< First batch complete: " . json_encode($first_batch_result['stats'] ?? []));
+
+            // If not complete, set transient for cron continuation
+            if (!$first_batch_result['complete']) {
+                set_transient('realestate_sync_pending_batch', $session_id, 300);
+                error_log("[REALESTATE-SYNC] >>> Transient set for continuation: {$session_id}");
+                error_log("[REALESTATE-SYNC] Server cron will continue processing every minute");
             }
 
             wp_send_json_success(array(
-                'message' => 'Import completato con successo',
-                'results' => $results
+                'message' => 'Batch import avviato con successo',
+                'session_id' => $session_id,
+                'scan_result' => $scan_result,
+                'first_batch' => $first_batch_result
             ));
 
         } catch (Exception $e) {
