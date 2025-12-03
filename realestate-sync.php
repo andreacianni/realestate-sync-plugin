@@ -103,11 +103,8 @@ class RealEstate_Sync {
         }
         
         // AJAX hooks
-        // ❌ DISABLED 2025-12-02: Duplicate AJAX handler - using Admin class handler with Batch Orchestrator instead
-        // add_action('wp_ajax_realestate_sync_manual_import', [$this, 'handle_manual_import']);
+        // NOTE: Manual import and clear logs handlers are in Admin class
         add_action('wp_ajax_realestate_sync_get_import_status', [$this, 'get_import_status']);
-        // ❌ DISABLED 2025-12-02: Duplicate handler - using Admin class version
-        // add_action('wp_ajax_realestate_sync_clear_logs', [$this, 'clear_logs']);
         add_action('wp_ajax_realestate_sync_test_sample_xml', [$this, 'handle_test_sample_xml']); // 🆕 NEW: Test with sample XML
         
         // Cron hooks
@@ -530,67 +527,6 @@ class RealEstate_Sync {
         
         echo '</div>';
     }
-    
-    /**
-     * ❌ DISABLED 2025-12-02: Duplicate handler for manual import
-     *
-     * This handler was conflicting with the Admin class handler.
-     * The Admin class version (admin/class-realestate-sync-admin.php:708)
-     * uses the Batch Orchestrator system (correct approach).
-     *
-     * This version used execute_chunked_import() which:
-     * - Processes ALL 28,625 properties instead of filtering first
-     * - Skips 10,341+ properties during processing (wasteful)
-     * - No queue system, no automatic continuation
-     *
-     * MIGRATION: All manual imports now use Admin class handler → Batch Orchestrator
-     *
-     * @deprecated Use admin/class-realestate-sync-admin.php::handle_manual_import() instead
-     */
-    /*
-    public function handle_manual_import() {
-        // Verify nonce and capabilities
-        if (!wp_verify_nonce($_POST['nonce'] ?? '', 'realestate_sync_nonce') ||
-            !current_user_can('manage_options')) {
-            wp_die('Unauthorized');
-        }
-
-        try {
-            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS SETTINGS
-            $settings = array(
-                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
-                'username' => 'trentinoimmobiliare_it',
-                'password' => 'dget6g52',
-                'chunk_size' => 25,
-                'sleep_seconds' => 1
-            );
-
-            $this->instances['logger']->log('HARDCODE: Using hardcoded credentials in main file', 'info');
-
-            // Download XML file
-            $downloader = new RealEstate_Sync_XML_Downloader();
-            $xml_file = $downloader->download_xml($settings['xml_url'], $settings['username'], $settings['password']);
-
-            if (!$xml_file) {
-                throw new Exception('Failed to download XML file');
-            }
-
-            // Configure and run import
-            $this->instances['import_engine']->configure($settings);
-            $result = $this->instances['import_engine']->execute_chunked_import($xml_file);
-
-            // Cleanup
-            if (file_exists($xml_file)) {
-                unlink($xml_file);
-            }
-
-            wp_send_json_success($result);
-
-        } catch (Exception $e) {
-            wp_send_json_error($e->getMessage());
-        }
-    }
-    */
     
     /**
      * Get import status AJAX
