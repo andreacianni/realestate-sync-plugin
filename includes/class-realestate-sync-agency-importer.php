@@ -1,10 +1,20 @@
 <?php
 /**
  * Agency Importer Class
- * 
+ *
+ * @deprecated 2.0.0 Use RealEstate_Sync_Agency_Manager instead
+ * @see RealEstate_Sync_Agency_Manager
+ *
+ * This class is deprecated and will be removed in version 3.0.0.
+ * It has been replaced by Agency_Manager which provides:
+ * - API-based agency creation (proper WPResidence REST API integration)
+ * - Logo download functionality
+ * - Better error handling and retry logic
+ * - Consistent with batch system architecture
+ *
  * Imports agencies into WpResidence estate_agent Custom Post Type
  * Handles duplicate prevention and WordPress integration
- * 
+ *
  * @package RealEstate_Sync
  * @version 1.3.0
  * @since 1.3.0
@@ -33,10 +43,17 @@ class RealEstate_Sync_Agency_Importer {
 
     /**
      * Constructor
+     *
+     * @deprecated 2.0.0 Use RealEstate_Sync_Agency_Manager instead
      */
     public function __construct() {
         $this->logger = RealEstate_Sync_Logger::get_instance();
         $this->media_deduplicator = new RealEstate_Sync_Media_Deduplicator();
+
+        // Log deprecation warning in debug mode
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[DEPRECATION] RealEstate_Sync_Agency_Importer is deprecated since version 2.0.0. Use RealEstate_Sync_Agency_Manager instead. This class will be removed in version 3.0.0.');
+        }
     }
     
     /**

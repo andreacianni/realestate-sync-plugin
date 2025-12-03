@@ -2,19 +2,34 @@
 /**
  * Agency Parser Class
  *
- * ⚠️ CRITICAL FILE - PROTECTED - DO NOT MODIFY
+ * ⚠️ CRITICAL FILE - PROTECTED
  * This file is part of the WORKING import system (commit cbbc9c0 / tag: working-import-cbbc9c0)
  * Verified working: 30-Nov-2025 - Extracts agency data from XML
  *
+ * 🐛 BUG FIX APPLIED: 30-Nov-2025 23:30
+ * Added province filtering based on annuncio->info->comune_istat
+ *
+ * REASON FOR MODIFICATION:
+ * Original code extracted ALL agencies from entire Italy (629 agencies).
+ * Bug never detected because test file only contained 2 TN agencies.
+ * Production test revealed agencies from Padova, Verona, Vicenza, Brescia, etc.
+ *
+ * FIX: Filter annunci by comune_istat (021xxx=BZ, 022xxx=TN) BEFORE extracting agencies.
+ * This matches the same logic used for property filtering.
+ *
+ * An agency is included ONLY if it appears in an annuncio with TN/BZ comune_istat.
+ * This is correct because we only want agencies that have properties in our provinces.
+ *
  * Any batch system modifications must go through wrapper/adapter pattern
- * DO NOT modify the core extract_agencies_from_xml() method
+ * Exception: Bug fixes to core logic are allowed with documentation
  *
  * Extracts and validates agency data from XML <agenzia> section
  *
  * @package RealEstate_Sync
- * @version 1.3.0
+ * @version 1.3.1
  * @since 1.3.0
  * @protected-since 30-Nov-2025
+ * @bugfix-applied 30-Nov-2025 - Province filtering
  */
 
 if (!defined('ABSPATH')) {
@@ -43,28 +58,43 @@ class RealEstate_Sync_Agency_Parser {
      */
     public function extract_agencies_from_xml($xml_data) {
         $this->logger->log('Starting agency extraction from XML', 'info');
-        
+
         $agencies = [];
         $agency_ids_seen = [];
-        
+        $skipped_count = 0;
+
         try {
             // Parse through all annuncio elements
             foreach ($xml_data->annuncio as $annuncio) {
+                // 🐛 BUG FIX: Filter by province BEFORE extracting agency
+                // Check comune_istat in annuncio->info section
+                // Only extract agencies from annunci with TN/BZ properties
+                $comune_istat = (string)($annuncio->info->comune_istat ?? '');
+
+                // Skip annunci outside Trentino-Alto Adige
+                // 021xxx = Provincia di Bolzano (BZ)
+                // 022xxx = Provincia di Trento (TN)
+                if (!preg_match('/^(021|022)/', $comune_istat)) {
+                    $skipped_count++;
+                    continue; // Skip this annuncio and its agency
+                }
+
+                // ONLY if annuncio is in TN/BZ → extract the agency
                 if (isset($annuncio->agenzia)) {
                     $agency_data = $this->parse_agency_data($annuncio->agenzia);
-                    
+
                     if ($agency_data && !in_array($agency_data['id'], $agency_ids_seen)) {
                         $agencies[] = $agency_data;
                         $agency_ids_seen[] = $agency_data['id'];
-                        
-                        $this->logger->log("Extracted unique agency: {$agency_data['ragione_sociale']} (ID: {$agency_data['id']})", 'info');
+
+                        $this->logger->log("Extracted unique agency: {$agency_data['ragione_sociale']} (ID: {$agency_data['id']}) - comune_istat: {$comune_istat}", 'info');
                     }
                 }
             }
-            
-            $this->logger->log('Agency extraction completed: ' . count($agencies) . ' unique agencies found', 'success');
+
+            $this->logger->log("Agency extraction completed: " . count($agencies) . " unique agencies found (skipped {$skipped_count} annunci outside TN/BZ)", 'success');
             return $agencies;
-            
+
         } catch (Exception $e) {
             $this->logger->log('Agency extraction failed: ' . $e->getMessage(), 'error');
             return [];

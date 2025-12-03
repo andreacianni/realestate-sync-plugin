@@ -37,9 +37,10 @@ if (!$pending_session) {
 
 error_log("[BATCH-CONTINUATION] >>> Found pending session: {$pending_session}");
 
-// Get XML file path from session progress
+// Get XML file path and mark_as_test flag from session progress
 $progress = get_option('realestate_sync_background_import_progress', array());
 $xml_file_path = $progress['xml_file_path'] ?? '';
+$mark_as_test = $progress['mark_as_test'] ?? false;
 
 if (empty($xml_file_path)) {
     error_log('[BATCH-CONTINUATION] ❌ ERROR: XML file path not found in session progress');
@@ -54,6 +55,7 @@ if (!file_exists($xml_file_path)) {
 }
 
 error_log("[BATCH-CONTINUATION] >>> XML file: {$xml_file_path}");
+error_log("[BATCH-CONTINUATION] >>> Mark as test: " . ($mark_as_test ? 'YES' : 'NO'));
 
 // Delete transient to prevent concurrent execution
 delete_transient('realestate_sync_pending_batch');
@@ -65,7 +67,7 @@ require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processo
 
 try {
     error_log('[BATCH-CONTINUATION] >>> Creating batch processor...');
-    $batch_processor = new RealEstate_Sync_Batch_Processor($pending_session, $xml_file_path);
+    $batch_processor = new RealEstate_Sync_Batch_Processor($pending_session, $xml_file_path, $mark_as_test);
 
     error_log('[BATCH-CONTINUATION] >>> Processing next batch...');
     $result = $batch_processor->process_next_batch();

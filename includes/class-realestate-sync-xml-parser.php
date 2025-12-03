@@ -215,28 +215,56 @@ class RealEstate_Sync_XML_Parser {
     }
     
     /**
+     * ✅ PUBLIC WRAPPER for Batch_Processor delegation
+     * Parses single annuncio XML string using GOLDEN logic
+     *
+     * @param string $annuncio_xml XML string of single <annuncio> element
+     * @return array|null Property data or null on error
+     */
+    public function parse_annuncio_xml($annuncio_xml) {
+        if (empty($annuncio_xml)) {
+            return null;
+        }
+
+        // Use GOLDEN parsing logic (same as parse_single_property)
+        return $this->parse_annuncio_dom($annuncio_xml);
+    }
+
+    /**
      * Parse singola property da XMLReader position
-     * 
+     *
      * @return array|null Property data o null se errore
      */
     private function parse_single_property() {
         if ($this->reader->localName !== 'annuncio') {
             return null;
         }
-        
+
         // Leggi tutto il nodo annuncio
         $annuncio_xml = $this->reader->readOuterXML();
-        
+
         if (!$annuncio_xml) {
             return null;
         }
-        
+
+        // ✅ Use shared GOLDEN parsing logic
+        return $this->parse_annuncio_dom($annuncio_xml);
+    }
+
+    /**
+     * ✅ GOLDEN PARSING LOGIC - Shared by both streaming and batch processing
+     * Parse con DOMDocument per singolo annuncio
+     *
+     * @param string $annuncio_xml XML string of <annuncio> element
+     * @return array|null Property data or null on error
+     */
+    private function parse_annuncio_dom($annuncio_xml) {
         // Parse con DOMDocument per singolo annuncio (efficiente)
         $dom = new DOMDocument();
         if (!$dom->loadXML($annuncio_xml)) {
             return null;
         }
-        
+
         $xpath = new DOMXPath($dom);
         $property_data = array();
         

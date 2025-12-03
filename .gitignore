@@ -38,3 +38,6 @@ TabelleCliente.xlsx
 
 # Info Verification documentation (internal analysis)
 docs/Info-Verification/
+
+# Large XML export files (exceeds GitHub 100MB limit)
+docs/export_*.xml

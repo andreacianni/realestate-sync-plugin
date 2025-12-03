@@ -43,12 +43,24 @@ class RealEstate_Sync_Batch_Processor {
     private $logger;
 
     /**
-     * ⚠️ PROTECTED CLASS INSTANCES - DO NOT MODIFY THESE CLASSES
+     * ✅ IMPORT ENGINE - Reuses all PROTECTED methods
+     * Delegates PROPERTY processing to Import_Engine
+     * which already has working logic for:
+     * - convert_xml_to_v3_format()
+     * - map_properties() (plural)
+     * - call_wp_importer()
+     * - tracking database update
+     * - test flag marking
+     * - agency data storage
      */
-    private $agency_parser;      // Protected: extracts agencies from XML
-    private $agency_manager;     // Protected: creates agencies with logos
-    private $property_mapper;    // Protected: maps XML to property format
-    private $wp_importer;        // Protected: creates properties via API
+    private $import_engine;
+
+    /**
+     * ⚠️ PROTECTED CLASS INSTANCES - Used for agencies and queue scanning
+     */
+    private $agency_parser;      // Protected: extracts agencies from XML (for queue scan)
+    private $agency_manager;     // Protected: imports agencies (agencies processed directly, not via Import_Engine)
+    private $xml_parser;         // ✅ GOLDEN: parses properties using same logic as streaming import
 
     /**
      * Session ID
@@ -61,14 +73,21 @@ class RealEstate_Sync_Batch_Processor {
     private $xml_file_path;
 
     /**
+     * Mark as test flag
+     */
+    private $mark_as_test;
+
+    /**
      * Constructor
      *
      * @param string $session_id    Session ID
      * @param string $xml_file_path Path to XML file
+     * @param bool   $mark_as_test  Mark items as test (default: false)
      */
-    public function __construct($session_id, $xml_file_path) {
+    public function __construct($session_id, $xml_file_path, $mark_as_test = false) {
         $this->session_id = $session_id;
         $this->xml_file_path = $xml_file_path;
+        $this->mark_as_test = $mark_as_test;
 
         // Initialize queue manager
         $this->queue_manager = new RealEstate_Sync_Queue_Manager();
@@ -76,11 +95,26 @@ class RealEstate_Sync_Batch_Processor {
         // Initialize logger
         $this->logger = RealEstate_Sync_Logger::get_instance();
 
-        // Initialize PROTECTED class instances
+        // ✅ Create API importer explicitly (GOLDEN approach)
+        $wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
+
+        // ✅ Initialize Import_Engine with API importer (dependency injection)
+        // This ensures batch uses GOLDEN API methods instead of legacy importer
+        $this->import_engine = new RealEstate_Sync_Import_Engine(null, $wp_importer, $this->logger);
+
+        // Configure Import_Engine with test flag
+        $settings = get_option('realestate_sync_settings', array());
+        $settings['mark_as_test'] = $mark_as_test;
+        $this->import_engine->configure($settings);
+
+        error_log("[BATCH-PROCESSOR] ✅ Import_Engine initialized (mark_as_test=" . ($mark_as_test ? 'YES' : 'NO') . ")");
+
+        // Initialize Agency classes (agencies processed directly via Agency_Manager)
         $this->agency_parser = new RealEstate_Sync_Agency_Parser();
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
-        $this->property_mapper = new RealEstate_Sync_Property_Mapper();
-        $this->wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
+
+        // ✅ Initialize GOLDEN XML_Parser for property parsing
+        $this->xml_parser = new RealEstate_Sync_XML_Parser();
     }
 
     /**
@@ -206,6 +240,8 @@ class RealEstate_Sync_Batch_Processor {
         $start_time = time();
         $processed = 0;
         $errors = 0;
+        $agencies_processed = 0;   // ✅ Track agencies separately
+        $properties_processed = 0; // ✅ Track properties separately
 
         // Get next batch of pending items
         $items = $this->queue_manager->get_next_batch($this->session_id, self::ITEMS_PER_BATCH);
@@ -216,7 +252,9 @@ class RealEstate_Sync_Batch_Processor {
                 'success' => true,
                 'complete' => true,
                 'processed' => 0,
-                'errors' => 0
+                'errors' => 0,
+                'agencies_processed' => 0,
+                'properties_processed' => 0
             );
         }
 
@@ -239,8 +277,10 @@ class RealEstate_Sync_Batch_Processor {
                 // Process based on type
                 if ($item->item_type === 'agency') {
                     $result = $this->process_agency($item);
+                    $agencies_processed++; // ✅ Count agencies
                 } else {
                     $result = $this->process_property($item);
+                    $properties_processed++; // ✅ Count properties
                 }
 
                 // Mark as done
@@ -269,6 +309,8 @@ class RealEstate_Sync_Batch_Processor {
             'complete' => $is_complete,
             'processed' => $processed,
             'errors' => $errors,
+            'agencies_processed' => $agencies_processed,     // ✅ Return agency count
+            'properties_processed' => $properties_processed, // ✅ Return property count
             'stats' => $stats
         );
     }
@@ -320,7 +362,8 @@ class RealEstate_Sync_Batch_Processor {
     /**
      * Process single property
      *
-     * ⚠️ USES PROTECTED METHODS - DO NOT MODIFY
+     * ✅ DELEGATES TO IMPORT_ENGINE - Uses exact same processing logic
+     * ✅ USES GOLDEN XML_Parser - Same parsing logic as streaming import
      *
      * @param object $queue_item Queue item
      * @return array Result
@@ -329,53 +372,24 @@ class RealEstate_Sync_Batch_Processor {
     private function process_property($queue_item) {
         $property_id = $queue_item->item_id;
 
+        error_log("[BATCH-PROCESSOR]       >>> Looking for property {$property_id} in XML");
+
         // Load XML
         $xml = simplexml_load_file($this->xml_file_path);
 
         // Find property in XML
         $property_data = null;
         foreach ($xml->annuncio as $annuncio) {
-            // ✅ CRITICAL: Property ID is in <info> section
+            // Property ID is in <info> section
             $current_id = (string)$annuncio->info->id;
 
             if ($current_id === $property_id) {
-                // Parse property data (same as working XML_Parser)
-                $dom = new DOMDocument();
-                if (!$dom->loadXML($annuncio->asXML())) {
-                    throw new Exception("Failed to parse property XML");
-                }
+                // ✅ USE GOLDEN XML_Parser - Same parsing logic as streaming import
+                error_log("[BATCH-PROCESSOR]       >>> Parsing with GOLDEN XML_Parser::parse_annuncio_xml()");
+                $property_data = $this->xml_parser->parse_annuncio_xml($annuncio->asXML());
 
-                $xpath = new DOMXPath($dom);
-                $property_data = array();
-
-                // Parse base data from <info>
-                $info_nodes = $xpath->query('//info');
-                if ($info_nodes->length > 0) {
-                    $info = $info_nodes->item(0);
-                    foreach ($info->childNodes as $child) {
-                        if ($child->nodeType === XML_ELEMENT_NODE) {
-                            $property_data[$child->nodeName] = trim($child->textContent);
-                        }
-                    }
-                }
-
-                // Parse agency data from <agenzia>
-                $agency_nodes = $xpath->query('//agenzia');
-                if ($agency_nodes->length > 0) {
-                    $agenzia = $agency_nodes->item(0);
-                    $agency_data = array();
-
-                    foreach ($agenzia->childNodes as $child) {
-                        if ($child->nodeType === XML_ELEMENT_NODE) {
-                            $agency_data[$child->nodeName] = trim($child->textContent);
-                        }
-                    }
-
-                    if (isset($agency_data['id']) && !empty($agency_data['id'])) {
-                        $property_data['agency_id'] = $agency_data['id'];
-                    }
-
-                    $property_data['agency_data'] = $agency_data;
+                if ($property_data) {
+                    error_log("[BATCH-PROCESSOR]       <<< Property found and parsed (ID: " . ($property_data['id'] ?? 'unknown') . ")");
                 }
 
                 break;
@@ -383,20 +397,28 @@ class RealEstate_Sync_Batch_Processor {
         }
 
         if (!$property_data) {
-            throw new Exception("Property not found in XML: {$property_id}");
+            throw new Exception("Property not found or parsing failed: {$property_id}");
         }
 
-        // ✅ PROTECTED METHOD: Map property using Property_Mapper
-        error_log("[BATCH-PROCESSOR]       >>> Calling Property_Mapper::map_property()");
-        $mapped_data = $this->property_mapper->map_property($property_data);
+        // ✅ DELEGATE TO IMPORT_ENGINE
+        // This calls the EXACT same workflow as Import_Engine::execute_chunked_import()
+        // - convert_xml_to_v3_format()
+        // - map_properties() (plural)
+        // - call_wp_importer()
+        // - tracking database update
+        // - test flag marking
+        // - agency data storage
+        error_log("[BATCH-PROCESSOR]       >>> Delegating to Import_Engine::process_single_property()");
+        $result = $this->import_engine->process_single_property($property_data);
+        error_log("[BATCH-PROCESSOR]       <<< Import_Engine result: " . ($result['success'] ? 'SUCCESS' : 'FAILED'));
 
-        // ✅ PROTECTED METHOD: Import property using WP_Importer_API
-        error_log("[BATCH-PROCESSOR]       >>> Calling WP_Importer_API::process_property()");
-        $result = $this->wp_importer->process_property($mapped_data);
-        error_log("[BATCH-PROCESSOR]       <<< Property created: post_id=" . ($result['post_id'] ?? 'N/A'));
+        if (!$result['success']) {
+            throw new Exception($result['error'] ?? 'Unknown error');
+        }
 
         return $result;
     }
+
 
     /**
      * Check if processing is complete

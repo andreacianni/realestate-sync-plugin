@@ -737,48 +737,26 @@ class RealEstate_Sync_Admin {
                 throw new Exception('Impossibile scaricare il file XML');
             }
 
-            // ✅ BATCH SYSTEM: Initiate background import
-            $session_id = 'import_' . uniqid('', true);
+            // ✅ BATCH ORCHESTRATOR: Process using shared batch logic
+            $this->logger->log('🎯 Button B: Calling Batch Orchestrator with downloaded XML', 'info');
 
-            error_log("[REALESTATE-SYNC] ========== STARTING BATCH IMPORT ==========");
-            error_log("[REALESTATE-SYNC] Session: {$session_id}");
-            error_log("[REALESTATE-SYNC] XML file: {$xml_file}");
-            error_log("[REALESTATE-SYNC] Test mode: " . ($mark_as_test ? 'YES' : 'NO'));
+            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($xml_file, $mark_as_test);
 
-            // Set progress tracking
-            update_option('realestate_sync_background_import_progress', array(
-                'session_id' => $session_id,
-                'xml_file_path' => $xml_file,
-                'mark_as_test' => $mark_as_test,
-                'start_time' => time(),
-                'status' => 'processing'
-            ));
-
-            // Initialize batch processor
-            $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file);
-
-            // Scan and populate queue
-            error_log("[REALESTATE-SYNC] >>> Scanning XML and populating queue...");
-            $scan_result = $batch_processor->scan_and_populate_queue($mark_as_test);
-            error_log("[REALESTATE-SYNC] <<< Queue populated: {$scan_result['queue_items']} items");
-
-            // Process first batch IMMEDIATELY (no shutdown hook)
-            error_log("[REALESTATE-SYNC] >>> Processing first batch NOW (direct execution)");
-            $first_batch_result = $batch_processor->process_next_batch();
-            error_log("[REALESTATE-SYNC] <<< First batch complete: " . json_encode($first_batch_result['stats'] ?? []));
-
-            // If not complete, set transient for cron continuation
-            if (!$first_batch_result['complete']) {
-                set_transient('realestate_sync_pending_batch', $session_id, 300);
-                error_log("[REALESTATE-SYNC] >>> Transient set for continuation: {$session_id}");
-                error_log("[REALESTATE-SYNC] Server cron will continue processing every minute");
+            if (!$result['success']) {
+                throw new Exception('Batch processing failed: ' . ($result['error'] ?? 'Unknown error'));
             }
+
+            $this->logger->log('🎯 Batch orchestration complete: ' . $result['total_queued'] . ' items queued, ' . $result['first_batch_processed'] . ' processed in first batch', 'success');
 
             wp_send_json_success(array(
                 'message' => 'Batch import avviato con successo',
-                'session_id' => $session_id,
-                'scan_result' => $scan_result,
-                'first_batch' => $first_batch_result
+                'session_id' => $result['session_id'],
+                'total_queued' => $result['total_queued'],
+                'agencies_queued' => $result['agencies_queued'],
+                'properties_queued' => $result['properties_queued'],
+                'first_batch_processed' => $result['first_batch_processed'],
+                'complete' => $result['complete'],
+                'remaining' => $result['remaining']
             ));
 
         } catch (Exception $e) {
@@ -1767,11 +1745,6 @@ class RealEstate_Sync_Admin {
             
             $log_output = "[" . date('H:i:s') . "] File caricato: {$uploaded_file['name']} ({$file_size}KB)\n";
             $log_output .= "[" . date('H:i:s') . "] XML parsato: {$properties_count} properties, {$agencies_count} agenzie trovate\n";
-            
-            // Process with Import Engine + TEST FLAG
-            $import_engine = new RealEstate_Sync_Import_Engine();
-            $settings = get_option('realestate_sync_settings', array());
-            $import_engine->configure($settings);
 
             // Create temp file
             $temp_file = wp_upload_dir()['basedir'] . '/realestate-test-' . time() . '.xml';
@@ -1780,59 +1753,44 @@ class RealEstate_Sync_Admin {
             // Check if user wants to mark properties as test
             $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
 
-            // Execute import + DEBUG
-            $results = $import_engine->execute_chunked_import($temp_file, array(
-                'mark_as_test' => $mark_as_test
-            ));
-            
-            // DEBUG: Log complete results structure
-            $this->logger->log("DEBUG: Import Engine Results: " . print_r($results, true), 'info');
-            $this->logger->log("DEBUG: Statistics: " . print_r($results['statistics'] ?? [], true), 'info');
-            
-            // Add test flag to all created properties
-            $this->add_test_flag_to_recent_properties($results['properties_created'] ?? 0);
-            
+            // ✅ BATCH ORCHESTRATOR: Process using shared batch logic
+            $this->logger->log('🎯 Button A: Calling Batch Orchestrator with uploaded XML', 'info');
+
+            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($temp_file, $mark_as_test);
+
             // Cleanup temp file
             if (file_exists($temp_file)) {
                 unlink($temp_file);
             }
-            
-            // Build detailed log - FIXED: Use correct Import Engine output structure
-            $stats = $results['statistics'] ?? [];
-            $log_output .= "[" . date('H:i:s') . "] Properties: " . ($stats['new_properties'] ?? 0) . " create, " . ($stats['updated_properties'] ?? 0) . " aggiornate\n";
-            
-            // 🏢 AGENCY STATS: Extract from WP Importer stats if available
-            $agency_created = 0;
-            $agency_updated = 0;
-            if (isset($results['agency_stats'])) {
-                $agency_created = $results['agency_stats']['created'] ?? 0;
-                $agency_updated = $results['agency_stats']['updated'] ?? 0;
+
+            if (!$result['success']) {
+                throw new Exception('Batch processing failed: ' . ($result['error'] ?? 'Unknown error'));
             }
-            $log_output .= "[" . date('H:i:s') . "] Agenzie: {$agency_created} create, {$agency_updated} aggiornate\n";
-            
-            // Get real media stats from Import Engine if available
-            $media_stats = $results['media_stats'] ?? null;
-            if ($media_stats) {
-                $media_new = $media_stats['new'] ?? 0;
-                $media_existing = $media_stats['existing'] ?? 0;
+
+            $this->logger->log('🎯 Batch orchestration complete: ' . $result['total_queued'] . ' items queued, ' . $result['first_batch_processed'] . ' processed in first batch', 'success');
+
+            // Build detailed log
+            $log_output .= "[" . date('H:i:s') . "] Batch system: " . $result['agencies_queued'] . " agenzie, " . $result['properties_queued'] . " proprietà in coda\n";
+            $log_output .= "[" . date('H:i:s') . "] First batch: " . $result['agencies_processed'] . " agenzie, " . $result['properties_processed'] . " proprietà processate\n";
+
+            if ($result['complete']) {
+                $log_output .= "[" . date('H:i:s') . "] COMPLETATO: Tutti gli items processati nel primo batch\n";
             } else {
-                $media_new = 0;
-                $media_existing = 0;
+                $log_output .= "[" . date('H:i:s') . "] IN CORSO: " . $result['remaining'] . " items rimanenti (cron continuerà)\n";
             }
-            $log_output .= "[" . date('H:i:s') . "] Media: {$media_new} nuove immagini importate, {$media_existing} immagini già esistenti\n";
-            $log_output .= "[" . date('H:i:s') . "] COMPLETATO: Test import workflow\n";
-            
-            $this->logger->log("TEST WORKFLOW: Completed - Props: " . ($stats['new_properties'] ?? 0) . ", Agencies: {$agency_created}", 'info');
-            
+
             wp_send_json_success(array(
-                'properties_created' => $stats['new_properties'] ?? 0,
-                'properties_updated' => $stats['updated_properties'] ?? 0,
-                'agencies_created' => $agency_created,
-                'agencies_updated' => $agency_updated,
-                'media_new' => $media_new,
-                'media_existing' => $media_existing,
+                'session_id' => $result['session_id'],
+                'total_queued' => $result['total_queued'],
+                'agencies_queued' => $result['agencies_queued'],
+                'properties_queued' => $result['properties_queued'],
+                'agencies_processed' => $result['agencies_processed'],
+                'properties_processed' => $result['properties_processed'],
+                'first_batch_processed' => $result['first_batch_processed'],
+                'complete' => $result['complete'],
+                'remaining' => $result['remaining'],
                 'log_output' => $log_output,
-                'message' => 'Test import completato con successo!'
+                'message' => 'Batch import completato con successo!'
             ));
             
         } catch (Exception $e) {

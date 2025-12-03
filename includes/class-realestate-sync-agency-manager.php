@@ -184,7 +184,7 @@ class RealEstate_Sync_Agency_Manager {
      */
     private function find_agency_by_xml_id($xml_id) {
         $args = array(
-            'post_type' => 'estate_agent',
+            'post_type' => 'estate_agency',  // FIXED: API creates estate_agency, not estate_agent
             'meta_key' => 'agency_xml_id',  // Fixed: match lookup query
             'meta_value' => $xml_id,
             'posts_per_page' => 1,
@@ -569,7 +569,7 @@ class RealEstate_Sync_Agency_Manager {
         // STRATEGY 1: Try direct meta lookup (for agencies with xml_agency_id meta)
         $this->logger->log('🔍 Strategy 1: Looking for xml_agency_id meta', 'debug');
         $query = new WP_Query(array(
-            'post_type' => array('estate_agent', 'estate_agency'),
+            'post_type' => 'estate_agency',  // FIXED: API creates estate_agency, not estate_agent
             'post_status' => 'publish',
             'meta_query' => array(
                 array(

@@ -75,6 +75,12 @@ $import_stats = $tracking_manager->get_import_statistics();
                 <button type="button" class="rs-button-secondary" id="rs-test-connection">
                     <span class="dashicons dashicons-networking"></span> Test Connessione
                 </button>
+
+                <!-- Manual Import Log Output -->
+                <div id="manual-import-log-output" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                    <h5>Log Processo:</h5>
+                    <pre id="manual-import-log-content" style="margin: 0; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">Avvio processo...</pre>
+                </div>
             </div>
 
             <!-- Configuration Panel -->
@@ -1273,6 +1279,7 @@ jQuery(document).ready(function($) {
         startManualImport: function(e) {
             e.preventDefault();
             if (!confirm('Sei sicuro di voler avviare l\'import manuale?')) return;
+
             dashboard.showAlert('Import avviato...', 'warning');
             $.ajax({
                 url: realestateSync.ajax_url,
@@ -1282,6 +1289,9 @@ jQuery(document).ready(function($) {
                     nonce: realestateSync.nonce,
                     mark_as_test: $('#mark-as-test-manual-import').is(':checked') ? '1' : '0'
                 },
+                beforeSend: function() {
+                    $('#start-manual-import').prop('disabled', true).html('<span class="rs-spinner"></span> Import in corso...');
+                },
                 success: function(response) {
                     if (response.success) {
                         dashboard.showAlert('Import completato con successo!', 'success');
@@ -1289,6 +1299,9 @@ jQuery(document).ready(function($) {
                     } else {
                         dashboard.showAlert('Errore: ' + response.data, 'error');
                     }
+                },
+                complete: function() {
+                    $('#start-manual-import').prop('disabled', false).html('<span class="dashicons dashicons-download"></span> Scarica e Importa Ora');
                 },
                 error: function() { dashboard.showAlert('Errore di comunicazione', 'error'); }
             });
@@ -1524,7 +1537,14 @@ jQuery(document).ready(function($) {
             $('#test-log-content').append(logLine);
             $('#test-log-output').scrollTop($('#test-log-content')[0].scrollHeight);
         },
-        
+
+        updateManualImportLog: function(message) {
+            var timestamp = new Date().toLocaleTimeString();
+            var logLine = '[' + timestamp + '] ' + message + '\n';
+            $('#manual-import-log-content').append(logLine);
+            $('#manual-import-log-output').scrollTop($('#manual-import-log-content')[0].scrollHeight);
+        },
+
         // 🚀 PROFESSIONAL ACTIVATION TOOLS METHODS
         checkActivationStatus: function(e) {
             e.preventDefault();

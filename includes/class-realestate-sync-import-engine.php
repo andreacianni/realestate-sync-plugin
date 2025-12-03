@@ -549,6 +549,15 @@ class RealEstate_Sync_Import_Engine {
 
         $this->config = array_merge($this->config, $config);
 
+        // ✅ FIX: Copy mark_as_test to session_data for Batch_Processor delegation
+        if (isset($config['mark_as_test'])) {
+            $this->session_data['mark_as_test'] = $config['mark_as_test'];
+
+            if ($config['mark_as_test']) {
+                $this->logger->log("🔖 Test import mode enabled via configure()", 'info');
+            }
+        }
+
         // Configure streaming parser
         $this->streaming_parser->configure(array(
             'chunk_size' => $this->config['chunk_size'],
@@ -556,7 +565,7 @@ class RealEstate_Sync_Import_Engine {
             'max_memory_mb' => $this->config['max_memory_mb'],
             'max_errors' => $this->config['max_errors']
         ));
-        
+
         $this->logger->log("Chunked import engine configured", 'info');
     }
     
@@ -738,10 +747,53 @@ class RealEstate_Sync_Import_Engine {
             $this->logger->log("Error processing property {$property_data['id']}: " . $e->getMessage(), 'error');
         }
     }
-    
+
+    /**
+     * ✅ PUBLIC METHOD for Batch_Processor delegation
+     * Process single property with full Import_Engine workflow
+     *
+     * This is the EXACT same logic as execute_chunked_import uses,
+     * but exposed as public so Batch_Processor can delegate to it.
+     *
+     * @param array $property_data Raw property data from XML
+     * @return array Result ['success' => bool, 'post_id' => int, 'action' => string, 'error' => string]
+     */
+    public function process_single_property($property_data) {
+        try {
+            $property_id = intval($property_data['id']);
+
+            // STEP 1: Calculate hash for change detection
+            $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
+
+            // STEP 2: Check if property exists and needs update
+            $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
+
+            error_log("[IMPORT-ENGINE] >>> Processing property {$property_id} (action: {$change_status['action']})");
+
+            // STEP 3: Process property using standard workflow
+            $this->process_property_by_action($property_data, $change_status, $property_hash);
+
+            error_log("[IMPORT-ENGINE] <<< Property {$property_id} processed successfully");
+
+            return array(
+                'success' => true,
+                'property_id' => $property_id,
+                'action' => $change_status['action']
+            );
+
+        } catch (Exception $e) {
+            error_log("[IMPORT-ENGINE] ❌ Property processing failed: " . $e->getMessage());
+
+            return array(
+                'success' => false,
+                'error' => $e->getMessage()
+            );
+        }
+    }
+
     /**
      * Processa property basandosi sull'action necessaria
-     * 
+     *
      * @param array $property_data Property data
      * @param array $change_status Change status da tracking manager
      * @param string $property_hash Property hash

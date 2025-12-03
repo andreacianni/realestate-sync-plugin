@@ -17,8 +17,19 @@ if (!defined('ABSPATH')) {
 }
 
 /**
- * RealEstate_Sync_WP_Importer Class
- * 
+ * RealEstate_Sync_WP_Importer Class (Legacy)
+ *
+ * @deprecated 2.0.0 Use RealEstate_Sync_WP_Importer_API instead
+ * @see RealEstate_Sync_WP_Importer_API
+ *
+ * This class is deprecated and will be removed in version 3.0.0.
+ * It has been replaced by WP_Importer_API which provides:
+ * - WPResidence REST API integration (proper WordPress/theme compatibility)
+ * - 60% less code (300 vs 1700 lines)
+ * - Better gallery handling (4 gallery systems compatibility)
+ * - Hash-based duplicate detection
+ * - Proper error handling and logging
+ *
  * Manages WordPress import operations including:
  * - Post creation and updates
  * - Meta fields assignment
@@ -77,12 +88,18 @@ class RealEstate_Sync_WP_Importer {
     /**
      * Constructor
      *
+     * @deprecated 2.0.0 Use RealEstate_Sync_WP_Importer_API instead
      * @param RealEstate_Sync_Logger $logger Logger instance
      * @param RealEstate_Sync_Property_Mapper $property_mapper Property mapper instance
      */
     public function __construct($logger = null, $property_mapper = null) {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
         $this->property_mapper = $property_mapper;
+
+        // Log deprecation warning in debug mode
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[DEPRECATION] RealEstate_Sync_WP_Importer is deprecated since version 2.0.0. Use RealEstate_Sync_WP_Importer_API instead. This class will be removed in version 3.0.0.');
+        }
         
         // 🖼️ INITIALIZE IMAGE IMPORTER v1.0
         $this->image_importer = new RealEstate_Sync_Image_Importer($this->logger);
