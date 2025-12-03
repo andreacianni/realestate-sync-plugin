@@ -14,7 +14,10 @@
  */
 
 // Security check - require secret token
-if (!isset($_GET['token']) || $_GET['token'] !== 'TrentinoImmo2025Secret!') {
+// Token can be configured via environment variable or uses default
+$valid_token = getenv('REALESTATE_SYNC_CRON_TOKEN') ?: 'TrentinoImmo2025Secret!';
+
+if (!isset($_GET['token']) || $_GET['token'] !== $valid_token) {
     error_log('[BATCH-CONTINUATION] ❌ Unauthorized access attempt from ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
     http_response_code(403);
     die('Forbidden');
