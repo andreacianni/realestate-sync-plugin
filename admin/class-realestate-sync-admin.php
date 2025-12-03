@@ -713,16 +713,14 @@ class RealEstate_Sync_Admin {
         }
 
         try {
-            // Get settings from database
-            $settings = get_option('realestate_sync_settings', array());
+            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
+            $settings = array(
+                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                'username' => 'trentinoimmobiliare_it',
+                'password' => 'dget6g52'
+            );
 
-            // Validate required settings
-            if (empty($settings['xml_url']) || empty($settings['username']) || empty($settings['password'])) {
-                wp_send_json_error('Configurazione mancante. Completa le impostazioni prima di avviare l\'import.');
-                return;
-            }
-
-            $this->logger->log('Using configured settings from database', 'info');
+            $this->logger->log('HARDCODE: Using hardcoded credentials for testing', 'info');
 
             // Check if user wants to mark properties as test
             $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
