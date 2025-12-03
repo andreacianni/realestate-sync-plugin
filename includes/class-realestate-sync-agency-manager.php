@@ -183,6 +183,14 @@ class RealEstate_Sync_Agency_Manager {
      * @return int|false Agency post ID if found, false otherwise
      */
     private function find_agency_by_xml_id($xml_id) {
+        // 🔍 Debug tracker
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Finding agency by XML ID', array(
+            'xml_id' => $xml_id,
+            'meta_key' => 'agency_xml_id'
+        ));
+
         $args = array(
             'post_type' => 'estate_agency',  // FIXED: API creates estate_agency, not estate_agent
             'meta_key' => 'agency_xml_id',  // Fixed: match lookup query
@@ -193,9 +201,23 @@ class RealEstate_Sync_Agency_Manager {
 
         $query = new WP_Query($args);
 
+        $tracker->log_query('AGENCY_MANAGER', $args, array(
+            'found_posts' => $query->found_posts,
+            'posts' => $query->posts
+        ));
+
         if ($query->have_posts()) {
-            return $query->posts[0];
+            $agency_id = $query->posts[0];
+            $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency found', array(
+                'xml_id' => $xml_id,
+                'wp_id' => $agency_id
+            ));
+            return $agency_id;
         }
+
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency not found', array(
+            'xml_id' => $xml_id
+        ));
 
         return false;
     }
@@ -208,27 +230,55 @@ class RealEstate_Sync_Agency_Manager {
      * @return int|false Agency ID on success, false on failure
      */
     private function create_agency_via_api($agency_data, $mark_as_test = false) {
+        // 🔍 Debug tracker
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Creating agency via API', array(
+            'name' => $agency_data['name'],
+            'xml_id' => $agency_data['xml_agency_id']
+        ));
+
         // Format for API
         $api_body = $this->api_writer->format_api_body($agency_data);
 
         // Create via API
         $result = $this->api_writer->create_agency($api_body);
 
+        // Log API call
+        $tracker->log_api_call('AGENCY_MANAGER', 'POST', '/wpresidence/v1/agency/add', $api_body, $result);
+
         if (!$result['success']) {
+            $tracker->log_event('ERROR', 'AGENCY_MANAGER', 'Agency creation failed', array(
+                'error' => $result['error']
+            ));
             $this->logger->log('Failed to create agency via API: ' . $result['error'], 'ERROR');
             return false;
         }
 
         $agency_id = $result['agency_id'];
 
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency created', array(
+            'xml_id' => $agency_data['xml_agency_id'],
+            'wp_id' => $agency_id
+        ));
+
         // Store XML ID for tracking (CRITICAL for property→agency lookup in PHASE 2)
         // NOTE: Using 'agency_xml_id' (not 'xml_agency_id') to match lookup query
         $xml_id = $agency_data['xml_agency_id'];
+
+        // Log meta save operation
+        $tracker->log_meta_operation('AGENCY_MANAGER', 'save', $agency_id, 'agency_xml_id', $xml_id);
+
         update_post_meta($agency_id, 'agency_xml_id', $xml_id);
         $this->logger->log("Stored agency_xml_id meta: agency_id=$agency_id, xml_id=$xml_id", 'INFO');
 
         // Verify it was saved
         $saved_value = get_post_meta($agency_id, 'agency_xml_id', true);
+
+        $tracker->log_meta_operation('AGENCY_MANAGER', 'verify', $agency_id, 'agency_xml_id', $saved_value, array(
+            'matches_expected' => ($saved_value === $xml_id)
+        ));
+
         $this->logger->log("Verified agency_xml_id meta: saved_value=$saved_value", 'INFO');
 
         // Mark as test if requested
@@ -248,19 +298,42 @@ class RealEstate_Sync_Agency_Manager {
      * @return bool Success status
      */
     private function update_agency_via_api($agency_id, $agency_data, $mark_as_test = false) {
+        // 🔍 Debug tracker
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Updating agency via API', array(
+            'wp_id' => $agency_id,
+            'xml_id' => $agency_data['xml_agency_id'],
+            'name' => $agency_data['name']
+        ));
+
         // Format for API
         $api_body = $this->api_writer->format_api_body($agency_data);
 
         // Update via API
         $result = $this->api_writer->update_agency($agency_id, $api_body);
 
+        // Log API call
+        $tracker->log_api_call('AGENCY_MANAGER', 'PUT', '/wpresidence/v1/agency/edit/' . $agency_id, $api_body, $result);
+
         if (!$result['success']) {
+            $tracker->log_event('ERROR', 'AGENCY_MANAGER', 'Agency update failed', array(
+                'wp_id' => $agency_id,
+                'error' => $result['error']
+            ));
             $this->logger->log("Failed to update agency $agency_id via API: " . $result['error'], 'ERROR');
             return false;
         }
 
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency updated', array(
+            'wp_id' => $agency_id,
+            'xml_id' => $agency_data['xml_agency_id']
+        ));
+
         // Update XML ID (in case it changed)
         // NOTE: Using 'agency_xml_id' (not 'xml_agency_id') to match lookup query
+        $tracker->log_meta_operation('AGENCY_MANAGER', 'update', $agency_id, 'agency_xml_id', $agency_data['xml_agency_id']);
+
         update_post_meta($agency_id, 'agency_xml_id', $agency_data['xml_agency_id']);
 
         // Mark as test if requested

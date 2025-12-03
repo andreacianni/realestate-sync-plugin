@@ -34,24 +34,33 @@ class RealEstate_Sync_Batch_Orchestrator {
 	 */
 	public static function process_xml_batch( $xml_file, $mark_as_test = false ) {
 
+		// 🔍 Start debug trace
+		$tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+		$trace_id = $tracker->start_trace('BATCH_ORCHESTRATOR', array(
+			'xml_file' => basename($xml_file),
+			'mark_as_test' => $mark_as_test
+		));
+
 		// Generate unique session ID for this import
 		$session_id = 'import_' . uniqid( '', true );
 
-		error_log( "[BATCH-ORCHESTRATOR] ========================================" );
-		error_log( "[BATCH-ORCHESTRATOR] Starting batch import: {$session_id}" );
-		error_log( "[BATCH-ORCHESTRATOR] XML file: {$xml_file}" );
-		error_log( "[BATCH-ORCHESTRATOR] Mark as test: " . ( $mark_as_test ? 'YES' : 'NO' ) );
-		error_log( "[BATCH-ORCHESTRATOR] ========================================" );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Starting batch import', array(
+			'session_id' => $session_id,
+			'trace_id' => $trace_id,
+			'xml_file' => $xml_file,
+			'mark_as_test' => $mark_as_test
+		));
 
 		// ═════════════════════════════════════════════════════════
 		// STEP 1: INDEX & FILTER (TN/BZ only)
 		// ═════════════════════════════════════════════════════════
-		error_log( "[BATCH-ORCHESTRATOR] STEP 1: Indexing XML and filtering TN/BZ" );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 1: Indexing XML and filtering TN/BZ');
 
 		// Load XML
 		$xml = simplexml_load_file( $xml_file );
 		if ( ! $xml ) {
-			error_log( "[BATCH-ORCHESTRATOR] ❌ ERROR: Failed to load XML file" );
+			$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to load XML file', array('file' => $xml_file));
+			$tracker->end_trace('error', array('error' => 'Failed to load XML file'));
 			return array(
 				'success' => false,
 				'error'   => 'Failed to load XML file',
@@ -62,13 +71,13 @@ class RealEstate_Sync_Batch_Orchestrator {
 		$settings          = get_option( 'realestate_sync_settings', array() );
 		$enabled_provinces = $settings['enabled_provinces'] ?? array( 'TN', 'BZ' );
 
-		error_log( "[BATCH-ORCHESTRATOR] Enabled provinces: " . implode( ', ', $enabled_provinces ) );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Enabled provinces', array('provinces' => $enabled_provinces));
 
 		// Index agencies (with province filter applied by Agency_Parser)
 		$agency_parser = new RealEstate_Sync_Agency_Parser();
 		$agencies      = $agency_parser->extract_agencies_from_xml( $xml );
 
-		error_log( "[BATCH-ORCHESTRATOR] Agencies found: " . count( $agencies ) );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Agencies found', array('count' => count($agencies)));
 
 		// Index properties (filter by comune_istat)
 		$properties      = array();
@@ -103,14 +112,16 @@ class RealEstate_Sync_Batch_Orchestrator {
 			}
 		}
 
-		error_log( "[BATCH-ORCHESTRATOR] Properties found (TN/BZ): " . count( $properties ) );
-		error_log( "[BATCH-ORCHESTRATOR] Properties skipped (other provinces): {$skipped_count}" );
-		error_log( "[BATCH-ORCHESTRATOR] Deleted items skipped: {$deleted_count}" );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Properties indexed', array(
+			'found' => count($properties),
+			'skipped_provinces' => $skipped_count,
+			'deleted' => $deleted_count
+		));
 
 		// ═════════════════════════════════════════════════════════
 		// STEP 2: CREATE QUEUE
 		// ═════════════════════════════════════════════════════════
-		error_log( "[BATCH-ORCHESTRATOR] STEP 2: Creating queue" );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 2: Creating queue');
 
 		$queue_manager = new RealEstate_Sync_Queue_Manager();
 
@@ -133,12 +144,16 @@ class RealEstate_Sync_Batch_Orchestrator {
 
 		$total_queued = $agencies_queued + $properties_queued;
 
-		error_log( "[BATCH-ORCHESTRATOR] Queue created: {$agencies_queued} agencies + {$properties_queued} properties = {$total_queued} total items" );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Queue created', array(
+			'agencies' => $agencies_queued,
+			'properties' => $properties_queued,
+			'total' => $total_queued
+		));
 
 		// ═════════════════════════════════════════════════════════
 		// STEP 3: PROCESS FIRST BATCH (Immediate)
 		// ═════════════════════════════════════════════════════════
-		error_log( "[BATCH-ORCHESTRATOR] STEP 3: Processing first batch (immediate)" );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 3: Processing first batch (immediate)');
 
 		// Save import progress metadata
 		update_option( 'realestate_sync_background_import_progress', array(
@@ -154,11 +169,12 @@ class RealEstate_Sync_Batch_Orchestrator {
 		$batch_processor   = new RealEstate_Sync_Batch_Processor( $session_id, $xml_file, $mark_as_test );
 		$first_batch_result = $batch_processor->process_next_batch();
 
-		error_log( "[BATCH-ORCHESTRATOR] First batch complete:" );
-		error_log( "[BATCH-ORCHESTRATOR] - Processed: {$first_batch_result['processed']}" );
-		error_log( "[BATCH-ORCHESTRATOR] - Agencies: " . ( $first_batch_result['agencies_processed'] ?? 0 ) );
-		error_log( "[BATCH-ORCHESTRATOR] - Properties: " . ( $first_batch_result['properties_processed'] ?? 0 ) );
-		error_log( "[BATCH-ORCHESTRATOR] - Complete: " . ( $first_batch_result['complete'] ? 'YES' : 'NO' ) );
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'First batch complete', array(
+			'processed' => $first_batch_result['processed'],
+			'agencies' => $first_batch_result['agencies_processed'] ?? 0,
+			'properties' => $first_batch_result['properties_processed'] ?? 0,
+			'complete' => $first_batch_result['complete']
+		));
 
 		// ═════════════════════════════════════════════════════════
 		// STEP 4: SETUP CONTINUATION (Cron)
@@ -186,9 +202,16 @@ class RealEstate_Sync_Batch_Orchestrator {
 			) );
 		}
 
-		error_log( "[BATCH-ORCHESTRATOR] ========================================" );
-		error_log( "[BATCH-ORCHESTRATOR] Batch orchestration complete" );
-		error_log( "[BATCH-ORCHESTRATOR] ========================================" );
+		// 🔍 End debug trace
+		$tracker->end_trace('completed', array(
+			'session_id' => $session_id,
+			'total_queued' => $total_queued,
+			'agencies_queued' => $agencies_queued,
+			'properties_queued' => $properties_queued,
+			'first_batch_processed' => $first_batch_result['processed'],
+			'complete' => $first_batch_result['complete'],
+			'remaining' => $total_queued - $first_batch_result['processed']
+		));
 
 		// Return results
 		return array(
