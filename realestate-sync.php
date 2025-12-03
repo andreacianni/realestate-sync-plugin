@@ -117,6 +117,7 @@ class RealEstate_Sync {
     private function load_dependencies() {
         // Core classes
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-logger.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-debug-tracker.php'; // 🔍 NEW: Debug Tracker v1.0 (Onion Logging)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-xml-downloader.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-xml-parser.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-mapper.php';
