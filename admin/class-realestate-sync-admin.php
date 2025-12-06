@@ -1331,41 +1331,73 @@ class RealEstate_Sync_Admin {
         $queue_table = $wpdb->prefix . 'realestate_import_queue';
         $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : '';
 
-        if (empty($session_id)) {
-            wp_send_json_error('Session ID required');
-            return;
-        }
+        // ✨ v1.7.0+: Support viewing ALL sessions (not just current one)
+        // If session_id is empty or 'all', show items from ALL sessions
+        $show_all_sessions = (empty($session_id) || $session_id === 'all');
 
-        // Get pending/processing items for this session with post data
-        // Adapted to existing table: status IN ('error', 'retry') instead of 'failed', processed_at instead of updated_at
-        $items = $wpdb->get_results($wpdb->prepare("
-            SELECT
-                q.id,
-                q.item_type,
-                q.item_id,
-                q.status,
-                q.error_message,
-                q.retry_count,
-                q.processed_at,
-                p.ID as wp_post_id,
-                p.post_title,
-                p.post_name as slug,
-                p.post_type
-            FROM {$queue_table} q
-            LEFT JOIN {$wpdb->posts} p ON (
-                (q.item_type = 'property' AND p.post_type = 'estate_property' AND p.ID IN (
-                    SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
-                ))
-                OR
-                (q.item_type = 'agency' AND p.post_type = 'estate_agent' AND p.ID IN (
-                    SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
-                ))
-            )
-            WHERE q.session_id = %s
-            AND q.status IN ('pending', 'processing', 'error', 'retry')
-            ORDER BY q.status DESC, COALESCE(q.processed_at, q.created_at) ASC
-            LIMIT 100
-        ", $session_id));
+        // Build WHERE clause conditionally
+        if ($show_all_sessions) {
+            // Get pending/processing items from ALL sessions with post data
+            $items = $wpdb->get_results("
+                SELECT
+                    q.id,
+                    q.session_id,
+                    q.item_type,
+                    q.item_id,
+                    q.status,
+                    q.error_message,
+                    q.retry_count,
+                    q.processed_at,
+                    p.ID as wp_post_id,
+                    p.post_title,
+                    p.post_name as slug,
+                    p.post_type
+                FROM {$queue_table} q
+                LEFT JOIN {$wpdb->posts} p ON (
+                    (q.item_type = 'property' AND p.post_type = 'estate_property' AND p.ID IN (
+                        SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
+                    ))
+                    OR
+                    (q.item_type = 'agency' AND p.post_type = 'estate_agent' AND p.ID IN (
+                        SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
+                    ))
+                )
+                WHERE q.status IN ('pending', 'processing', 'error', 'retry')
+                ORDER BY q.session_id DESC, q.status DESC, COALESCE(q.processed_at, q.created_at) ASC
+                LIMIT 200
+            ");
+        } else {
+            // Get pending/processing items for specific session with post data
+            $items = $wpdb->get_results($wpdb->prepare("
+                SELECT
+                    q.id,
+                    q.session_id,
+                    q.item_type,
+                    q.item_id,
+                    q.status,
+                    q.error_message,
+                    q.retry_count,
+                    q.processed_at,
+                    p.ID as wp_post_id,
+                    p.post_title,
+                    p.post_name as slug,
+                    p.post_type
+                FROM {$queue_table} q
+                LEFT JOIN {$wpdb->posts} p ON (
+                    (q.item_type = 'property' AND p.post_type = 'estate_property' AND p.ID IN (
+                        SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
+                    ))
+                    OR
+                    (q.item_type = 'agency' AND p.post_type = 'estate_agent' AND p.ID IN (
+                        SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
+                    ))
+                )
+                WHERE q.session_id = %s
+                AND q.status IN ('pending', 'processing', 'error', 'retry')
+                ORDER BY q.status DESC, COALESCE(q.processed_at, q.created_at) ASC
+                LIMIT 100
+            ", $session_id));
+        }
 
         // Build items with frontend URLs
         $items_with_urls = array();
@@ -1382,6 +1414,7 @@ class RealEstate_Sync_Admin {
 
             $items_with_urls[] = array(
                 'id' => $item->id,
+                'session_id' => $item->session_id, // ✨ v1.7.0+
                 'item_type' => $item->item_type,
                 'item_id' => $item->item_id,
                 'status' => $item->status,

@@ -684,11 +684,6 @@ jQuery(document).ready(function($) {
     $('#refresh-import-status').on('click', refreshImportStatus);
 
     $('#show-pending-details').on('click', function() {
-        if (!currentSessionId) {
-            alert('Nessuna sessione attiva');
-            return;
-        }
-
         const $list = $('#pending-items-list');
 
         if (!$list.hasClass('rs-hidden')) {
@@ -699,13 +694,18 @@ jQuery(document).ready(function($) {
 
         $(this).html('Caricamento...');
 
+        // ✨ v1.7.0+: If process is closed, show ALL sessions (not just current)
+        // This allows viewing historical pending items from previous imports
+        const isProcessClosed = !currentSessionId || $('#import-process-status').text().includes('CHIUSO');
+        const sessionToQuery = isProcessClosed ? 'all' : currentSessionId;
+
         $.ajax({
             url: realestateSync.ajax_url,
             type: 'POST',
             data: {
                 action: 'realestate_sync_get_failed_items',
                 nonce: realestateSync.nonce,
-                session_id: currentSessionId
+                session_id: sessionToQuery
             },
             success: function(response) {
                 if (response.success) {
@@ -714,8 +714,14 @@ jQuery(document).ready(function($) {
                     if (items.length === 0) {
                         $list.html('<p>Nessun elemento da mostrare.</p>');
                     } else {
+                        // ✨ v1.7.0+: Show Session ID column when viewing all sessions
+                        const showSessionColumn = (sessionToQuery === 'all');
+
                         let html = '<table style="width:100%; border-collapse: collapse;">';
                         html += '<thead><tr style="background: #f5f5f5; border-bottom: 2px solid #ddd;">';
+                        if (showSessionColumn) {
+                            html += '<th style="padding: 8px; text-align: left;">Session</th>';
+                        }
                         html += '<th style="padding: 8px; text-align: left;">Tipo</th>';
                         html += '<th style="padding: 8px; text-align: left;">ID</th>';
                         html += '<th style="padding: 8px; text-align: left;">Titolo</th>';
@@ -732,6 +738,11 @@ jQuery(document).ready(function($) {
                                                 '<span style="color: #856404;">⏳ Pending</span>';
 
                             html += '<tr style="border-bottom: 1px solid #eee;" data-item-id="' + item.id + '">';
+                            if (showSessionColumn) {
+                                // Show shortened session ID (last 8 chars)
+                                const shortSession = item.session_id ? item.session_id.slice(-12) : 'N/A';
+                                html += '<td style="padding: 8px; font-family: monospace; font-size: 11px; color: #666;" title="' + (item.session_id || '') + '">' + shortSession + '</td>';
+                            }
                             html += '<td style="padding: 8px;"><strong>' + item.item_type + '</strong></td>';
                             html += '<td style="padding: 8px;">' + item.item_id + '</td>';
                             html += '<td style="padding: 8px;">' + (item.title || '-') + '</td>';
