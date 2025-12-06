@@ -62,7 +62,8 @@ class RealEstate_Sync_Property_Mapper {
 
         $this->init_mappings();
 
-        $this->logger->log('Property Mapper v3.6 initialized - Hierarchical categories + Custom fields no-separators', 'info');
+        // Removed verbose init log - floods log in batch processing
+        // $this->logger->log('Property Mapper v3.6 initialized - Hierarchical categories + Custom fields no-separators', 'info');
     }
     
     private function init_mappings() {
@@ -1335,7 +1336,7 @@ class RealEstate_Sync_Property_Mapper {
             $xml_agency_id = isset($xml_property['agency_data']['id']) ? $xml_property['agency_data']['id'] : false;
 
             if (!$xml_agency_id) {
-                $this->logger->log('⚠️ No agency ID in agency_data for property: ' . $property_id, 'warning');
+                $this->logger->log('⚠️ No agency ID in agency_data for property: ' . (isset($xml_property['id']) ? $xml_property['id'] : 'unknown'), 'warning');
                 return false;
             }
 

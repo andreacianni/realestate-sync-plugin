@@ -24,6 +24,7 @@ class RealEstate_Sync_Import_Engine {
      * Component instances
      */
     private $logger;
+    private $tracker;  // 🔍 Debug Tracker for unified logging
     private $tracking_manager;
     private $streaming_parser;
     private $property_mapper;
@@ -64,6 +65,7 @@ class RealEstate_Sync_Import_Engine {
     public function __construct($property_mapper = null, $wp_importer = null, $logger = null) {
         // 🛡️ DEPENDENCY INJECTION: Use shared instances to prevent duplicate instantiation
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
+        $this->tracker = RealEstate_Sync_Debug_Tracker::get_instance();  // 🔍 Debug Tracker
         $this->property_mapper = $property_mapper ?: new RealEstate_Sync_Property_Mapper();
 
         // 🌟 IMPORTER SELECTION: Use API-based importer if enabled, legacy otherwise
@@ -762,18 +764,55 @@ class RealEstate_Sync_Import_Engine {
         try {
             $property_id = intval($property_data['id']);
 
+            // 🔍 LOG: Start property processing
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Processing property', array(
+                'property_id' => $property_id,
+                'has_price' => isset($property_data['price']),
+                'price' => $property_data['price'] ?? null
+            ));
+
             // STEP 1: Calculate hash for change detection
             $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
+
+            // 🔍 LOG: Hash calculated
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property hash calculated', array(
+                'property_id' => $property_id,
+                'hash' => $property_hash
+            ));
 
             // STEP 2: Check if property exists and needs update
             $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
 
+            // 🔍 LOG: Change detection result
+            $existing_record = $this->tracking_manager->get_tracking_record($property_id);
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Change detection complete', array(
+                'property_id' => $property_id,
+                'action' => $change_status['action'],
+                'has_changed' => $change_status['has_changed'],
+                'reason' => $change_status['reason'],
+                'old_hash' => $existing_record ? $existing_record['property_hash'] : null,
+                'new_hash' => $property_hash,
+                'hash_match' => $existing_record ? ($existing_record['property_hash'] === $property_hash) : false
+            ));
+
+            // 🔍 ENHANCED LOGGING: Show WHY this action was chosen
+            $wp_post_id = $existing_record ? ($existing_record['post_id'] ?? 'none') : 'none';
+            $property_title = $property_data['title'] ?? 'no title';
             error_log("[IMPORT-ENGINE] >>> Processing property {$property_id} (action: {$change_status['action']})");
+            error_log("[IMPORT-ENGINE]     Reason: {$change_status['reason']}");
+            error_log("[IMPORT-ENGINE]     WP Post ID: {$wp_post_id}");
+            error_log("[IMPORT-ENGINE]     Title: {$property_title}");
 
             // STEP 3: Process property using standard workflow
             $this->process_property_by_action($property_data, $change_status, $property_hash);
 
             error_log("[IMPORT-ENGINE] <<< Property {$property_id} processed successfully");
+
+            // 🔍 LOG: Property processed successfully
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property processed successfully', array(
+                'property_id' => $property_id,
+                'action' => $change_status['action']
+            ));
 
             return array(
                 'success' => true,
@@ -783,6 +822,12 @@ class RealEstate_Sync_Import_Engine {
 
         } catch (Exception $e) {
             error_log("[IMPORT-ENGINE] ❌ Property processing failed: " . $e->getMessage());
+
+            // 🔍 LOG: Error
+            $this->tracker->log_event('ERROR', 'IMPORT_ENGINE', 'Property processing failed', array(
+                'property_id' => $property_id ?? null,
+                'error' => $e->getMessage()
+            ));
 
             return array(
                 'success' => false,
@@ -841,8 +886,24 @@ class RealEstate_Sync_Import_Engine {
 
         if ($change_status['action'] === 'insert') {
             $this->logger->log("➤ STEP 5: WP IMPORTER - Creating NEW property", 'info');
+
+            // 🔍 LOG: Creating property
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Creating NEW property via API', array(
+                'property_id' => $property_id,
+                'price' => $mapped_data['property_price'] ?? null
+            ));
+
             // 🚀 NEW PROPERTY: Use WP Importer (v3.0 legacy or API-based)
             $result = $this->call_wp_importer($mapped_data);
+
+            // 🔍 LOG: API result
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property creation result', array(
+                'property_id' => $property_id,
+                'success' => $result['success'],
+                'wp_post_id' => $result['post_id'] ?? null,
+                'action' => $result['action'] ?? null,
+                'error' => $result['error'] ?? null
+            ));
 
             if ($result['success']) {
                 $this->logger->log("✅ STEP 5a: Property created successfully", 'info', [
@@ -863,10 +924,10 @@ class RealEstate_Sync_Import_Engine {
                     $property_data,
                     'active'
                 );
-                
+
                 // 🆕 Store agency data for later linking
                 $this->store_property_agency_data($property_data, $result['post_id']);
-                
+
                 $this->stats['new_properties']++;
 
                 $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
@@ -876,8 +937,25 @@ class RealEstate_Sync_Import_Engine {
 
         } elseif ($change_status['action'] === 'update') {
             $this->logger->log("➤ STEP 5: WP IMPORTER - Updating EXISTING property", 'info');
+
+            // 🔍 LOG: Updating property
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Updating EXISTING property via API', array(
+                'property_id' => $property_id,
+                'wp_post_id' => $change_status['wp_post_id'] ?? null,
+                'price' => $mapped_data['property_price'] ?? null
+            ));
+
             // 🔄 UPDATE PROPERTY: Use WP Importer (v3.0 legacy or API-based)
             $result = $this->call_wp_importer($mapped_data);
+
+            // 🔍 LOG: API result
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property update result', array(
+                'property_id' => $property_id,
+                'success' => $result['success'],
+                'wp_post_id' => $result['post_id'] ?? null,
+                'action' => $result['action'] ?? null,
+                'error' => $result['error'] ?? null
+            ));
 
             if ($result['success']) {
                 if ($result['action'] === 'updated') {

@@ -9,7 +9,7 @@
 		<comune istat="022205">Trento</comune>
 		<provincia>Trento</provincia>
 		<indirizzo><![CDATA[Corso del Lavoro e della Scienza 3]]></indirizzo>
-		<email>andrea.cianni@gmail.com</email>
+		<email>pippo@gmail.com</email>
 		<url>https://www.trentinoimmobiliare.it</url>
 		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/106/640x480/logo_2.png</logo>
 		<telefono>0461234567</telefono>
@@ -22,7 +22,7 @@
 		<agency_code>AG001</agency_code>
 		<deleted>0</deleted>
 		<mq>85</mq>
-		<price>385000</price>
+		<price>999000</price>
 		<flag_vacanza>0</flag_vacanza>
 		<age><![CDATA[2022]]></age>
 		<ipe>18.50</ipe>
@@ -155,7 +155,7 @@
 		<comune istat="022205">Trento</comune>
 		<provincia>Trento</provincia>
 		<indirizzo><![CDATA[Corso del Lavoro e della Scienza 3]]></indirizzo>
-		<email>info@pippo.it</email>
+		<email>info2@pippo.it</email>
 		<url>https://www.trentinoimmobiliare.it</url>
 		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/692/640x480/logo_la_base.jpg</logo>
 		<telefono>0461234567</telefono>
@@ -168,7 +168,7 @@
 		<agency_code>AG001</agency_code>
 		<deleted>0</deleted>
 		<mq>350</mq>
-		<price>1450000</price>
+		<price>999000</price>
 		<flag_vacanza>0</flag_vacanza>
 		<age><![CDATA[2020]]></age>
 		<ipe>15.20</ipe>
@@ -303,7 +303,7 @@
 		<comune istat="022205">Trento</comune>
 		<provincia>Trento</provincia>
 		<indirizzo><![CDATA[Via Brennero 125]]></indirizzo>
-		<email>info@dolomitirealestate.com</email>
+		<email>infoXXX@dolomitirealestate.com</email>
 		<url>https://www.dolomitirealestate.com</url>
 		<logo>https://media.gestionaleimmobiliare.it/logo/agenzie/580/640x480/logo_internet.jpg</logo>
 		<telefono>0461987654</telefono>
@@ -316,7 +316,7 @@
 		<agency_code>AG002</agency_code>
 		<deleted>0</deleted>
 		<mq>180</mq>
-		<price>620000</price>
+		<price>999000</price>
 		<flag_vacanza>0</flag_vacanza>
 		<age><![CDATA[2005]]></age>
 		<ipe>55.80</ipe>

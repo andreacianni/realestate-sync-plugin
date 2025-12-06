@@ -600,16 +600,37 @@ class RealEstate_Sync {
      */
     public function run_scheduled_import() {
         try {
-            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS SETTINGS
-            $settings = array(
-                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
-                'username' => 'trentinoimmobiliare_it',
-                'password' => 'dget6g52',
-                'chunk_size' => 25,
-                'sleep_seconds' => 1
-            );
-            
-            $this->instances['logger']->log('HARDCODE: Using hardcoded credentials for scheduled import', 'info');
+            // Get credential source
+            $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
+
+            if ($credential_source === 'database') {
+                // Use credentials from database
+                $settings = array(
+                    'xml_url' => get_option('realestate_sync_xml_url', ''),
+                    'username' => get_option('realestate_sync_xml_user', ''),
+                    'password' => get_option('realestate_sync_xml_pass', ''),
+                    'chunk_size' => 25,
+                    'sleep_seconds' => 1
+                );
+
+                if (empty($settings['xml_url']) || empty($settings['username']) || empty($settings['password'])) {
+                    throw new Exception('XML credentials not configured in database');
+                }
+
+                $this->instances['logger']->log('Scheduled import: Using XML credentials from database', 'info');
+
+            } else {
+                // Use hardcoded credentials
+                $settings = array(
+                    'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                    'username' => 'trentinoimmobiliare_it',
+                    'password' => 'dget6g52',
+                    'chunk_size' => 25,
+                    'sleep_seconds' => 1
+                );
+
+                $this->instances['logger']->log('Scheduled import: Using hardcoded XML credentials', 'info');
+            }
             
             // Download XML
             $downloader = new RealEstate_Sync_XML_Downloader();

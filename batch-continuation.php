@@ -5,11 +5,14 @@
  * Called by server cron every minute to process pending batches.
  * Security: Requires secret token to prevent unauthorized access.
  *
+ * ✅ NEW ROBUST APPROACH: Checks queue directly instead of transients
+ * No more cache fragility - queue is the source of truth!
+ *
  * Server Cron Command:
  * * * * * * wget -q -O - "https://trentinoimmobiliare.it/wp-content/plugins/realestate-sync-plugin/batch-continuation.php?token=TrentinoImmo2025Secret!" >/dev/null 2>&1
  *
  * @package RealEstate_Sync
- * @version 1.5.0
+ * @version 1.6.0
  * @since 1.5.0
  */
 
@@ -26,40 +29,218 @@ error_log('[BATCH-CONTINUATION] ========== Cron check started ==========');
 define('WP_USE_THEMES', false);
 require_once(dirname(__FILE__) . '/../../../wp-load.php');
 
-// Check if there's a pending batch
-$pending_session = get_transient('realestate_sync_pending_batch');
+// ========================================================================
+// ✅ STEP 1: Check if scheduled import should start
+// ========================================================================
+$schedule_enabled = get_option('realestate_sync_schedule_enabled', false);
 
-if (!$pending_session) {
-    error_log('[BATCH-CONTINUATION] No pending batch found - exiting');
-    echo "OK - No pending batch\n";
+if ($schedule_enabled) {
+    // Get last run timestamp
+    $last_run = get_option('realestate_sync_last_scheduled_run', 0);
+    $schedule_config = array(
+        'time' => get_option('realestate_sync_schedule_time', '23:00'),
+        'frequency' => get_option('realestate_sync_schedule_frequency', 'daily'),
+        'weekday' => get_option('realestate_sync_schedule_weekday', 1),
+        'custom_days' => get_option('realestate_sync_schedule_custom_days', 1),
+        'custom_months' => get_option('realestate_sync_schedule_custom_months', 1)
+    );
+
+    // Check if it's time to run
+    $should_run = false;
+    $now = current_time('timestamp');
+    $today = strtotime(current_time('Y-m-d'));
+
+    list($hour, $minute) = explode(':', $schedule_config['time']);
+    $scheduled_time_today = $today + ($hour * 3600) + ($minute * 60);
+
+    switch ($schedule_config['frequency']) {
+        case 'daily':
+            // Run if we passed scheduled time today and haven't run today yet
+            if ($now >= $scheduled_time_today && $last_run < $today) {
+                $should_run = true;
+            }
+            break;
+
+        case 'weekly':
+            $current_weekday = intval(date('w', $now));
+            if ($current_weekday == $schedule_config['weekday'] &&
+                $now >= $scheduled_time_today &&
+                $last_run < $today) {
+                $should_run = true;
+            }
+            break;
+
+        case 'custom_days':
+            $days_since_last = floor(($now - $last_run) / 86400);
+            if ($days_since_last >= $schedule_config['custom_days'] &&
+                $now >= $scheduled_time_today &&
+                $last_run < $today) {
+                $should_run = true;
+            }
+            break;
+
+        case 'custom_months':
+            $months_since_last = floor(($now - $last_run) / (86400 * 30));
+            if ($months_since_last >= $schedule_config['custom_months'] &&
+                $now >= $scheduled_time_today &&
+                $last_run < $today) {
+                $should_run = true;
+            }
+            break;
+    }
+
+    if ($should_run) {
+        error_log('[BATCH-CONTINUATION] 🕐 SCHEDULED IMPORT TRIGGER: Starting scheduled import now');
+
+        // Update last run timestamp BEFORE starting (prevent duplicate runs)
+        update_option('realestate_sync_last_scheduled_run', $now);
+
+        try {
+            // Get credential source
+            $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
+
+            if ($credential_source === 'database') {
+                $settings = array(
+                    'xml_url' => get_option('realestate_sync_xml_url', ''),
+                    'username' => get_option('realestate_sync_xml_user', ''),
+                    'password' => get_option('realestate_sync_xml_pass', '')
+                );
+
+                if (empty($settings['xml_url']) || empty($settings['username']) || empty($settings['password'])) {
+                    throw new Exception('XML credentials not configured');
+                }
+
+                error_log('[BATCH-CONTINUATION] Using XML credentials from database');
+            } else {
+                $settings = array(
+                    'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                    'username' => 'trentinoimmobiliare_it',
+                    'password' => 'dget6g52'
+                );
+
+                error_log('[BATCH-CONTINUATION] Using hardcoded XML credentials');
+            }
+
+            // Download XML
+            $downloader = new RealEstate_Sync_XML_Downloader();
+            $xml_file = $downloader->download_xml($settings['xml_url'], $settings['username'], $settings['password']);
+
+            if (!$xml_file) {
+                throw new Exception('Failed to download XML file');
+            }
+
+            // Get test mode setting
+            $mark_as_test = get_option('realestate_sync_schedule_mark_test', false);
+
+            // Start batch import using Batch Orchestrator
+            error_log('[BATCH-CONTINUATION] 🎯 Calling Batch Orchestrator for scheduled import');
+
+            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($xml_file, $mark_as_test);
+
+            if (!$result['success']) {
+                throw new Exception('Batch processing failed: ' . ($result['error'] ?? 'Unknown error'));
+            }
+
+            error_log('[BATCH-CONTINUATION] ✅ Scheduled import batch started: ' . $result['total_queued'] . ' items queued, ' . $result['first_batch_processed'] . ' processed');
+            error_log('[BATCH-CONTINUATION] 🔄 Continuing with batch processing...');
+
+        } catch (Exception $e) {
+            error_log('[BATCH-CONTINUATION] ❌ Scheduled import failed: ' . $e->getMessage());
+        }
+    }
+}
+
+// ========================================================================
+// ✅ STEP 2: Continue processing existing batches
+// ========================================================================
+
+// ✅ Check for processing lock (prevent concurrent runs)
+// NOTE: Keep lock as transient - it's short-lived (2 min) and not critical if lost
+$processing_lock = get_transient('realestate_sync_processing_lock');
+if ($processing_lock) {
+    error_log('[BATCH-CONTINUATION] >>> Another batch is processing - skipping this run');
+    echo "OK - Batch already processing\n";
     exit;
 }
 
-error_log("[BATCH-CONTINUATION] >>> Found pending session: {$pending_session}");
+// ✅ NEW: Query queue directly for active sessions with pending items
+// This is ROBUST - no transient to lose, queue is source of truth!
+global $wpdb;
+$queue_table = $wpdb->prefix . 'realestate_import_queue';
 
-// Get XML file path and mark_as_test flag from session progress
+$active_session = $wpdb->get_row("
+    SELECT
+        session_id,
+        COUNT(*) as total,
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+    FROM {$queue_table}
+    GROUP BY session_id
+    HAVING pending > 0
+    ORDER BY MIN(created_at) ASC
+    LIMIT 1
+");
+
+if (!$active_session || $active_session->pending == 0) {
+    error_log('[BATCH-CONTINUATION] No active sessions with pending items - exiting');
+    echo "OK - No pending work\n";
+    exit;
+}
+
+$session_id = $active_session->session_id;
+error_log("[BATCH-CONTINUATION] >>> Found active session: {$session_id}");
+error_log("[BATCH-CONTINUATION] >>> Pending items in queue: {$active_session->pending} / {$active_session->total}");
+
+// Set processing lock (expires in 2 minutes - longer than batch timeout)
+set_transient('realestate_sync_processing_lock', $session_id, 120);
+error_log('[BATCH-CONTINUATION] >>> Processing lock set');
+
+// Get session info from progress option
 $progress = get_option('realestate_sync_background_import_progress', array());
+
+// Verify session match (warn if mismatch but continue)
+if (($progress['session_id'] ?? '') !== $session_id) {
+    error_log("[BATCH-CONTINUATION] ⚠️ WARNING: Progress session mismatch");
+    error_log("[BATCH-CONTINUATION]   Queue session: {$session_id}");
+    error_log("[BATCH-CONTINUATION]   Progress session: " . ($progress['session_id'] ?? 'none'));
+    error_log("[BATCH-CONTINUATION]   Continuing with queue session...");
+}
+
 $xml_file_path = $progress['xml_file_path'] ?? '';
 $mark_as_test = $progress['mark_as_test'] ?? false;
 
 if (empty($xml_file_path)) {
     error_log('[BATCH-CONTINUATION] ❌ ERROR: XML file path not found in session progress');
+    delete_transient('realestate_sync_processing_lock'); // Release lock
     echo "ERROR - XML file path not found\n";
     exit;
 }
 
 if (!file_exists($xml_file_path)) {
     error_log("[BATCH-CONTINUATION] ❌ ERROR: XML file does not exist: {$xml_file_path}");
-    echo "ERROR - XML file not found\n";
+    error_log("[BATCH-CONTINUATION] >>> Marking session as FAILED to prevent infinite loop");
+
+    // Mark all pending items as failed to stop the loop
+    $wpdb->query($wpdb->prepare("
+        UPDATE {$queue_table}
+        SET status = 'failed',
+            error_message = 'XML file deleted - session aborted'
+        WHERE session_id = %s
+          AND status IN ('pending', 'processing')
+    ", $session_id));
+
+    $failed_count = $wpdb->rows_affected;
+    error_log("[BATCH-CONTINUATION] >>> Marked {$failed_count} items as failed");
+
+    // Clear progress option
+    delete_option('realestate_sync_background_import_progress');
+
+    delete_transient('realestate_sync_processing_lock'); // Release lock
+    echo "ERROR - XML file not found, session marked as failed\n";
     exit;
 }
 
 error_log("[BATCH-CONTINUATION] >>> XML file: {$xml_file_path}");
 error_log("[BATCH-CONTINUATION] >>> Mark as test: " . ($mark_as_test ? 'YES' : 'NO'));
-
-// Delete transient to prevent concurrent execution
-delete_transient('realestate_sync_pending_batch');
-error_log('[BATCH-CONTINUATION] >>> Transient deleted (preventing concurrent runs)');
 
 // Load the batch processor
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-queue-manager.php');
@@ -67,7 +248,7 @@ require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processo
 
 try {
     error_log('[BATCH-CONTINUATION] >>> Creating batch processor...');
-    $batch_processor = new RealEstate_Sync_Batch_Processor($pending_session, $xml_file_path, $mark_as_test);
+    $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test);
 
     error_log('[BATCH-CONTINUATION] >>> Processing next batch...');
     $result = $batch_processor->process_next_batch();
@@ -79,10 +260,15 @@ try {
     $progress['last_batch_time'] = time();
     update_option('realestate_sync_background_import_progress', $progress);
 
-    // If not complete, set transient for next run
+    // ✅ Release processing lock
+    delete_transient('realestate_sync_processing_lock');
+    error_log('[BATCH-CONTINUATION] >>> Processing lock released');
+
+    // ✅ NO MORE TRANSIENT MANAGEMENT - Queue is source of truth!
+    // Cron will keep running and checking queue until it's empty
     if (!$result['complete']) {
-        set_transient('realestate_sync_pending_batch', $pending_session, 300);
-        error_log("[BATCH-CONTINUATION] >>> Batch not complete - transient reset for continuation");
+        $remaining = $result['stats']['pending'] ?? 'unknown';
+        error_log("[BATCH-CONTINUATION] >>> Batch not complete - {$remaining} items remaining in queue");
         echo "OK - Batch processed, more pending\n";
     } else {
         error_log('[BATCH-CONTINUATION] ========== ALL BATCHES COMPLETE ==========');
@@ -92,6 +278,18 @@ try {
         $progress['end_time'] = time();
         update_option('realestate_sync_background_import_progress', $progress);
 
+        // ✅ POST-IMPORT VERIFICATION: Quality check su proprietà INSERT/UPDATE
+        error_log('[VERIFICATION] >>> Starting post-import quality check...');
+        try {
+            require_once(dirname(__FILE__) . '/includes/class-realestate-sync-import-verifier.php');
+            $verifier = new RealEstate_Sync_Import_Verifier();
+            $verifier->verify_session($session_id);
+            error_log('[VERIFICATION] >>> Quality check completed');
+        } catch (Exception $e) {
+            error_log('[VERIFICATION] ERROR: ' . $e->getMessage());
+            // Non blocca - verifica è opzionale
+        }
+
         echo "OK - All batches complete!\n";
     }
 
@@ -99,8 +297,9 @@ try {
     error_log('[BATCH-CONTINUATION] ❌ ERROR: ' . $e->getMessage());
     error_log('[BATCH-CONTINUATION] Stack trace: ' . $e->getTraceAsString());
 
-    // Reset transient on error for retry
-    set_transient('realestate_sync_pending_batch', $pending_session, 300);
+    // ✅ Release processing lock on error
+    delete_transient('realestate_sync_processing_lock');
+    error_log('[BATCH-CONTINUATION] >>> Processing lock released (error)');
 
     // Mark error in progress
     $progress['last_error'] = $e->getMessage();

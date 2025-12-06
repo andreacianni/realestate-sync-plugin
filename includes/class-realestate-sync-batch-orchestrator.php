@@ -80,9 +80,14 @@ class RealEstate_Sync_Batch_Orchestrator {
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Agencies found', array('count' => count($agencies)));
 
 		// Index properties (filter by comune_istat)
+		// ✅ OPTIMIZATION: Parse property data NOW to avoid re-loading 324MB XML later
 		$properties      = array();
+		$properties_data = array(); // ← Store FULL property data
 		$skipped_count   = 0;
 		$deleted_count   = 0;
+
+		// Initialize XML Parser for property parsing
+		$xml_parser = new RealEstate_Sync_XML_Parser();
 
 		foreach ( $xml->annuncio as $annuncio ) {
 
@@ -106,6 +111,12 @@ class RealEstate_Sync_Batch_Orchestrator {
 				$property_id = (string) $annuncio->info->id;
 				if ( ! empty( $property_id ) ) {
 					$properties[] = $property_id;
+
+					// ✅ Parse FULL property data NOW (avoid re-loading XML later)
+					$property_data = $xml_parser->parse_annuncio_xml( $annuncio->asXML() );
+					if ( $property_data ) {
+						$properties_data[ $property_id ] = $property_data;
+					}
 				}
 			} else {
 				$skipped_count++;
@@ -130,16 +141,34 @@ class RealEstate_Sync_Batch_Orchestrator {
 
 		// Add agencies to queue (higher priority - process first)
 		$agencies_queued = 0;
+		$agencies_failed = 0;
 		foreach ( $agencies as $agency ) {
-			$queue_manager->add_agency( $session_id, $agency['id'] );
-			$agencies_queued++;
+			$result = $queue_manager->add_agency( $session_id, $agency['id'] );
+			if ( $result ) {
+				$agencies_queued++;
+			} else {
+				$agencies_failed++;
+				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add agency to queue', array(
+					'agency_id' => $agency['id'],
+					'wpdb_error' => $GLOBALS['wpdb']->last_error
+				));
+			}
 		}
 
 		// Add properties to queue
 		$properties_queued = 0;
+		$properties_failed = 0;
 		foreach ( $properties as $property_id ) {
-			$queue_manager->add_property( $session_id, $property_id );
-			$properties_queued++;
+			$result = $queue_manager->add_property( $session_id, $property_id );
+			if ( $result ) {
+				$properties_queued++;
+			} else {
+				$properties_failed++;
+				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add property to queue', array(
+					'property_id' => $property_id,
+					'wpdb_error' => $GLOBALS['wpdb']->last_error
+				));
+			}
 		}
 
 		$total_queued = $agencies_queued + $properties_queued;
@@ -147,7 +176,25 @@ class RealEstate_Sync_Batch_Orchestrator {
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Queue created', array(
 			'agencies' => $agencies_queued,
 			'properties' => $properties_queued,
-			'total' => $total_queued
+			'total' => $total_queued,
+			'agencies_failed' => $agencies_failed,
+			'properties_failed' => $properties_failed
+		));
+
+		// ═════════════════════════════════════════════════════════
+		// STEP 2b: SAVE PARSED DATA (Avoid re-loading 324MB XML)
+		// ═════════════════════════════════════════════════════════
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Saving parsed data to database');
+
+		// Store agencies and properties data for Batch Processor
+		update_option( "realestate_sync_batch_data_{$session_id}", array(
+			'agencies'   => $agencies,
+			'properties' => $properties_data,
+		), false ); // autoload = false (don't load on every page)
+
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Parsed data saved', array(
+			'agencies_count' => count($agencies),
+			'properties_count' => count($properties_data)
 		));
 
 		// ═════════════════════════════════════════════════════════
@@ -180,14 +227,14 @@ class RealEstate_Sync_Batch_Orchestrator {
 		// STEP 4: SETUP CONTINUATION (Cron)
 		// ═════════════════════════════════════════════════════════
 		if ( ! $first_batch_result['complete'] ) {
-			error_log( "[BATCH-ORCHESTRATOR] STEP 4: Setting up cron continuation" );
+			error_log( "[BATCH-ORCHESTRATOR] STEP 4: Continuation setup - queue is source of truth" );
 
-			// Set transient for cron to pick up
-			// Transient expires in 300 seconds (5 minutes)
-			set_transient( 'realestate_sync_pending_batch', $session_id, 300 );
+			// ✅ NO TRANSIENT NEEDED - Cron checks queue directly!
+			// Queue with pending items = continuation will happen automatically
+			// More robust than transients (no cache dependency)
 
-			error_log( "[BATCH-ORCHESTRATOR] Transient set - cron will continue processing" );
-			error_log( "[BATCH-ORCHESTRATOR] Remaining items: " . ( $total_queued - $first_batch_result['processed'] ) );
+			error_log( "[BATCH-ORCHESTRATOR] Remaining items in queue: " . ( $total_queued - $first_batch_result['processed'] ) );
+			error_log( "[BATCH-ORCHESTRATOR] Cron will continue processing on next run" );
 		} else {
 			error_log( "[BATCH-ORCHESTRATOR] All items processed in first batch - COMPLETE!" );
 

@@ -43,9 +43,12 @@ class RealEstate_Sync_Tracking_Manager {
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->logger = RealEstate_Sync_Logger::get_instance();
-        
+
         // Hook per creazione tabella su activation
         add_action('realestate_sync_create_tables', array($this, 'create_tracking_table'));
+
+        // Hook per cleanup automatico quando property viene cancellata dal backend
+        add_action('before_delete_post', array($this, 'cleanup_tracking_on_delete'), 10, 2);
     }
     
     /**
@@ -101,27 +104,51 @@ class RealEstate_Sync_Tracking_Manager {
     public function calculate_property_hash($property_data) {
         // HASH SU TUTTI I CAMPI - Risolve change detection failed
         $hash_data = $property_data;
-        
+
+        // 🔍 LOG: Debug hash calculation (check if price is included)
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        if ($tracker->is_active()) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Hash calculation - fields included', array(
+                'property_id' => $property_data['id'] ?? null,
+                'has_price' => isset($property_data['price']),
+                'price_value' => $property_data['price'] ?? null,
+                'has_numeric_data' => isset($property_data['numeric_data']),
+                'has_features' => isset($property_data['features']),
+                'total_fields' => count($property_data)
+            ));
+        }
+
         // Normalizza array per consistency hash
         if (isset($hash_data['features']) && is_array($hash_data['features'])) {
             ksort($hash_data['features']);
         }
-        
+
         if (isset($hash_data['numeric_data']) && is_array($hash_data['numeric_data'])) {
             ksort($hash_data['numeric_data']);
         }
-        
+
         if (isset($hash_data['info_inserite']) && is_array($hash_data['info_inserite'])) {
             ksort($hash_data['info_inserite']);
         }
-        
+
         if (isset($hash_data['dati_inseriti']) && is_array($hash_data['dati_inseriti'])) {
             ksort($hash_data['dati_inseriti']);
         }
-        
+
         // Genera hash MD5 su tutti i dati
         $hash_string = serialize($hash_data);
-        return md5($hash_string);
+        $hash = md5($hash_string);
+
+        // 🔍 LOG: Hash generated
+        if ($tracker->is_active()) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Hash generated', array(
+                'property_id' => $property_data['id'] ?? null,
+                'hash' => $hash,
+                'data_size' => strlen($hash_string)
+            ));
+        }
+
+        return $hash;
     }
     
     /**
@@ -356,20 +383,53 @@ class RealEstate_Sync_Tracking_Manager {
      */
     public function cleanup_old_tracking_records($days = 90) {
         $table_name = $this->wpdb->prefix . self::TABLE_NAME;
-        
+
         $result = $this->wpdb->query(
             $this->wpdb->prepare(
-                "DELETE FROM $table_name 
-                 WHERE status = 'deleted' 
+                "DELETE FROM $table_name
+                 WHERE status = 'deleted'
                  AND updated_date < DATE_SUB(NOW(), INTERVAL %d DAY)",
                 $days
             )
         );
-        
+
         if ($result !== false) {
             $this->logger->log("Cleaned up $result old tracking records (older than $days days)", 'info');
         }
-        
+
         return $result;
+    }
+
+    /**
+     * Cleanup tracking automatico quando property viene cancellata dal backend WP
+     *
+     * Previene tracking orphan che causano SKIP su re-import.
+     * Risolve issue: cancellare property da backend → tracking rimane → re-import skippa perché hash uguale
+     *
+     * @param int $post_id WordPress Post ID being deleted
+     * @param WP_Post $post WordPress Post object
+     * @return void
+     */
+    public function cleanup_tracking_on_delete($post_id, $post) {
+        // Solo per estate_property post type
+        if ($post->post_type !== 'estate_property') {
+            return;
+        }
+
+        $table_name = $this->wpdb->prefix . self::TABLE_NAME;
+
+        // Delete tracking record per questo wp_post_id
+        $deleted = $this->wpdb->delete(
+            $table_name,
+            array('wp_post_id' => $post_id),
+            array('%d')
+        );
+
+        if ($deleted) {
+            $this->logger->log("[TRACKING-CLEANUP] Removed tracking for deleted property (wp_post_id: {$post_id})", 'info');
+        } else {
+            // Non è un errore - property potrebbe non avere tracking (es. creata manualmente)
+            $this->logger->log("[TRACKING-CLEANUP] No tracking found for deleted property (wp_post_id: {$post_id})", 'debug');
+        }
     }
 }

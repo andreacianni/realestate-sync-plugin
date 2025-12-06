@@ -76,7 +76,8 @@ class RealEstate_Sync_WPResidence_API_Writer {
 		$this->api_base_url = get_site_url() . '/wp-json/wpresidence/v1';
 		$this->jwt_auth_url = get_site_url() . '/wp-json/jwt-auth/v1/token';
 
-		$this->logger->log('API Writer initialized', 'INFO');
+		// Removed verbose init log - floods log in batch processing
+		// $this->logger->log('API Writer initialized', 'INFO');
 	}
 
 	/**

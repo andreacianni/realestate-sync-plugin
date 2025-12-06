@@ -18,11 +18,11 @@
 	</agenzia>
 
 	<info>
-		<id>TEST001</id>
+		<id>9999997</id>
 		<agency_code>AG001</agency_code>
 		<deleted>0</deleted>
 		<mq>85</mq>
-		<price>666000</price>
+		<price>999000</price>
 		<flag_vacanza>0</flag_vacanza>
 		<age><![CDATA[2022]]></age>
 		<ipe>18.50</ipe>
@@ -31,7 +31,7 @@
 		<title><![CDATA[Appartamento Centro Trento - Classe A+]]></title>
 		<description><![CDATA[Splendido appartamento moderno di 85 mq nel cuore di Trento. Completamente ristrutturato nel 2022 con criteri di massima efficienza energetica (Classe A+). Dotato di impianto fotovoltaico, riscaldamento a pavimento, domotica completa. Ampio soggiorno con cucina open space, 2 camere matrimoniali, 2 bagni, balcone panoramico con vista sulle Dolomiti. Cantina e posto auto coperto inclusi.]]></description>
 		<zona><![CDATA[Centro Storico]]></zona>
-		<comune_istat>022205</comune_istat>
+		<comune_istat>021205</comune_istat>
 		<indirizzo><![CDATA[Piazza Duomo]]></indirizzo>
 		<last_editor_time>2025-01-15 10:30:00</last_editor_time>
 		<categorie_id>11</categorie_id>
@@ -164,11 +164,11 @@
 	</agenzia>
 
 	<info>
-		<id>TEST002</id>
+		<id>9999998</id>
 		<agency_code>AG001</agency_code>
 		<deleted>0</deleted>
 		<mq>350</mq>
-		<price>666000</price>
+		<price>999000</price>
 		<flag_vacanza>0</flag_vacanza>
 		<age><![CDATA[2020]]></age>
 		<ipe>15.20</ipe>
@@ -312,11 +312,11 @@
 	</agenzia>
 
 	<info>
-		<id>TEST003</id>
+		<id>9999999</id>
 		<agency_code>AG002</agency_code>
 		<deleted>0</deleted>
 		<mq>180</mq>
-		<price>666000</price>
+		<price>999000</price>
 		<flag_vacanza>0</flag_vacanza>
 		<age><![CDATA[2005]]></age>
 		<ipe>55.80</ipe>

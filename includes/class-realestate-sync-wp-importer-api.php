@@ -47,6 +47,13 @@ class RealEstate_Sync_WP_Importer_API {
 	private $logger;
 
 	/**
+	 * Debug Tracker instance
+	 *
+	 * @var RealEstate_Sync_Debug_Tracker
+	 */
+	private $tracker;
+
+	/**
 	 * API Writer instance
 	 *
 	 * @var RealEstate_Sync_WPResidence_API_Writer
@@ -74,11 +81,13 @@ class RealEstate_Sync_WP_Importer_API {
 	 */
 	public function __construct($logger = null) {
 		$this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
+		$this->tracker = RealEstate_Sync_Debug_Tracker::get_instance();  // 🔍 Debug Tracker
 		$this->api_writer = new RealEstate_Sync_WPResidence_API_Writer($this->logger);
 
 		$this->reset_stats();
 
-		$this->logger->log('WP Importer API initialized', 'INFO');
+		// Removed verbose init log - floods log in batch processing
+		// $this->logger->log('WP Importer API initialized', 'INFO');
 	}
 
 	/**
@@ -142,20 +151,10 @@ class RealEstate_Sync_WP_Importer_API {
 			if ($existing_post_id) {
 				$this->logger->log("Existing property found (ID: {$existing_post_id}) - will UPDATE", 'INFO');
 
-				// Check if content has changed
-				$existing_hash = get_post_meta($existing_post_id, 'property_import_hash', true);
-				$new_hash = $mapped_property['content_hash'] ?? '';
-
-				if ($existing_hash === $new_hash) {
-					$this->logger->log("Property {$import_id} unchanged - skipping", 'INFO');
-					$this->stats['skipped_properties']++;
-					return array(
-						'success' => true,
-						'action'  => 'skipped',
-						'post_id' => $existing_post_id,
-						'message' => 'Property unchanged',
-					);
-				}
+				// ✅ CHANGE DETECTION DELEGATED TO TRACKING MANAGER
+				// Import_Engine + Tracking_Manager already handle change detection via hash comparison
+				// This ensures we use a single, unified hash calculation system on ALL property fields
+				// Old duplicate hash check removed to prevent conflicts
 			}
 
 			// 2. Ensure taxonomies and features exist BEFORE API call
@@ -169,14 +168,39 @@ class RealEstate_Sync_WP_Importer_API {
 			// 4. Create or update property via API
 			if ($existing_post_id) {
 				// Update existing property
+				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Calling API to UPDATE property', array(
+					'import_id' => $import_id,
+					'wp_post_id' => $existing_post_id,
+					'price' => $api_body['property_price'] ?? null
+				));
+
 				$result = $this->api_writer->update_property($existing_post_id, $api_body);
+
+				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'API UPDATE result', array(
+					'import_id' => $import_id,
+					'success' => $result['success'],
+					'action' => $result['action'] ?? null,
+					'wp_post_id' => $result['post_id'] ?? null
+				));
 
 				if ($result['success']) {
 					$this->stats['updated_properties']++;
 				}
 			} else {
 				// Create new property
+				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Calling API to CREATE property', array(
+					'import_id' => $import_id,
+					'price' => $api_body['property_price'] ?? null
+				));
+
 				$result = $this->api_writer->create_property($api_body);
+
+				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'API CREATE result', array(
+					'import_id' => $import_id,
+					'success' => $result['success'],
+					'action' => $result['action'] ?? null,
+					'wp_post_id' => $result['post_id'] ?? null
+				));
 
 				if ($result['success']) {
 					$this->stats['imported_properties']++;

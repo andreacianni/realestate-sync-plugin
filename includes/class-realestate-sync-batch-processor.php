@@ -24,8 +24,9 @@ class RealEstate_Sync_Batch_Processor {
 
     /**
      * Items per batch
+     * Reduced to 5 to prevent timeout with image-heavy properties
      */
-    const ITEMS_PER_BATCH = 10;
+    const ITEMS_PER_BATCH = 5;
 
     /**
      * Batch timeout (seconds)
@@ -41,6 +42,11 @@ class RealEstate_Sync_Batch_Processor {
      * Logger instance
      */
     private $logger;
+
+    /**
+     * Debug Tracker instance
+     */
+    private $tracker;
 
     /**
      * ✅ IMPORT ENGINE - Reuses all PROTECTED methods
@@ -94,6 +100,9 @@ class RealEstate_Sync_Batch_Processor {
 
         // Initialize logger
         $this->logger = RealEstate_Sync_Logger::get_instance();
+
+        // Initialize debug tracker
+        $this->tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 
         // ✅ Create API importer explicitly (GOLDEN approach)
         $wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
@@ -327,11 +336,31 @@ class RealEstate_Sync_Batch_Processor {
     private function process_agency($queue_item) {
         $agency_id = $queue_item->item_id;
 
-        // Load XML
-        $xml = simplexml_load_file($this->xml_file_path);
+        // 🔍 LOG: Start agency processing
+        $this->tracker->log_event('INFO', 'BATCH_PROCESSOR', 'Processing agency', array(
+            'agency_id' => $agency_id,
+            'session_id' => $this->session_id
+        ));
 
-        // ✅ PROTECTED METHOD: Extract agencies using Agency_Parser
-        $all_agencies = $this->agency_parser->extract_agencies_from_xml($xml);
+        // ✅ OPTIMIZATION: Read pre-parsed data from database (no XML re-loading!)
+        $this->tracker->log_event('DEBUG', 'BATCH_PROCESSOR', 'Reading pre-parsed data from database', array(
+            'session_id' => $this->session_id
+        ));
+
+        $batch_data = get_option("realestate_sync_batch_data_{$this->session_id}");
+
+        if (!$batch_data || !isset($batch_data['agencies'])) {
+            $this->tracker->log_event('ERROR', 'BATCH_PROCESSOR', 'Batch data not found in database', array(
+                'session_id' => $this->session_id
+            ));
+            throw new Exception("Batch data not found - session may have expired");
+        }
+
+        $all_agencies = $batch_data['agencies'];
+
+        $this->tracker->log_event('DEBUG', 'BATCH_PROCESSOR', 'Agencies loaded from database', array(
+            'total_agencies' => count($all_agencies)
+        ));
 
         // Find specific agency
         $agency_data = null;
@@ -343,8 +372,17 @@ class RealEstate_Sync_Batch_Processor {
         }
 
         if (!$agency_data) {
-            throw new Exception("Agency not found in XML: {$agency_id}");
+            $this->tracker->log_event('ERROR', 'BATCH_PROCESSOR', 'Agency not found in batch data', array(
+                'agency_id' => $agency_id,
+                'available_agencies' => array_column($all_agencies, 'id')
+            ));
+            throw new Exception("Agency not found in batch data: {$agency_id}");
         }
+
+        $this->tracker->log_event('INFO', 'BATCH_PROCESSOR', 'Agency found in batch data', array(
+            'agency_id' => $agency_id,
+            'agency_name' => $agency_data['name'] ?? 'unknown'
+        ));
 
         // Get mark_as_test flag from session
         $progress = get_option('realestate_sync_background_import_progress', array());
@@ -352,9 +390,19 @@ class RealEstate_Sync_Batch_Processor {
 
         // ✅ PROTECTED METHOD: Import agency using Agency_Manager
         error_log("[BATCH-PROCESSOR]       >>> Calling Agency_Manager::import_agencies()");
+        $this->tracker->log_event('INFO', 'BATCH_PROCESSOR', 'Calling Agency_Manager', array(
+            'agency_id' => $agency_id,
+            'mark_as_test' => $mark_as_test
+        ));
+
         $agencies_array = array($agency_data);
         $import_results = $this->agency_manager->import_agencies($agencies_array, $mark_as_test);
+
         error_log("[BATCH-PROCESSOR]       <<< Import result: imported=" . ($import_results['imported'] ?? 0) . ", updated=" . ($import_results['updated'] ?? 0));
+        $this->tracker->log_event('INFO', 'BATCH_PROCESSOR', 'Agency_Manager returned', array(
+            'imported' => $import_results['imported'] ?? 0,
+            'updated' => $import_results['updated'] ?? 0
+        ));
 
         return $import_results;
     }
@@ -372,33 +420,35 @@ class RealEstate_Sync_Batch_Processor {
     private function process_property($queue_item) {
         $property_id = $queue_item->item_id;
 
-        error_log("[BATCH-PROCESSOR]       >>> Looking for property {$property_id} in XML");
+        error_log("[BATCH-PROCESSOR]       >>> Looking for property {$property_id} in batch data");
 
-        // Load XML
-        $xml = simplexml_load_file($this->xml_file_path);
+        // ✅ OPTIMIZATION: Read pre-parsed data from database (no XML re-loading!)
+        $this->tracker->log_event('DEBUG', 'BATCH_PROCESSOR', 'Reading pre-parsed property data from database', array(
+            'property_id' => $property_id,
+            'session_id' => $this->session_id
+        ));
 
-        // Find property in XML
-        $property_data = null;
-        foreach ($xml->annuncio as $annuncio) {
-            // Property ID is in <info> section
-            $current_id = (string)$annuncio->info->id;
+        $batch_data = get_option("realestate_sync_batch_data_{$this->session_id}");
 
-            if ($current_id === $property_id) {
-                // ✅ USE GOLDEN XML_Parser - Same parsing logic as streaming import
-                error_log("[BATCH-PROCESSOR]       >>> Parsing with GOLDEN XML_Parser::parse_annuncio_xml()");
-                $property_data = $this->xml_parser->parse_annuncio_xml($annuncio->asXML());
-
-                if ($property_data) {
-                    error_log("[BATCH-PROCESSOR]       <<< Property found and parsed (ID: " . ($property_data['id'] ?? 'unknown') . ")");
-                }
-
-                break;
-            }
+        if (!$batch_data || !isset($batch_data['properties'])) {
+            $this->tracker->log_event('ERROR', 'BATCH_PROCESSOR', 'Batch data not found in database', array(
+                'session_id' => $this->session_id
+            ));
+            throw new Exception("Batch data not found - session may have expired");
         }
+
+        // Get property data directly from pre-parsed data
+        $property_data = $batch_data['properties'][$property_id] ?? null;
 
         if (!$property_data) {
-            throw new Exception("Property not found or parsing failed: {$property_id}");
+            $this->tracker->log_event('ERROR', 'BATCH_PROCESSOR', 'Property not found in batch data', array(
+                'property_id' => $property_id,
+                'available_properties' => count($batch_data['properties'])
+            ));
+            throw new Exception("Property not found in batch data: {$property_id}");
         }
+
+        error_log("[BATCH-PROCESSOR]       <<< Property found in batch data (ID: " . ($property_data['id'] ?? 'unknown') . ")");
 
         // ✅ DELEGATE TO IMPORT_ENGINE
         // This calls the EXACT same workflow as Import_Engine::execute_chunked_import()
