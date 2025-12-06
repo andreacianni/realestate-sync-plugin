@@ -9,15 +9,38 @@
  * No more cache fragility - queue is the source of truth!
  *
  * Server Cron Command:
- * * * * * * wget -q -O - "https://trentinoimmobiliare.it/wp-content/plugins/realestate-sync-plugin/batch-continuation.php?token=TrentinoImmo2025Secret!" >/dev/null 2>&1
+ * * * * * * wget -q -O - "https://trentinoimmobiliare.it/wp-content/plugins/realestate-sync-plugin/batch-continuation.php?token=YOUR_SECRET_TOKEN" >/dev/null 2>&1
+ *
+ * Token Configuration (priority order):
+ * 1. wp-config.php constant: define('REALESTATE_SYNC_CRON_TOKEN', 'your-secret-token');
+ * 2. Environment variable: REALESTATE_SYNC_CRON_TOKEN
+ * 3. WordPress option: realestate_sync_cron_token (set in plugin settings)
  *
  * @package RealEstate_Sync
- * @version 1.6.0
+ * @version 1.6.1
  * @since 1.5.0
  */
 
 // Security check - require secret token
-if (!isset($_GET['token']) || $_GET['token'] !== 'TrentinoImmo2025Secret!') {
+// Priority: 1. PHP constant, 2. Environment variable, 3. WordPress option (loaded later)
+$valid_token = null;
+
+// Option 1: Check for PHP constant (defined in wp-config.php)
+if (defined('REALESTATE_SYNC_CRON_TOKEN')) {
+    $valid_token = REALESTATE_SYNC_CRON_TOKEN;
+}
+// Option 2: Check for environment variable
+elseif (getenv('REALESTATE_SYNC_CRON_TOKEN')) {
+    $valid_token = getenv('REALESTATE_SYNC_CRON_TOKEN');
+}
+// Option 3: Fallback to default (TEMPORARY - should configure one of the above)
+else {
+    $valid_token = 'TrentinoImmo2025Secret!';
+    error_log('[BATCH-CONTINUATION] ⚠️ WARNING: Using default token. Please configure REALESTATE_SYNC_CRON_TOKEN in wp-config.php or environment.');
+}
+
+// Verify token
+if (!isset($_GET['token']) || $_GET['token'] !== $valid_token) {
     error_log('[BATCH-CONTINUATION] ❌ Unauthorized access attempt from ' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown'));
     http_response_code(403);
     die('Forbidden');
