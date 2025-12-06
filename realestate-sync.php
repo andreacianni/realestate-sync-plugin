@@ -435,14 +435,16 @@ class RealEstate_Sync {
             [$this->instances['admin'], 'display_admin_page']
         );
 
-        // 🔧 DEBUG: Pagina debug metafields (TEMPORANEO)
-        add_management_page(
-            __('RealEstate Debug DB', 'realestate-sync'),
-            __('Debug DB', 'realestate-sync'),
-            'manage_options',
-            'realestate-sync-debug-db',
-            [$this->instances['admin'], 'display_debug_metafields_page']
-        );
+        // Debug DB page (only available when WP_DEBUG is enabled)
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            add_management_page(
+                __('RealEstate Debug DB', 'realestate-sync'),
+                __('Debug DB', 'realestate-sync'),
+                'manage_options',
+                'realestate-sync-debug-db',
+                [$this->instances['admin'], 'display_debug_metafields_page']
+            );
+        }
     }
     
     /**
