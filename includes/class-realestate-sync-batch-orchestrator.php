@@ -139,25 +139,78 @@ class RealEstate_Sync_Batch_Orchestrator {
 		// Clear any existing queue for this session
 		$queue_manager->clear_session_queue( $session_id );
 
-		// Add agencies to queue (higher priority - process first)
+		// ✨ Initialize tracking manager for hash pre-filtering (v1.7.0+)
+		$tracking_manager = new RealEstate_Sync_Tracking_Manager();
+
+		// Add agencies to queue (WITH HASH PRE-FILTERING OPTIMIZATION)
+		// ✨ v1.7.0+: Only queue agencies that have actual changes
 		$agencies_queued = 0;
 		$agencies_failed = 0;
+		$agencies_skipped_no_changes = 0;
+
 		foreach ( $agencies as $agency ) {
-			$result = $queue_manager->add_agency( $session_id, $agency['id'] );
-			if ( $result ) {
-				$agencies_queued++;
-			} else {
-				$agencies_failed++;
-				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add agency to queue', array(
+			// ✨ OPTIMIZATION: Calculate hash and check for changes BEFORE queueing
+			try {
+				$hash = $tracking_manager->calculate_agency_hash( $agency );
+				$change_check = $tracking_manager->check_agency_changes( $agency['id'], $hash );
+
+				// ✨ Only queue if agency has changes
+				if ( $change_check['has_changed'] ) {
+					$result = $queue_manager->add_agency( $session_id, $agency['id'] );
+					if ( $result ) {
+						$agencies_queued++;
+
+						$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Agency queued', array(
+							'agency_id' => $agency['id'],
+							'action' => $change_check['action'],
+							'reason' => $change_check['reason']
+						));
+					} else {
+						$agencies_failed++;
+						$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add agency to queue', array(
+							'agency_id' => $agency['id'],
+							'wpdb_error' => $GLOBALS['wpdb']->last_error
+						));
+					}
+				} else {
+					// ✨ Skip agencies with no changes (optimization!)
+					$agencies_skipped_no_changes++;
+
+					$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Agency skipped (no changes)', array(
+						'agency_id' => $agency['id'],
+						'reason' => $change_check['reason']
+					));
+				}
+			} catch ( Exception $e ) {
+				// Fallback: if hash check fails, queue anyway to avoid data loss
+				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Agency hash check failed - queueing as fallback', array(
 					'agency_id' => $agency['id'],
-					'wpdb_error' => $GLOBALS['wpdb']->last_error
+					'error' => $e->getMessage()
 				));
+
+				$result = $queue_manager->add_agency( $session_id, $agency['id'] );
+				if ( $result ) {
+					$agencies_queued++;
+				}
 			}
+		}
+
+		// ✨ Log agency optimization statistics
+		if ( count( $agencies ) > 0 ) {
+			$tracker->log_event('INFO', 'ORCHESTRATOR', 'Agency pre-filtering complete', array(
+				'total_agencies' => count( $agencies ),
+				'queued' => $agencies_queued,
+				'skipped_no_changes' => $agencies_skipped_no_changes,
+				'failed' => $agencies_failed,
+				'optimization_rate' => round( ( $agencies_skipped_no_changes / count( $agencies ) ) * 100, 2 ) . '%'
+			));
+
+			error_log( "[BATCH-ORCHESTRATOR] ✅ Agency optimization: Skipped $agencies_skipped_no_changes agencies (no changes detected)" );
+			error_log( "[BATCH-ORCHESTRATOR] ✅ Queued $agencies_queued agencies (have changes)" );
 		}
 
 		// Add properties to queue (WITH HASH PRE-FILTERING OPTIMIZATION)
 		// ✨ v1.7.0: Only queue properties that have actual changes
-		$tracking_manager = new RealEstate_Sync_Tracking_Manager();
 		$properties_queued = 0;
 		$properties_failed = 0;
 		$properties_skipped_no_changes = 0;
@@ -240,6 +293,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Queue created', array(
 			'agencies' => $agencies_queued,
+			'agencies_skipped' => $agencies_skipped_no_changes, // ✨ v1.7.0+
 			'properties' => $properties_queued,
 			'properties_skipped' => $properties_skipped_no_changes, // ✨ v1.7.0
 			'total' => $total_queued,

@@ -20,7 +20,12 @@ class RealEstate_Sync_Tracking_Manager {
      * Nome tabella tracking
      */
     const TABLE_NAME = 'realestate_sync_tracking';
-    
+
+    /**
+     * Nome tabella tracking agencies
+     */
+    const AGENCY_TABLE_NAME = 'realestate_sync_agency_tracking';
+
     /**
      * Versione database schema
      */
@@ -431,5 +436,205 @@ class RealEstate_Sync_Tracking_Manager {
             // Non è un errore - property potrebbe non avere tracking (es. creata manualmente)
             $this->logger->log("[TRACKING-CLEANUP] No tracking found for deleted property (wp_post_id: {$post_id})", 'debug');
         }
+    }
+
+    // ========================================================================
+    // AGENCY TRACKING METHODS (v1.7.0+)
+    // ========================================================================
+
+    /**
+     * Create agency tracking table
+     *
+     * Similar to property tracking but for agencies.
+     * Tracks agency changes to enable pre-filtering optimization.
+     *
+     * @since 1.7.0
+     * @return bool Success status
+     */
+    public function create_agency_tracking_table() {
+        $table_name = $this->wpdb->prefix . self::AGENCY_TABLE_NAME;
+
+        $charset_collate = $this->wpdb->get_charset_collate();
+
+        $sql = "CREATE TABLE $table_name (
+            agency_id varchar(50) NOT NULL,
+            wp_post_id bigint(20) unsigned NULL,
+            agency_hash varchar(32) NOT NULL,
+            data_snapshot longtext NULL,
+            last_import_date datetime NOT NULL,
+            status enum('active', 'inactive', 'deleted', 'error') DEFAULT 'active',
+            provincia varchar(10) NULL,
+            created_date datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_date datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (agency_id),
+            KEY wp_post_id (wp_post_id),
+            KEY status (status),
+            KEY provincia (provincia),
+            KEY last_import_date (last_import_date),
+            KEY agency_hash (agency_hash)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        $result = dbDelta($sql);
+
+        $this->logger->log("Agency tracking table created/updated: " . $table_name, 'info');
+
+        return true;
+    }
+
+    /**
+     * Calculate MD5 hash for agency change detection
+     *
+     * Similar to calculate_property_hash but for agency data
+     *
+     * @since 1.7.0
+     * @param array $agency_data Agency data from parser
+     * @return string MD5 hash
+     */
+    public function calculate_agency_hash($agency_data) {
+        // Hash on ALL fields to detect any change
+        $hash_data = $agency_data;
+
+        // Remove deleted flag from hash (not relevant for change detection)
+        unset($hash_data['deleted']);
+
+        // Normalize for consistency
+        ksort($hash_data);
+
+        // Generate MD5 hash
+        $hash_string = serialize($hash_data);
+        $hash = md5($hash_string);
+
+        // Debug logging
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        if ($tracker->is_active()) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Agency hash generated', array(
+                'agency_id' => $agency_data['id'] ?? null,
+                'hash' => $hash,
+                'data_size' => strlen($hash_string)
+            ));
+        }
+
+        return $hash;
+    }
+
+    /**
+     * Check if agency has changes
+     *
+     * Similar to check_property_changes but for agencies
+     *
+     * @since 1.7.0
+     * @param string $agency_id Agency ID from XML
+     * @param string $new_hash Newly calculated hash
+     * @return array Status array with has_changed and action
+     */
+    public function check_agency_changes($agency_id, $new_hash) {
+        $existing = $this->get_agency_tracking_record($agency_id);
+
+        if (!$existing) {
+            return array(
+                'has_changed' => true,
+                'action' => 'insert',
+                'reason' => 'new_agency'
+            );
+        }
+
+        if ($existing['agency_hash'] !== $new_hash) {
+            return array(
+                'has_changed' => true,
+                'action' => 'update',
+                'reason' => 'data_changed',
+                'wp_post_id' => $existing['wp_post_id']
+            );
+        }
+
+        return array(
+            'has_changed' => false,
+            'action' => 'skip',
+            'reason' => 'no_changes',
+            'wp_post_id' => $existing['wp_post_id']
+        );
+    }
+
+    /**
+     * Get agency tracking record
+     *
+     * @since 1.7.0
+     * @param string $agency_id Agency ID from XML
+     * @return array|null Tracking record or null if not exists
+     */
+    public function get_agency_tracking_record($agency_id) {
+        $table_name = $this->wpdb->prefix . self::AGENCY_TABLE_NAME;
+
+        $result = $this->wpdb->get_row(
+            $this->wpdb->prepare(
+                "SELECT * FROM $table_name WHERE agency_id = %s",
+                $agency_id
+            ),
+            ARRAY_A
+        );
+
+        return $result;
+    }
+
+    /**
+     * Update or insert agency tracking record
+     *
+     * @since 1.7.0
+     * @param string $agency_id Agency ID from XML
+     * @param string $agency_hash MD5 hash
+     * @param int $wp_post_id WordPress Post ID (estate_agency)
+     * @param array $agency_data Complete agency data
+     * @param string $status Status (active, inactive, deleted)
+     * @return bool Success status
+     */
+    public function update_agency_tracking_record($agency_id, $agency_hash, $wp_post_id = null, $agency_data = array(), $status = 'active') {
+        $table_name = $this->wpdb->prefix . self::AGENCY_TABLE_NAME;
+
+        $data = array(
+            'agency_hash' => $agency_hash,
+            'last_import_date' => current_time('mysql'),
+            'status' => $status
+        );
+
+        // Add optional data if provided
+        if ($wp_post_id) {
+            $data['wp_post_id'] = $wp_post_id;
+        }
+
+        if (!empty($agency_data)) {
+            $data['data_snapshot'] = json_encode($agency_data);
+            $data['provincia'] = isset($agency_data['provincia']) ? $agency_data['provincia'] : null;
+        }
+
+        // Check if record exists
+        $existing = $this->get_agency_tracking_record($agency_id);
+
+        if ($existing) {
+            // UPDATE
+            $result = $this->wpdb->update(
+                $table_name,
+                $data,
+                array('agency_id' => $agency_id),
+                array('%s', '%s', '%s', '%d', '%s', '%s'),
+                array('%s')
+            );
+        } else {
+            // INSERT
+            $data['agency_id'] = $agency_id;
+            $result = $this->wpdb->insert(
+                $table_name,
+                $data,
+                array('%s', '%s', '%s', '%d', '%s', '%s', '%s')
+            );
+        }
+
+        if ($result === false) {
+            $this->logger->log("Error updating agency tracking record for agency $agency_id: " . $this->wpdb->last_error, 'error');
+            return false;
+        }
+
+        $this->logger->log("Agency tracking record updated for agency $agency_id (status: $status)", 'debug');
+        return true;
     }
 }
