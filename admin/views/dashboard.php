@@ -26,10 +26,13 @@ $import_stats = $tracking_manager->get_import_statistics();
 
     <div id="rs-alerts-container"></div>
 
-    <!-- 4-TAB NAVIGATION WITH INFO TAB -->
+    <!-- 5-TAB NAVIGATION WITH AUTOMAZIONE TAB -->
     <div class="nav-tab-wrapper">
         <a href="#dashboard" class="nav-tab nav-tab-active" data-tab="dashboard">
             <span class="dashicons dashicons-dashboard"></span> Dashboard
+        </a>
+        <a href="#automazione" class="nav-tab" data-tab="automazione">
+            <span class="dashicons dashicons-clock"></span> Automazione Import
         </a>
         <a href="#info" class="nav-tab" data-tab="info">
             <span class="dashicons dashicons-info"></span> Info
@@ -45,7 +48,102 @@ $import_stats = $tracking_manager->get_import_statistics();
     <!-- TAB 1: DASHBOARD -->
     <div id="dashboard" class="tab-content rs-tab-active">
         <div class="rs-dashboard-grid">
-            
+
+            <!-- ⚠️ VERIFICATION RESULTS WIDGET -->
+            <?php
+            $verification = get_option('realestate_sync_latest_verification');
+            if ($verification && !empty($verification['properties'])) :
+            ?>
+            <div class="rs-card" style="grid-column: 1 / -1; background: #fff3cd; border-left: 4px solid #ffc107;">
+                <h3 style="color: #856404;">
+                    <span class="dashicons dashicons-warning"></span>
+                    Proprietà da Verificare
+                </h3>
+
+                <p style="margin: 10px 0;">
+                    <strong>Import del <?php echo esc_html($verification['timestamp']); ?></strong><br>
+                    Trovate <strong><?php echo count($verification['properties']); ?> proprietà</strong> con possibili problemi.
+                    <em>Questi dati potrebbero essere corretti (es. immagini 404 nel feed XML) - verifica manualmente.</em>
+                </p>
+
+                <table class="widefat" style="background: #fff;">
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Property ID</th>
+                            <th style="width: 50%;">Problemi Rilevati</th>
+                            <th style="width: 35%;">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php
+                        global $wpdb;
+                        foreach ($verification['properties'] as $prop_id => $prop_data) :
+                            $tracking_table = $wpdb->prefix . 'realestate_sync_tracking';
+                            $tracking = $wpdb->get_row($wpdb->prepare(
+                                "SELECT wp_post_id FROM {$tracking_table} WHERE property_id = %d",
+                                $prop_id
+                            ), ARRAY_A);
+                            $wp_post_id = $tracking['wp_post_id'] ?? null;
+                            $title = $prop_data['title'] ?? 'Unknown';
+                            $issues = $prop_data['issues'] ?? [];
+                        ?>
+                        <tr id="verify-row-<?php echo esc_attr($prop_id); ?>">
+                            <td>
+                                <strong>#<?php echo esc_html($prop_id); ?></strong>
+                                <br><small style="color: #666;"><?php echo esc_html($title); ?></small>
+                            </td>
+                            <td>
+                                <ul style="margin: 5px 0; padding-left: 20px;">
+                                    <?php foreach ($issues as $issue) : ?>
+                                        <li>
+                                            <strong><?php echo esc_html(ucfirst($issue['field'])); ?>:</strong>
+                                            <?php if (isset($issue['missing'])) : ?>
+                                                <span style="color: #d63638;">
+                                                    <?php echo esc_html($issue['missing']); ?> immagini mancanti
+                                                    (<?php echo esc_html($issue['actual']); ?>/<?php echo esc_html($issue['expected']); ?>)
+                                                </span>
+                                            <?php elseif (isset($issue['issue'])) : ?>
+                                                <span style="color: #d63638;"><?php echo esc_html($issue['issue']); ?></span>
+                                            <?php else : ?>
+                                                Atteso: <code><?php echo esc_html($issue['expected']); ?></code>,
+                                                Salvato: <code><?php echo esc_html($issue['actual']); ?></code>
+                                            <?php endif; ?>
+                                        </li>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </td>
+                            <td>
+                                <?php if ($wp_post_id) : ?>
+                                    <a href="<?php echo get_edit_post_link($wp_post_id); ?>"
+                                       class="button button-small" target="_blank">
+                                        <span class="dashicons dashicons-edit"></span> Vedi
+                                    </a>
+                                    <button class="button button-small button-link-delete"
+                                            onclick="if(confirm('Cancellare questa proprietà?\n\nAll\'import successivo verrà ricreata.')) {
+                                                window.open('<?php echo get_delete_post_link($wp_post_id, '', true); ?>', '_blank');
+                                            }">
+                                        <span class="dashicons dashicons-trash"></span> Cancella
+                                    </button>
+                                    <br><br>
+                                    <button class="button button-small"
+                                            onclick="realestateSync.ignoreVerification(<?php echo $prop_id; ?>)">
+                                        <span class="dashicons dashicons-yes"></span> Ignora (OK così)
+                                    </button>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+
+                <p style="margin-top: 15px;">
+                    <button class="button" onclick="realestateSync.clearAllVerification()">
+                        <span class="dashicons dashicons-dismiss"></span> Cancella Tutti gli Avvisi
+                    </button>
+                </p>
+            </div>
+            <?php endif; ?>
+
             <!-- Manual Import Section -->
             <div class="rs-card">
                 <h3><span class="dashicons dashicons-download"></span> Import Manuale</h3>
@@ -72,10 +170,6 @@ $import_stats = $tracking_manager->get_import_statistics();
                     <span class="dashicons dashicons-download"></span> Scarica e Importa Ora
                 </button>
 
-                <button type="button" class="rs-button-secondary" id="rs-test-connection">
-                    <span class="dashicons dashicons-networking"></span> Test Connessione
-                </button>
-
                 <!-- Manual Import Log Output -->
                 <div id="manual-import-log-output" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; max-height: 300px; overflow-y: auto;">
                     <h5>Log Processo:</h5>
@@ -85,46 +179,269 @@ $import_stats = $tracking_manager->get_import_statistics();
 
             <!-- Configuration Panel -->
             <div class="rs-card">
-                <h3><span class="dashicons dashicons-admin-generic"></span> Configurazione</h3>
-                
-                <form id="rs-quick-settings" method="post">
-                    <?php wp_nonce_field('realestate_sync_nonce'); ?>
-                    <table class="rs-form-table">
-                        <tr>
-                            <th>URL XML:</th>
-                            <td>
-                                <input type="url" id="xml_url" name="xml_url" class="rs-input" 
-                                       value="<?php echo esc_attr($settings['xml_url']); ?>" 
-                                       placeholder="https://www.gestionaleimmobiliare.it/export/xml/...">
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Username:</th>
-                            <td>
-                                <input type="text" id="username" name="username" class="rs-input" 
-                                       value="<?php echo esc_attr($settings['username']); ?>">
-                            </td>
-                        </tr>
-                        <tr>
-                            <th>Password:</th>
-                            <td>
-                                <input type="password" id="password" name="password" class="rs-input" 
-                                       value="<?php echo esc_attr($settings['password']); ?>">
-                            </td>
-                        </tr>
-                    </table>
-                    
-                    <div style="margin-top: 20px;">
-                        <button type="submit" class="rs-button-primary">
-                            <span class="dashicons dashicons-yes"></span> Salva Configurazione
-                        </button>
+                <h3><span class="dashicons dashicons-admin-generic"></span> Configurazione Credenziali Download XML</h3>
+
+                <!-- Credential Source Toggle -->
+                    <div style="margin-bottom: 20px; padding: 15px; background: #fff8e1; border-left: 3px solid #ffa000; border-radius: 4px;">
+                        <label style="display: block; margin-bottom: 10px; font-weight: 600;">
+                            <span class="dashicons dashicons-admin-generic"></span> Sorgente Credenziali:
+                        </label>
+                        <?php
+                        $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
+                        ?>
+                        <label style="display: inline-block; margin-right: 20px;">
+                            <input type="radio" name="credential_source" value="hardcoded"
+                                   <?php checked($credential_source, 'hardcoded'); ?>
+                                   id="rs-cred-source-hardcoded">
+                            <strong>Usa credenziali hardcoded</strong> (sistema attuale)
+                        </label>
+                        <label style="display: inline-block;">
+                            <input type="radio" name="credential_source" value="database"
+                                   <?php checked($credential_source, 'database'); ?>
+                                   id="rs-cred-source-database">
+                            <strong>Usa credenziali database</strong> (nuovo sistema)
+                        </label>
                     </div>
-                </form>
+
+                    <form id="rs-xml-credentials-form" method="post">
+                        <?php wp_nonce_field('realestate_sync_xml_nonce', 'xml_nonce'); ?>
+
+                        <table class="rs-form-table">
+                            <tr>
+                                <th>XML URL:</th>
+                                <td>
+                                    <input type="text" id="xml_url" name="xml_url" class="rs-input" style="width: 100%;"
+                                           value="<?php echo esc_attr(get_option('realestate_sync_xml_url', '')); ?>"
+                                           placeholder="https://www.gestionaleimmobiliare.it/export/xml/..."
+                                           readonly>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>XML Username:</th>
+                                <td>
+                                    <input type="text" id="xml_user" name="xml_user" class="rs-input"
+                                           value="<?php echo esc_attr(get_option('realestate_sync_xml_user', '')); ?>"
+                                           placeholder="username"
+                                           readonly>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>XML Password:</th>
+                                <td>
+                                    <input type="text" id="xml_pass" name="xml_pass" class="rs-input"
+                                           value="<?php echo esc_attr(get_option('realestate_sync_xml_pass', '')); ?>"
+                                           placeholder="password"
+                                           readonly>
+                                    <br><small style="color: #666;">Password visibile in chiaro per facilitare verifica</small>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div style="margin-top: 20px;">
+                            <!-- Edit Mode Buttons -->
+                            <button type="button" class="rs-button-secondary" id="rs-xml-edit-btn">
+                                <span class="dashicons dashicons-edit"></span> Modifica Credenziali
+                            </button>
+
+                            <!-- Save/Cancel Buttons (hidden by default) -->
+                            <div id="rs-xml-save-cancel-btns" style="display: none;">
+                                <button type="submit" class="rs-button-primary">
+                                    <span class="dashicons dashicons-yes"></span> Salva Credenziali
+                                </button>
+                                <button type="button" class="rs-button-secondary" id="rs-xml-cancel-btn">
+                                    <span class="dashicons dashicons-no"></span> Annulla
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+
+                <!-- Test Connection Button -->
+                <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid #e0e0e0;">
+                    <button type="button" class="rs-button-secondary" id="rs-test-connection">
+                        <span class="dashicons dashicons-networking"></span> Test Connessione XML
+                    </button>
+                    <div id="rs-test-connection-result" style="margin-top: 10px;"></div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- TAB 2: INFO - REFINED LAYOUT WITH COLLAPSIBLE SECTIONS -->
+    <!-- TAB 2: AUTOMAZIONE IMPORT -->
+    <div id="automazione" class="tab-content">
+        <?php
+        // Get current schedule settings
+        $schedule_enabled = get_option('realestate_sync_schedule_enabled', false);
+        $schedule_time = get_option('realestate_sync_schedule_time', '23:00');
+        $schedule_frequency = get_option('realestate_sync_schedule_frequency', 'daily');
+        $schedule_weekday = get_option('realestate_sync_schedule_weekday', 1); // 1 = Monday
+        $schedule_custom_days = get_option('realestate_sync_schedule_custom_days', 1);
+        $schedule_custom_months = get_option('realestate_sync_schedule_custom_months', 1);
+        $schedule_mark_test = get_option('realestate_sync_schedule_mark_test', false);
+
+        // Get next scheduled run
+        $cron_manager = new RealEstate_Sync_Cron_Manager();
+        $next_run = $cron_manager->get_next_scheduled_import();
+
+        // Get server timezone info
+        $server_time = current_time('mysql');
+        $server_timezone = wp_timezone_string();
+        ?>
+
+        <div class="rs-card">
+            <h3>
+                <span class="dashicons dashicons-clock"></span>
+                Configurazione Import Automatico
+            </h3>
+
+            <!-- Server Time Info -->
+            <div style="padding: 15px; background: #e7f3ff; border-left: 4px solid #2271b1; margin-bottom: 20px; border-radius: 4px;">
+                <strong><span class="dashicons dashicons-info"></span> Orario Server:</strong><br>
+                <div style="margin-top: 8px; font-family: monospace; font-size: 14px;">
+                    <strong style="font-size: 18px;"><?php echo esc_html($server_time); ?></strong>
+                    <span style="color: #666; margin-left: 10px;">(Timezone: <?php echo esc_html($server_timezone); ?>)</span>
+                </div>
+                <small style="color: #666; margin-top: 5px; display: block;">
+                    Tutti gli orari configurati fanno riferimento a questo fuso orario.
+                </small>
+            </div>
+
+            <!-- Enable/Disable Toggle -->
+            <div style="padding: 15px; background: <?php echo $schedule_enabled ? '#d4edda' : '#f8f9fa'; ?>; border-left: 4px solid <?php echo $schedule_enabled ? '#28a745' : '#6c757d'; ?>; margin-bottom: 20px; border-radius: 4px;">
+                <label style="display: flex; align-items: center; cursor: pointer; font-size: 16px;">
+                    <input type="checkbox" id="schedule-enabled" <?php checked($schedule_enabled); ?>
+                           style="width: 20px; height: 20px; margin-right: 10px;">
+                    <strong>
+                        <span class="dashicons dashicons-yes-alt" style="color: #28a745;"></span>
+                        Abilita Import Automatico Programmato
+                    </strong>
+                </label>
+                <small style="display: block; margin-top: 8px; margin-left: 30px; color: #666;">
+                    Quando abilitato, il sistema eseguirà automaticamente l'import secondo la configurazione impostata.
+                </small>
+            </div>
+
+            <!-- Schedule Configuration (visible only when enabled) -->
+            <div id="schedule-config">
+
+                <!-- Time Selection -->
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                        <span class="dashicons dashicons-clock"></span>
+                        Orario Esecuzione (formato 24h):
+                    </label>
+                    <input type="time" id="schedule-time" value="<?php echo esc_attr($schedule_time); ?>"
+                           style="padding: 8px 12px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; width: 150px;">
+                    <small style="display: block; margin-top: 5px; color: #666;">
+                        L'import verrà eseguito all'orario specificato secondo il fuso orario del server.
+                    </small>
+                </div>
+
+                <!-- Frequency Selection -->
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                        <span class="dashicons dashicons-calendar-alt"></span>
+                        Frequenza:
+                    </label>
+                    <select id="schedule-frequency" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 300px;">
+                        <option value="daily" <?php selected($schedule_frequency, 'daily'); ?>>
+                            Ogni giorno
+                        </option>
+                        <option value="weekly" <?php selected($schedule_frequency, 'weekly'); ?>>
+                            Un giorno specifico della settimana
+                        </option>
+                        <option value="custom_days" <?php selected($schedule_frequency, 'custom_days'); ?>>
+                            Ogni X giorni
+                        </option>
+                        <option value="custom_months" <?php selected($schedule_frequency, 'custom_months'); ?>>
+                            Ogni X mesi
+                        </option>
+                    </select>
+                </div>
+
+                <!-- Weekly Configuration (visible only when frequency=weekly) -->
+                <div id="weekly-config" style="margin-bottom: 25px; padding-left: 20px; <?php echo $schedule_frequency !== 'weekly' ? 'display: none;' : ''; ?>">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                        Giorno della settimana:
+                    </label>
+                    <select id="schedule-weekday" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 200px;">
+                        <option value="0" <?php selected($schedule_weekday, 0); ?>>Domenica</option>
+                        <option value="1" <?php selected($schedule_weekday, 1); ?>>Lunedì</option>
+                        <option value="2" <?php selected($schedule_weekday, 2); ?>>Martedì</option>
+                        <option value="3" <?php selected($schedule_weekday, 3); ?>>Mercoledì</option>
+                        <option value="4" <?php selected($schedule_weekday, 4); ?>>Giovedì</option>
+                        <option value="5" <?php selected($schedule_weekday, 5); ?>>Venerdì</option>
+                        <option value="6" <?php selected($schedule_weekday, 6); ?>>Sabato</option>
+                    </select>
+                </div>
+
+                <!-- Custom Days Configuration (visible only when frequency=custom_days) -->
+                <div id="custom-days-config" style="margin-bottom: 25px; padding-left: 20px; <?php echo $schedule_frequency !== 'custom_days' ? 'display: none;' : ''; ?>">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                        Numero di giorni:
+                    </label>
+                    <input type="number" id="schedule-custom-days" value="<?php echo esc_attr($schedule_custom_days); ?>"
+                           min="1" max="365" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 100px;">
+                    <small style="display: block; margin-top: 5px; color: #666;">
+                        L'import verrà eseguito ogni N giorni (es. 7 = settimanale, 15 = ogni 2 settimane)
+                    </small>
+                </div>
+
+                <!-- Custom Months Configuration (visible only when frequency=custom_months) -->
+                <div id="custom-months-config" style="margin-bottom: 25px; padding-left: 20px; <?php echo $schedule_frequency !== 'custom_months' ? 'display: none;' : ''; ?>">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                        Numero di mesi:
+                    </label>
+                    <input type="number" id="schedule-custom-months" value="<?php echo esc_attr($schedule_custom_months); ?>"
+                           min="1" max="12" style="padding: 8px 12px; font-size: 14px; border: 1px solid #ccc; border-radius: 4px; width: 100px;">
+                    <small style="display: block; margin-top: 5px; color: #666;">
+                        L'import verrà eseguito ogni N mesi
+                    </small>
+                </div>
+
+                <!-- Mark as Test Option -->
+                <div style="margin-bottom: 25px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="schedule-mark-test" <?php checked($schedule_mark_test); ?>
+                               style="width: 18px; height: 18px; margin-right: 8px;">
+                        <strong>
+                            <span class="dashicons dashicons-flag" style="color: #f0ad4e;"></span>
+                            Marca import automatici come Test
+                        </strong>
+                    </label>
+                    <small style="display: block; margin-top: 5px; margin-left: 26px; color: #666;">
+                        Le proprietà importate automaticamente verranno marcate con <code>_test_import=1</code>
+                    </small>
+                </div>
+
+                <!-- Preview Next Run -->
+                <div style="padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; margin-bottom: 20px; border-radius: 4px;">
+                    <strong><span class="dashicons dashicons-calendar"></span> Prossima Esecuzione:</strong><br>
+                    <div id="next-run-preview" style="margin-top: 8px; font-family: monospace; font-size: 14px; font-weight: 600;">
+                        <?php
+                        if ($schedule_enabled && $next_run) {
+                            echo esc_html(date('Y-m-d H:i:s', $next_run));
+                        } else {
+                            echo 'Non programmato';
+                        }
+                        ?>
+                    </div>
+                    <small style="color: #666; margin-top: 5px; display: block;">
+                        Aggiorna automaticamente dopo aver salvato la configurazione.
+                    </small>
+                </div>
+
+                <!-- Save Button -->
+                <button type="button" class="rs-button-primary" id="save-schedule-config">
+                    <span class="dashicons dashicons-saved"></span> Salva Configurazione
+                </button>
+            </div>
+
+            <!-- Status Message -->
+            <div id="schedule-status" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- TAB 3: INFO - REFINED LAYOUT WITH COLLAPSIBLE SECTIONS -->
     <div id="info" class="tab-content">
         
         <!-- CARD 1: Required Custom Fields (Always Visible) -->
@@ -330,6 +647,105 @@ $import_stats = $tracking_manager->get_import_statistics();
     <!-- TAB 3: TOOLS -->
     <div id="tools" class="tab-content">
         <div class="rs-card">
+            <h3><span class="dashicons dashicons-admin-tools"></span> Strumenti Amministrazione</h3>
+
+            <!-- 📊 GESTIONE QUEUE IMPORT -->
+            <div class="rs-queue-section" style="border-left: 4px solid #2271b1; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
+                <h4><span class="dashicons dashicons-list-view"></span> Gestione Queue Import</h4>
+                <p>Controlla lo stato dell'ultimo import e gestisci eventuali elementi rimasti in sospeso.</p>
+
+                <!-- Last Import Status -->
+                <div id="last-import-status" style="margin: 20px 0; padding: 20px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <h5 style="margin: 0 0 15px 0; font-size: 16px;">
+                        <span class="dashicons dashicons-database-import"></span> Ultimo Import
+                    </h5>
+
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: 500; width: 150px;">Session ID:</td>
+                            <td style="padding: 10px;" id="import-session-id">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: 500;">Data Inizio:</td>
+                            <td style="padding: 10px;" id="import-start-time">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: 500;">Stato Processo:</td>
+                            <td style="padding: 10px;" id="import-process-status">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: 500;">Totale Elementi:</td>
+                            <td style="padding: 10px;" id="import-total-items">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: 500;">Completati:</td>
+                            <td style="padding: 10px;" id="import-completed-items">-</td>
+                        </tr>
+                        <tr style="border-bottom: 1px solid #eee;">
+                            <td style="padding: 10px; font-weight: 500;">Rimanenti:</td>
+                            <td style="padding: 10px;" id="import-remaining-items">-</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 10px; font-weight: 500;">Progressione:</td>
+                            <td style="padding: 10px;" id="import-progress-bar">
+                                <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
+                                    <div id="import-progress-fill" style="background: #10b981; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                                </div>
+                                <span id="import-progress-text" style="font-size: 12px; color: #666;">0%</span>
+                            </td>
+                        </tr>
+                    </table>
+
+                    <div style="margin-top: 15px; text-align: center;">
+                        <button type="button" class="rs-button-secondary" id="refresh-import-status">
+                            <span class="dashicons dashicons-update"></span> Aggiorna Stato
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Pending/Stuck Items Alert -->
+                <div id="pending-items-alert" class="rs-hidden" style="margin: 20px 0; padding: 20px; background: #fff3cd; border-left: 4px solid #f0ad4e; border-radius: 4px;">
+                    <h5 style="margin: 0 0 10px 0; color: #856404;">
+                        <span class="dashicons dashicons-warning"></span> ⚠️ PROCESSO CHIUSO - ELEMENTI IN SOSPESO
+                    </h5>
+                    <p style="margin: 0 0 15px 0; font-size: 14px;" id="pending-items-message">
+                        <!-- Populated via JS -->
+                    </p>
+
+                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                        <button type="button" class="rs-button-primary" id="show-pending-details">
+                            <span class="dashicons dashicons-visibility"></span> Vedi Dettaglio
+                        </button>
+                        <button type="button" class="rs-button-primary" id="retry-pending-items">
+                            <span class="dashicons dashicons-controls-repeat"></span> Resetta a Pending e Riprocessa
+                        </button>
+                        <button type="button" class="rs-button-danger" id="delete-pending-items">
+                            <span class="dashicons dashicons-trash"></span> Elimina dalla Queue
+                        </button>
+                    </div>
+
+                    <!-- Pending Items List (expandable) -->
+                    <div id="pending-items-list" class="rs-hidden" style="margin-top: 15px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px; max-height: 400px; overflow-y: auto;">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
+
+                <!-- Clear All Queue -->
+                <div style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <h5 style="margin: 0 0 10px 0;">
+                        <span class="dashicons dashicons-trash"></span> Pulizia Completa Queue
+                    </h5>
+                    <p style="margin: 0 0 15px 0; font-size: 13px; color: #666;">
+                        Rimuove TUTTI gli elementi dalla queue (utile per ricominciare da zero dopo aver risolto i problemi).
+                    </p>
+                    <button type="button" class="rs-button-danger" id="clear-all-queue">
+                        <span class="dashicons dashicons-warning"></span> Svuota Tutta la Queue
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="rs-card">
             <h3><span class="dashicons dashicons-database-import"></span> Testing & Development</h3>
             
             <!-- Upload Test Section -->
@@ -421,7 +837,55 @@ $import_stats = $tracking_manager->get_import_statistics();
                     </div>
                 </div>
             </div>
-            
+
+            <!-- 🗑️ CLEANUP PROPRIETÀ SENZA IMMAGINI -->
+            <div class="rs-cleanup-section" style="border-left: 4px solid #dc3545; padding: 20px; margin-top: 20px; background: #fff5f5;">
+                <h4><span class="dashicons dashicons-trash"></span> Cleanup Proprietà Senza Immagini</h4>
+                <p>Trova e rimuovi proprietà senza featured image. Il tracking viene cancellato automaticamente.</p>
+
+                <!-- Step 1: Analisi -->
+                <div style="margin: 20px 0; padding: 15px; background: #e7f3ff; border-left: 3px solid #2271b1; border-radius: 4px;">
+                    <strong>Step 1: Analisi (Safe)</strong>
+                    <p style="margin: 10px 0 0 0;">Prima controlla quante proprietà senza immagini ci sono - nessuna cancellazione.</p>
+                    <button type="button" class="rs-button-secondary" id="analyze-no-images" style="margin-top: 10px;">
+                        <span class="dashicons dashicons-search"></span> Analizza Proprietà Senza Immagini
+                    </button>
+                </div>
+
+                <!-- Analysis Results -->
+                <div id="no-images-analysis" class="rs-hidden" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <h5>Risultati Analisi:</h5>
+                    <div id="no-images-analysis-content"></div>
+                </div>
+
+                <!-- Step 2: Cancellazione -->
+                <div id="cleanup-actions" class="rs-hidden" style="margin: 20px 0; padding: 15px; background: #fff3cd; border-left: 3px solid #ffc107; border-radius: 4px;">
+                    <strong>Step 2: Cancellazione</strong>
+                    <p style="margin: 10px 0;">
+                        ⚠️ <strong>ATTENZIONE:</strong> Questa azione cancellerà le proprietà trovate.
+                        Il tracking verrà rimosso automaticamente.
+                    </p>
+                    <div style="margin-top: 15px;">
+                        <button type="button" class="rs-button-danger" id="cleanup-no-images-trash">
+                            <span class="dashicons dashicons-trash"></span> Sposta nel Cestino
+                        </button>
+                        <button type="button" class="rs-button-danger" id="cleanup-no-images-permanent" style="margin-left: 10px; background: #dc3545;">
+                            <span class="dashicons dashicons-dismiss"></span> Cancellazione Permanente
+                        </button>
+                    </div>
+                    <small style="display: block; margin-top: 10px; color: #856404;">
+                        <strong>Cestino:</strong> Recuperabili da WP Admin > Cestino<br>
+                        <strong>Permanente:</strong> Non recuperabili (usare con cautela!)
+                    </small>
+                </div>
+
+                <!-- Cleanup Results -->
+                <div id="cleanup-results" class="rs-hidden" style="margin: 20px 0; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">
+                    <h5>Risultati Cleanup:</h5>
+                    <div id="cleanup-results-content"></div>
+                </div>
+            </div>
+
             <!-- 🚀 PROFESSIONAL ACTIVATION TOOLS SECTION -->
             <div class="rs-activation-section" style="border-left: 4px solid #6366f1; padding: 15px; margin-top: 20px; background: #f8faff;">
                 <h4><span class="dashicons dashicons-admin-tools"></span> 🚀 Professional Activation Tools</h4>
@@ -1024,6 +1488,13 @@ jQuery(document).ready(function($) {
             $('#start-manual-import').on('click', this.startManualImport);
             $('#rs-test-connection').on('click', this.testConnection);
             $('#rs-quick-settings').on('submit', this.saveSettings);
+
+            // XML Credentials Edit Mode
+            $('input[name="credential_source"]').on('change', this.onCredentialSourceChange);
+            $('#rs-xml-edit-btn').on('click', this.enableXmlEdit);
+            $('#rs-xml-cancel-btn').on('click', this.cancelXmlEdit);
+            $('#rs-xml-credentials-form').on('submit', this.saveXmlCredentials);
+
             $('#test-xml-file').on('change', this.onFileSelect);
             $('#process-test-file').on('click', this.processTestFile);
             $('#create-property-fields').on('click', this.createPropertyFields);
@@ -1308,23 +1779,35 @@ jQuery(document).ready(function($) {
         },
         testConnection: function(e) {
             e.preventDefault();
-            var url = $('#xml_url').val(), username = $('#username').val(), password = $('#password').val();
-            if (!url || !username || !password) {
-                dashboard.showAlert('Compila tutti i campi prima di testare', 'error');
-                return;
-            }
+
+            // Backend uses credential_source toggle to determine which credentials to use
+            var credSource = $('input[name="credential_source"]:checked').val();
+            var testingMsg = credSource === 'database' ? 'Testo credenziali database...' : 'Testo credenziali hardcoded...';
+
+            dashboard.showAlert(testingMsg, 'info');
+
             $.ajax({
                 url: realestateSync.ajax_url,
                 type: 'POST',
-                data: { action: 'realestate_sync_test_connection', nonce: realestateSync.nonce, url: url, username: username, password: password },
+                data: {
+                    action: 'realestate_sync_test_connection',
+                    nonce: realestateSync.nonce
+                },
                 success: function(response) {
                     if (response.success) {
-                        dashboard.showAlert('Connessione riuscita!', 'success');
+                        var msg = 'Connessione riuscita con credenziali ' + (credSource === 'database' ? 'database' : 'hardcoded') + '!';
+                        dashboard.showAlert(msg, 'success');
+                        $('#rs-test-connection-result').html('<div style="color: green; margin-top: 10px;">✓ ' + msg + '</div>');
                     } else {
-                        dashboard.showAlert('Test fallito: ' + (response.data?.message || 'Errore sconosciuto'), 'error');
+                        var errorMsg = response.data?.message || 'Errore sconosciuto';
+                        dashboard.showAlert('Test fallito: ' + errorMsg, 'error');
+                        $('#rs-test-connection-result').html('<div style="color: red; margin-top: 10px;">✗ Test fallito: ' + errorMsg + '</div>');
                     }
                 },
-                error: function() { dashboard.showAlert('Errore durante test connessione', 'error'); }
+                error: function() {
+                    dashboard.showAlert('Errore durante test connessione', 'error');
+                    $('#rs-test-connection-result').html('<div style="color: red; margin-top: 10px;">✗ Errore comunicazione server</div>');
+                }
             });
         },
         saveSettings: function(e) {
@@ -1340,6 +1823,110 @@ jQuery(document).ready(function($) {
                 error: function() { dashboard.showAlert('Errore comunicazione server', 'error'); }
             });
         },
+
+        // XML Credentials Management Functions
+        onCredentialSourceChange: function(e) {
+            var source = $('input[name="credential_source"]:checked').val();
+
+            // Save credential source immediately
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'realestate_sync_save_credential_source',
+                    nonce: realestateSync.nonce,
+                    source: source
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.showAlert('Sorgente credenziali aggiornata: ' + (source === 'hardcoded' ? 'Hardcoded' : 'Database'), 'success');
+                    }
+                }
+            });
+        },
+
+        enableXmlEdit: function(e) {
+            e.preventDefault();
+
+            // Enable input fields
+            $('#xml_url, #xml_user, #xml_pass').prop('readonly', false).css('background-color', '#fff');
+
+            // Hide Edit button, show Save/Cancel buttons
+            $('#rs-xml-edit-btn').hide();
+            $('#rs-xml-save-cancel-btns').show();
+
+            // Store original values for cancel
+            $('#xml_url').data('original', $('#xml_url').val());
+            $('#xml_user').data('original', $('#xml_user').val());
+            $('#xml_pass').data('original', $('#xml_pass').val());
+        },
+
+        cancelXmlEdit: function(e) {
+            e.preventDefault();
+
+            // Restore original values
+            $('#xml_url').val($('#xml_url').data('original'));
+            $('#xml_user').val($('#xml_user').data('original'));
+            $('#xml_pass').val($('#xml_pass').data('original'));
+
+            // Disable input fields
+            $('#xml_url, #xml_user, #xml_pass').prop('readonly', true).css('background-color', '#f0f0f1');
+
+            // Show Edit button, hide Save/Cancel buttons
+            $('#rs-xml-edit-btn').show();
+            $('#rs-xml-save-cancel-btns').hide();
+        },
+
+        saveXmlCredentials: function(e) {
+            e.preventDefault();
+
+            var xmlUrl = $('#xml_url').val();
+            var xmlUser = $('#xml_user').val();
+            var xmlPass = $('#xml_pass').val();
+
+            if (!xmlUrl || !xmlUser || !xmlPass) {
+                dashboard.showAlert('Compila tutti i campi XML', 'error');
+                return;
+            }
+
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'realestate_sync_save_xml_credentials',
+                    nonce: $('input[name="xml_nonce"]').val(),
+                    xml_url: xmlUrl,
+                    xml_user: xmlUser,
+                    xml_pass: xmlPass
+                },
+                beforeSend: function() {
+                    $('#rs-xml-save-cancel-btns button[type="submit"]').prop('disabled', true)
+                        .html('<span class="rs-spinner"></span> Salvataggio...');
+                },
+                success: function(response) {
+                    if (response.success) {
+                        dashboard.showAlert('Credenziali XML salvate con successo!', 'success');
+
+                        // Disable input fields
+                        $('#xml_url, #xml_user, #xml_pass').prop('readonly', true).css('background-color', '#f0f0f1');
+
+                        // Show Edit button, hide Save/Cancel buttons
+                        $('#rs-xml-edit-btn').show();
+                        $('#rs-xml-save-cancel-btns').hide();
+                    } else {
+                        dashboard.showAlert('Errore salvataggio: ' + (response.data || 'Errore sconosciuto'), 'error');
+                    }
+                },
+                error: function() {
+                    dashboard.showAlert('Errore comunicazione server', 'error');
+                },
+                complete: function() {
+                    $('#rs-xml-save-cancel-btns button[type="submit"]').prop('disabled', false)
+                        .html('<span class="dashicons dashicons-yes"></span> Salva Credenziali');
+                }
+            });
+        },
+
         createPropertiesFromSampleV3: function(e) {
             e.preventDefault();
             if (!confirm('Creare properties di test con Property Mapper v3.0?')) return;

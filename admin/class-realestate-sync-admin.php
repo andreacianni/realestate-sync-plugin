@@ -37,6 +37,23 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_manual_import', array($this, 'handle_manual_import'));
         add_action('wp_ajax_realestate_sync_test_connection', array($this, 'handle_test_connection'));
         add_action('wp_ajax_realestate_sync_save_settings', array($this, 'handle_save_settings'));
+        add_action('wp_ajax_realestate_sync_save_credential_source', array($this, 'handle_save_credential_source'));
+        add_action('wp_ajax_realestate_sync_save_xml_credentials', array($this, 'handle_save_xml_credentials'));
+        add_action('wp_ajax_realestate_sync_ignore_verification', array($this, 'handle_ignore_verification'));
+        add_action('wp_ajax_realestate_sync_clear_all_verification', array($this, 'handle_clear_all_verification'));
+        add_action('wp_ajax_realestate_sync_save_schedule', array($this, 'handle_save_schedule'));
+        add_action('wp_ajax_realestate_sync_get_next_run', array($this, 'handle_get_next_run'));
+        add_action('wp_ajax_realestate_sync_analyze_no_images', array($this, 'handle_analyze_no_images'));
+        add_action('wp_ajax_realestate_sync_cleanup_no_images', array($this, 'handle_cleanup_no_images'));
+        add_action('wp_ajax_realestate_sync_get_queue_stats', array($this, 'handle_get_queue_stats'));
+        add_action('wp_ajax_realestate_sync_get_failed_items', array($this, 'handle_get_failed_items'));
+        add_action('wp_ajax_realestate_sync_retry_failed_items', array($this, 'handle_retry_failed_items'));
+        add_action('wp_ajax_realestate_sync_delete_queue_items', array($this, 'handle_delete_queue_items'));
+        add_action('wp_ajax_realestate_sync_reset_stuck_items', array($this, 'handle_reset_stuck_items'));
+        add_action('wp_ajax_realestate_sync_clear_all_queue', array($this, 'handle_clear_all_queue'));
+        add_action('wp_ajax_realestate_sync_retry_single_item', array($this, 'handle_retry_single_item'));
+        add_action('wp_ajax_realestate_sync_delete_single_item', array($this, 'handle_delete_single_item'));
+        add_action('wp_ajax_realestate_sync_mark_single_done', array($this, 'handle_mark_single_done'));
         add_action('wp_ajax_realestate_sync_get_progress', array($this, 'handle_get_progress'));
         add_action('wp_ajax_realestate_sync_get_logs', array($this, 'handle_get_logs'));
         add_action('wp_ajax_realestate_sync_download_logs', array($this, 'handle_download_logs'));
@@ -667,15 +684,15 @@ class RealEstate_Sync_Admin {
             'realestate-sync-admin',
             plugin_dir_url(__FILE__) . '../admin/assets/admin.js',
             array('jquery'),
-            '0.9.0',
+            '0.9.3',
             true
         );
-        
+
         wp_enqueue_style(
             'realestate-sync-admin',
             plugin_dir_url(__FILE__) . '../admin/assets/admin.css',
             array(),
-            '0.9.0'
+            '0.9.3'
         );
         
         wp_localize_script('realestate-sync-admin', 'realestateSync', array(
@@ -713,14 +730,33 @@ class RealEstate_Sync_Admin {
         }
 
         try {
-            // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
-            $settings = array(
-                'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
-                'username' => 'trentinoimmobiliare_it',
-                'password' => 'dget6g52'
-            );
+            // Get credential source
+            $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
 
-            $this->logger->log('HARDCODE: Using hardcoded credentials for testing', 'info');
+            if ($credential_source === 'database') {
+                // Use credentials from database
+                $settings = array(
+                    'xml_url' => get_option('realestate_sync_xml_url', ''),
+                    'username' => get_option('realestate_sync_xml_user', ''),
+                    'password' => get_option('realestate_sync_xml_pass', '')
+                );
+
+                if (empty($settings['xml_url']) || empty($settings['username']) || empty($settings['password'])) {
+                    throw new Exception('Credenziali XML non configurate nel database');
+                }
+
+                $this->logger->log('Using XML credentials from database for import', 'info');
+
+            } else {
+                // Use hardcoded credentials
+                $settings = array(
+                    'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
+                    'username' => 'trentinoimmobiliare_it',
+                    'password' => 'dget6g52'
+                );
+
+                $this->logger->log('Using hardcoded XML credentials for import', 'info');
+            }
 
             // Check if user wants to mark properties as test
             $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
@@ -770,21 +806,42 @@ class RealEstate_Sync_Admin {
      */
     public function handle_test_connection() {
         check_ajax_referer('realestate_sync_nonce', 'nonce');
-        
+
         if (!current_user_can('manage_options')) {
             wp_die('Unauthorized');
         }
-        
-        // 🔧 HARDCODE CREDENZIALI TEMPORANEO - BYPASS ADMIN INTERFACE
-        $url = 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz';
-        $username = 'trentinoimmobiliare_it';
-        $password = 'dget6g52';
-        
-        $this->logger->log('HARDCODE: Using hardcoded credentials for connection test', 'info');
-        
+
+        // Get credential source
+        $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
+
+        if ($credential_source === 'database') {
+            // Use credentials from database
+            $url = get_option('realestate_sync_xml_url', '');
+            $username = get_option('realestate_sync_xml_user', '');
+            $password = get_option('realestate_sync_xml_pass', '');
+
+            if (empty($url) || empty($username) || empty($password)) {
+                wp_send_json_error([
+                    'success' => false,
+                    'message' => 'Credenziali database non configurate. Inserisci URL, username e password.'
+                ]);
+                return;
+            }
+
+            $this->logger->log('Using XML credentials from database', 'info');
+
+        } else {
+            // Use hardcoded credentials
+            $url = 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz';
+            $username = 'trentinoimmobiliare_it';
+            $password = 'dget6g52';
+
+            $this->logger->log('Using hardcoded XML credentials', 'info');
+        }
+
         $downloader = new RealEstate_Sync_XML_Downloader();
         $result = $downloader->test_connection($url, $username, $password);
-        
+
         if ($result['success']) {
             wp_send_json_success($result);
         } else {
@@ -822,13 +879,783 @@ class RealEstate_Sync_Admin {
             wp_send_json_error('Errore nel salvataggio delle impostazioni');
         }
     }
-    
+
+    /**
+     * Handle save credential source AJAX
+     */
+    public function handle_save_credential_source() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $source = isset($_POST['source']) ? sanitize_text_field($_POST['source']) : 'hardcoded';
+
+        // Validate
+        if (!in_array($source, ['hardcoded', 'database'])) {
+            wp_send_json_error('Invalid source');
+            return;
+        }
+
+        // Save to wp_options
+        update_option('realestate_sync_credential_source', $source);
+
+        $this->logger->log('Credential source changed to: ' . $source, 'info');
+
+        wp_send_json_success('Credential source updated');
+    }
+
+    /**
+     * Handle save XML credentials AJAX
+     */
+    public function handle_save_xml_credentials() {
+        // Verify nonce
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'realestate_sync_xml_nonce')) {
+            wp_send_json_error('Invalid nonce');
+            return;
+        }
+
+        // Check permissions
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        // Sanitize inputs (plain text, no encoding)
+        $xml_url = isset($_POST['xml_url']) ? sanitize_text_field($_POST['xml_url']) : '';
+        $xml_user = isset($_POST['xml_user']) ? sanitize_text_field($_POST['xml_user']) : '';
+        $xml_pass = isset($_POST['xml_pass']) ? sanitize_text_field($_POST['xml_pass']) : '';
+
+        // Validate
+        if (empty($xml_url) || empty($xml_user) || empty($xml_pass)) {
+            wp_send_json_error('Tutti i campi sono obbligatori');
+            return;
+        }
+
+        // Save to wp_options (plain text, like wp-config.php credentials)
+        update_option('realestate_sync_xml_url', $xml_url);
+        update_option('realestate_sync_xml_user', $xml_user);
+        update_option('realestate_sync_xml_pass', $xml_pass);
+
+        // Log action
+        $this->logger->log('XML credentials updated', 'info', [
+            'url' => $xml_url,
+            'user' => $xml_user
+            // Don't log password
+        ]);
+
+        wp_send_json_success('Credenziali XML salvate con successo');
+    }
+
+    /**
+     * Handle ignore verification AJAX
+     *
+     * Rimuove singola proprietà dalla lista verification
+     */
+    public function handle_ignore_verification() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $property_id = isset($_POST['property_id']) ? intval($_POST['property_id']) : 0;
+
+        if (!$property_id) {
+            wp_send_json_error('Property ID mancante');
+            return;
+        }
+
+        $verification = get_option('realestate_sync_latest_verification');
+
+        if ($verification && isset($verification['properties'][$property_id])) {
+            unset($verification['properties'][$property_id]);
+            $verification['total_issues'] = count($verification['properties']);
+            update_option('realestate_sync_latest_verification', $verification);
+
+            $this->logger->log("Verification ignored for property {$property_id}", 'info');
+
+            wp_send_json_success([
+                'message' => 'Proprietà ignorata',
+                'remaining' => count($verification['properties'])
+            ]);
+        } else {
+            wp_send_json_error('Proprietà non trovata nella lista verification');
+        }
+    }
+
+    /**
+     * Handle clear all verification AJAX
+     *
+     * Cancella tutti gli avvisi di verifica
+     */
+    public function handle_clear_all_verification() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        delete_option('realestate_sync_latest_verification');
+
+        $this->logger->log('All verification warnings cleared', 'info');
+
+        wp_send_json_success('Tutti gli avvisi cancellati');
+    }
+
+    /**
+     * Handle save schedule configuration AJAX
+     *
+     * Salva configurazione scheduling e riprogram cron
+     */
+    public function handle_save_schedule() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        // Get and validate inputs
+        $enabled = isset($_POST['enabled']) && $_POST['enabled'] === 'true';
+        $time = isset($_POST['time']) ? sanitize_text_field($_POST['time']) : '23:00';
+        $frequency = isset($_POST['frequency']) ? sanitize_text_field($_POST['frequency']) : 'daily';
+        $weekday = isset($_POST['weekday']) ? intval($_POST['weekday']) : 1;
+        $custom_days = isset($_POST['custom_days']) ? intval($_POST['custom_days']) : 1;
+        $custom_months = isset($_POST['custom_months']) ? intval($_POST['custom_months']) : 1;
+        $mark_test = isset($_POST['mark_test']) && $_POST['mark_test'] === 'true';
+
+        // Validate time format (HH:MM)
+        if (!preg_match('/^([01][0-9]|2[0-3]):([0-5][0-9])$/', $time)) {
+            wp_send_json_error('Formato ora non valido');
+            return;
+        }
+
+        // Validate frequency
+        $valid_frequencies = array('daily', 'weekly', 'custom_days', 'custom_months');
+        if (!in_array($frequency, $valid_frequencies)) {
+            wp_send_json_error('Frequenza non valida');
+            return;
+        }
+
+        // Save options
+        update_option('realestate_sync_schedule_enabled', $enabled);
+        update_option('realestate_sync_schedule_time', $time);
+        update_option('realestate_sync_schedule_frequency', $frequency);
+        update_option('realestate_sync_schedule_weekday', $weekday);
+        update_option('realestate_sync_schedule_custom_days', $custom_days);
+        update_option('realestate_sync_schedule_custom_months', $custom_months);
+        update_option('realestate_sync_schedule_mark_test', $mark_test);
+
+        // Reschedule cron
+        require_once(plugin_dir_path(dirname(__FILE__)) . 'includes/class-realestate-sync-cron-manager.php');
+        $cron_manager = new RealEstate_Sync_Cron_Manager();
+
+        if ($enabled) {
+            $result = $cron_manager->reschedule_import($time, $frequency, $weekday, $custom_days, $custom_months);
+
+            if ($result['success']) {
+                $this->logger->log('Scheduled import configured', 'info', array(
+                    'time' => $time,
+                    'frequency' => $frequency,
+                    'next_run' => date('Y-m-d H:i:s', $result['next_run'])
+                ));
+
+                wp_send_json_success(array(
+                    'message' => 'Configurazione salvata con successo',
+                    'next_run' => date('Y-m-d H:i:s', $result['next_run']),
+                    'next_run_timestamp' => $result['next_run']
+                ));
+            } else {
+                wp_send_json_error('Errore nella programmazione del cron');
+            }
+        } else {
+            // Disable: unschedule cron
+            $cron_manager->unschedule_imports();
+
+            $this->logger->log('Scheduled import disabled', 'info');
+
+            wp_send_json_success(array(
+                'message' => 'Import automatico disabilitato',
+                'next_run' => 'Non programmato'
+            ));
+        }
+    }
+
+    /**
+     * Handle get next run AJAX
+     *
+     * Ritorna prossima esecuzione programmata
+     */
+    public function handle_get_next_run() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        require_once(plugin_dir_path(dirname(__FILE__)) . 'includes/class-realestate-sync-cron-manager.php');
+        $cron_manager = new RealEstate_Sync_Cron_Manager();
+        $next_run = $cron_manager->get_next_scheduled_import();
+
+        if ($next_run) {
+            wp_send_json_success(array(
+                'next_run' => date('Y-m-d H:i:s', $next_run),
+                'next_run_timestamp' => $next_run
+            ));
+        } else {
+            wp_send_json_success(array(
+                'next_run' => 'Non programmato',
+                'next_run_timestamp' => null
+            ));
+        }
+    }
+
+    /**
+     * Handle analyze properties without images
+     */
+    public function handle_analyze_no_images() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        global $wpdb;
+
+        // Find properties without featured image
+        $query = "
+            SELECT
+                p.ID,
+                p.post_title,
+                p.post_status,
+                t.property_id as gi_property_id
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->prefix}realestate_sync_tracking t ON p.ID = t.wp_post_id
+            WHERE p.post_type = 'estate_property'
+              AND p.post_status IN ('publish', 'draft')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM {$wpdb->postmeta} pm
+                  WHERE pm.post_id = p.ID
+                    AND pm.meta_key = '_thumbnail_id'
+                    AND pm.meta_value != ''
+              )
+            ORDER BY p.ID
+        ";
+
+        $properties = $wpdb->get_results($query);
+
+        if (empty($properties)) {
+            wp_send_json_success(array(
+                'total' => 0,
+                'message' => 'Nessuna proprietà senza immagini trovata!'
+            ));
+            return;
+        }
+
+        // Count by status
+        $by_status = array();
+        foreach ($properties as $prop) {
+            if (!isset($by_status[$prop->post_status])) {
+                $by_status[$prop->post_status] = 0;
+            }
+            $by_status[$prop->post_status]++;
+        }
+
+        // Get first 20 for preview
+        $preview = array_slice($properties, 0, 20);
+        $preview_html = array();
+        foreach ($preview as $prop) {
+            $gi_id = $prop->gi_property_id ? "GI:{$prop->gi_property_id}" : "no-tracking";
+            $preview_html[] = sprintf(
+                'WP:%d | %s | %s | %s',
+                $prop->ID,
+                $gi_id,
+                $prop->post_status,
+                substr($prop->post_title, 0, 40)
+            );
+        }
+
+        wp_send_json_success(array(
+            'total' => count($properties),
+            'by_status' => $by_status,
+            'preview' => $preview_html,
+            'has_more' => count($properties) > 20
+        ));
+    }
+
+    /**
+     * Handle cleanup properties without images
+     */
+    public function handle_cleanup_no_images() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $force_delete = isset($_POST['force']) && $_POST['force'] === 'true';
+
+        global $wpdb;
+
+        // Find properties without images (same query as analyze)
+        $query = "
+            SELECT p.ID, p.post_title
+            FROM {$wpdb->posts} p
+            WHERE p.post_type = 'estate_property'
+              AND p.post_status IN ('publish', 'draft')
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM {$wpdb->postmeta} pm
+                  WHERE pm.post_id = p.ID
+                    AND pm.meta_key = '_thumbnail_id'
+                    AND pm.meta_value != ''
+              )
+        ";
+
+        $properties = $wpdb->get_results($query);
+
+        if (empty($properties)) {
+            wp_send_json_success(array(
+                'deleted' => 0,
+                'message' => 'Nessuna proprietà da cancellare'
+            ));
+            return;
+        }
+
+        $deleted = 0;
+        $errors = 0;
+
+        foreach ($properties as $prop) {
+            // wp_delete_post triggers before_delete_post hook which deletes tracking
+            $result = wp_delete_post($prop->ID, $force_delete);
+
+            if ($result) {
+                $deleted++;
+                $this->logger->log("Deleted property without images", 'info', array(
+                    'wp_post_id' => $prop->ID,
+                    'title' => $prop->post_title,
+                    'permanent' => $force_delete
+                ));
+            } else {
+                $errors++;
+            }
+        }
+
+        wp_send_json_success(array(
+            'deleted' => $deleted,
+            'errors' => $errors,
+            'total' => count($properties),
+            'mode' => $force_delete ? 'permanent' : 'trash'
+        ));
+    }
+
+    /**
+     * Get last import status
+     */
+    public function handle_get_queue_stats() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Get last session info
+        // Adapted to existing table: status='done' (not 'completed'), 'error'/'retry' (not 'failed'), processed_at (not updated_at)
+        $last_session = $wpdb->get_row("
+            SELECT
+                session_id,
+                MIN(created_at) as start_time,
+                MAX(COALESCE(processed_at, created_at)) as last_activity,
+                COUNT(*) as total,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing,
+                SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as completed,
+                SUM(CASE WHEN status IN ('error', 'retry') THEN 1 ELSE 0 END) as failed
+            FROM {$queue_table}
+            GROUP BY session_id
+            ORDER BY MAX(created_at) DESC
+            LIMIT 1
+        ");
+
+        if (!$last_session) {
+            wp_send_json_success(array(
+                'has_session' => false,
+                'message' => 'Nessun import nella queue'
+            ));
+            return;
+        }
+
+        // Determine if process is active or closed
+        $last_activity_time = strtotime($last_session->last_activity);
+        $now = time();
+        $minutes_since_activity = ($now - $last_activity_time) / 60;
+
+        // Process is ACTIVE if:
+        // - There are pending/processing items AND
+        // - Last activity was less than 5 minutes ago
+        $is_active = ($last_session->pending > 0 || $last_session->processing > 0) && $minutes_since_activity < 5;
+
+        // Calculate progress
+        $progress_percent = $last_session->total > 0
+            ? round(($last_session->completed / $last_session->total) * 100, 1)
+            : 0;
+
+        $remaining = $last_session->pending + $last_session->processing + $last_session->failed;
+
+        wp_send_json_success(array(
+            'has_session' => true,
+            'session_id' => $last_session->session_id,
+            'start_time' => $last_session->start_time,
+            'is_active' => $is_active,
+            'total' => intval($last_session->total),
+            'completed' => intval($last_session->completed),
+            'pending' => intval($last_session->pending),
+            'processing' => intval($last_session->processing),
+            'failed' => intval($last_session->failed),
+            'remaining' => $remaining,
+            'progress_percent' => $progress_percent,
+            'minutes_since_activity' => round($minutes_since_activity, 1)
+        ));
+    }
+
+    /**
+     * Get pending/processing items with frontend links
+     */
+    public function handle_get_failed_items() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+        $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : '';
+
+        if (empty($session_id)) {
+            wp_send_json_error('Session ID required');
+            return;
+        }
+
+        // Get pending/processing items for this session with post data
+        // Adapted to existing table: status IN ('error', 'retry') instead of 'failed', processed_at instead of updated_at
+        $items = $wpdb->get_results($wpdb->prepare("
+            SELECT
+                q.id,
+                q.item_type,
+                q.item_id,
+                q.status,
+                q.error_message,
+                q.retry_count,
+                q.processed_at,
+                p.ID as wp_post_id,
+                p.post_title,
+                p.post_name as slug,
+                p.post_type
+            FROM {$queue_table} q
+            LEFT JOIN {$wpdb->posts} p ON (
+                (q.item_type = 'property' AND p.post_type = 'estate_property' AND p.ID IN (
+                    SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
+                ))
+                OR
+                (q.item_type = 'agency' AND p.post_type = 'estate_agent' AND p.ID IN (
+                    SELECT wp_post_id FROM {$wpdb->prefix}realestate_sync_tracking WHERE property_id = q.item_id
+                ))
+            )
+            WHERE q.session_id = %s
+            AND q.status IN ('pending', 'processing', 'error', 'retry')
+            ORDER BY q.status DESC, COALESCE(q.processed_at, q.created_at) ASC
+            LIMIT 100
+        ", $session_id));
+
+        // Build items with frontend URLs
+        $items_with_urls = array();
+        foreach ($items as $item) {
+            $frontend_url = null;
+
+            if ($item->wp_post_id && $item->slug) {
+                if ($item->post_type === 'estate_property') {
+                    $frontend_url = home_url('/property/' . $item->slug . '/');
+                } elseif ($item->post_type === 'estate_agent') {
+                    $frontend_url = home_url('/agent/' . $item->slug . '/');
+                }
+            }
+
+            $items_with_urls[] = array(
+                'id' => $item->id,
+                'item_type' => $item->item_type,
+                'item_id' => $item->item_id,
+                'status' => $item->status,
+                'title' => $item->post_title,
+                'frontend_url' => $frontend_url,
+                'error_message' => $item->error_message,
+                'retry_count' => $item->retry_count,
+                'processed_at' => $item->processed_at
+            );
+        }
+
+        wp_send_json_success(array(
+            'items' => $items_with_urls
+        ));
+    }
+
+    /**
+     * Retry pending/processing/failed items for a session
+     */
+    public function handle_retry_failed_items() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : '';
+
+        if (empty($session_id)) {
+            wp_send_json_error('Session ID required');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Reset pending/processing/error/retry items to pending
+        // Adapted to existing table: status IN ('error', 'retry') instead of 'failed', no updated_at column
+        $updated = $wpdb->query($wpdb->prepare("
+            UPDATE {$queue_table}
+            SET status = 'pending',
+                error_message = NULL,
+                retry_count = 0
+            WHERE session_id = %s
+            AND status IN ('pending', 'processing', 'error', 'retry')
+        ", $session_id));
+
+        $this->logger->log("Queue management: Reset {$updated} items to pending for session {$session_id}", 'info');
+
+        wp_send_json_success(array(
+            'updated' => $updated,
+            'message' => "{$updated} elementi reimpostati a 'pending'. Il cron li riprocesserà entro 1 minuto."
+        ));
+    }
+
+    /**
+     * Delete pending/processing/failed items for a session
+     */
+    public function handle_delete_queue_items() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $session_id = isset($_POST['session_id']) ? sanitize_text_field($_POST['session_id']) : '';
+
+        if (empty($session_id)) {
+            wp_send_json_error('Session ID required');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Delete pending/processing/error/retry items for this session
+        // Adapted to existing table: status IN ('error', 'retry') instead of 'failed'
+        $deleted = $wpdb->query($wpdb->prepare("
+            DELETE FROM {$queue_table}
+            WHERE session_id = %s
+            AND status IN ('pending', 'processing', 'error', 'retry')
+        ", $session_id));
+
+        $this->logger->log("Queue management: Deleted {$deleted} items for session {$session_id}", 'warning');
+
+        wp_send_json_success(array(
+            'deleted' => $deleted,
+            'message' => "{$deleted} elementi eliminati dalla queue"
+        ));
+    }
+
+    /**
+     * Reset stuck items to pending
+     */
+    public function handle_reset_stuck_items() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Reset stuck items (processing for more than 5 minutes)
+        // Adapted to existing table: no updated_at column, use created_at
+        $updated = $wpdb->query("
+            UPDATE {$queue_table}
+            SET status = 'pending',
+                retry_count = 0
+            WHERE status = 'processing'
+            AND created_at < DATE_SUB(NOW(), INTERVAL 5 MINUTE)
+        ");
+
+        $this->logger->log("Queue management: Reset {$updated} stuck items to pending", 'info');
+
+        wp_send_json_success(array(
+            'updated' => $updated,
+            'message' => "{$updated} elementi bloccati reimpostati"
+        ));
+    }
+
+    /**
+     * Clear all queue
+     */
+    public function handle_clear_all_queue() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        $deleted = $wpdb->query("TRUNCATE TABLE {$queue_table}");
+
+        // Also clear progress option
+        delete_option('realestate_sync_background_import_progress');
+
+        $this->logger->log("Queue management: Cleared entire queue", 'warning');
+
+        wp_send_json_success(array(
+            'message' => 'Queue completamente svuotata'
+        ));
+    }
+
+    /**
+     * Retry single queue item
+     */
+    public function handle_retry_single_item() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
+
+        if (!$item_id) {
+            wp_send_json_error('Item ID required');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Reset single item to pending
+        $updated = $wpdb->update(
+            $queue_table,
+            array(
+                'status' => 'pending',
+                'error_message' => null,
+                'retry_count' => 0
+            ),
+            array('id' => $item_id),
+            array('%s', '%s', '%d'),
+            array('%d')
+        );
+
+        if ($updated) {
+            wp_send_json_success(array('message' => 'Elemento reimpostato a pending'));
+        } else {
+            wp_send_json_error('Errore durante il reset');
+        }
+    }
+
+    /**
+     * Delete single queue item
+     */
+    public function handle_delete_single_item() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
+
+        if (!$item_id) {
+            wp_send_json_error('Item ID required');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Delete single item (does NOT delete WordPress post, only queue entry)
+        $deleted = $wpdb->delete(
+            $queue_table,
+            array('id' => $item_id),
+            array('%d')
+        );
+
+        if ($deleted) {
+            wp_send_json_success(array('message' => 'Elemento eliminato dalla queue'));
+        } else {
+            wp_send_json_error('Errore durante l\'eliminazione');
+        }
+    }
+
+    /**
+     * Mark single queue item as done
+     */
+    public function handle_mark_single_done() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $item_id = isset($_POST['item_id']) ? intval($_POST['item_id']) : 0;
+
+        if (!$item_id) {
+            wp_send_json_error('Item ID required');
+            return;
+        }
+
+        global $wpdb;
+        $queue_table = $wpdb->prefix . 'realestate_import_queue';
+
+        // Mark single item as done (admin approval)
+        // ONLY change status, do NOT update processed_at (would make session appear active)
+        $updated = $wpdb->update(
+            $queue_table,
+            array(
+                'status' => 'done',
+                'error_message' => null
+            ),
+            array('id' => $item_id),
+            array('%s', '%s'),
+            array('%d')
+        );
+
+        if ($updated) {
+            wp_send_json_success(array('message' => 'Elemento marcato come completato'));
+        } else {
+            wp_send_json_error('Errore durante l\'aggiornamento');
+        }
+    }
+
     /**
      * Handle get progress AJAX
      */
     public function handle_get_progress() {
         check_ajax_referer('realestate_sync_nonce', 'nonce');
-        
+
         $progress = RealEstate_Sync_Import_Engine::get_current_progress();
         
         if ($progress) {
