@@ -20,18 +20,18 @@ class RealEstate_Sync_Property_Agent_Linker {
      * Logger instance
      */
     private $logger;
-    
+
     /**
-     * Agency importer instance
+     * Agency manager instance
      */
-    private $agency_importer;
-    
+    private $agency_manager;
+
     /**
      * Constructor
      */
     public function __construct() {
         $this->logger = RealEstate_Sync_Logger::get_instance();
-        $this->agency_importer = new RealEstate_Sync_Agency_Importer();
+        $this->agency_manager = new RealEstate_Sync_Agency_Manager();
     }
     
     /**
@@ -45,9 +45,9 @@ class RealEstate_Sync_Property_Agent_Linker {
         if (empty($property_id) || empty($agency_xml_id)) {
             return false;
         }
-        
+
         // Find WordPress agent ID by XML ID
-        $agent_id = $this->agency_importer->get_agent_id_by_xml_id($agency_xml_id);
+        $agent_id = $this->agency_manager->lookup_agency_by_xml_id($agency_xml_id);
         
         if (!$agent_id) {
             $this->logger->log("Agent not found for XML ID {$agency_xml_id}, property {$property_id} not linked", 'warning');
@@ -211,8 +211,8 @@ class RealEstate_Sync_Property_Agent_Linker {
             }
             
             // Find new agent ID
-            $new_agent_id = $this->agency_importer->get_agent_id_by_xml_id($new_agency_xml_id);
-            
+            $new_agent_id = $this->agency_manager->lookup_agency_by_xml_id($new_agency_xml_id);
+
             if (!$new_agent_id) {
                 $results['failed']++;
                 continue;
