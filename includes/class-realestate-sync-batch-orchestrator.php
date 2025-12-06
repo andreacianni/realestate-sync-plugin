@@ -155,30 +155,97 @@ class RealEstate_Sync_Batch_Orchestrator {
 			}
 		}
 
-		// Add properties to queue
+		// Add properties to queue (WITH HASH PRE-FILTERING OPTIMIZATION)
+		// ✨ v1.7.0: Only queue properties that have actual changes
+		$tracking_manager = new RealEstate_Sync_Tracking_Manager();
 		$properties_queued = 0;
 		$properties_failed = 0;
+		$properties_skipped_no_changes = 0;
+
 		foreach ( $properties as $property_id ) {
-			$result = $queue_manager->add_property( $session_id, $property_id );
-			if ( $result ) {
-				$properties_queued++;
-			} else {
-				$properties_failed++;
-				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add property to queue', array(
-					'property_id' => $property_id,
-					'wpdb_error' => $GLOBALS['wpdb']->last_error
+			// Get parsed property data (already available from line 116-119)
+			$property_data = $properties_data[ $property_id ] ?? null;
+
+			if ( ! $property_data ) {
+				$tracker->log_event('WARNING', 'ORCHESTRATOR', 'Property data not found for pre-filtering', array(
+					'property_id' => $property_id
 				));
+				// Fallback: queue it anyway to avoid missing items
+				$result = $queue_manager->add_property( $session_id, $property_id );
+				if ( $result ) {
+					$properties_queued++;
+				}
+				continue;
+			}
+
+			// ✨ OPTIMIZATION: Calculate hash and check for changes BEFORE queueing
+			try {
+				$hash = $tracking_manager->calculate_property_hash( $property_data );
+				$change_check = $tracking_manager->check_property_changes( $property_id, $hash );
+
+				// ✨ Only queue if property has changes
+				if ( $change_check['has_changed'] ) {
+					$result = $queue_manager->add_property( $session_id, $property_id );
+					if ( $result ) {
+						$properties_queued++;
+
+						$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Property queued', array(
+							'property_id' => $property_id,
+							'action' => $change_check['action'],
+							'reason' => $change_check['reason']
+						));
+					} else {
+						$properties_failed++;
+						$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add property to queue', array(
+							'property_id' => $property_id,
+							'wpdb_error' => $GLOBALS['wpdb']->last_error
+						));
+					}
+				} else {
+					// ✨ Skip properties with no changes (optimization!)
+					$properties_skipped_no_changes++;
+
+					$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Property skipped (no changes)', array(
+						'property_id' => $property_id,
+						'reason' => $change_check['reason']
+					));
+				}
+			} catch ( Exception $e ) {
+				// Fallback: if hash check fails, queue anyway to avoid data loss
+				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Hash check failed - queueing as fallback', array(
+					'property_id' => $property_id,
+					'error' => $e->getMessage()
+				));
+
+				$result = $queue_manager->add_property( $session_id, $property_id );
+				if ( $result ) {
+					$properties_queued++;
+				}
 			}
 		}
+
+		// ✨ Log optimization statistics
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Pre-filtering complete', array(
+			'total_properties' => count( $properties ),
+			'queued' => $properties_queued,
+			'skipped_no_changes' => $properties_skipped_no_changes,
+			'failed' => $properties_failed,
+			'optimization_rate' => count( $properties ) > 0 ? round( ( $properties_skipped_no_changes / count( $properties ) ) * 100, 2 ) . '%' : '0%'
+		));
+
+		error_log( "[BATCH-ORCHESTRATOR] ✅ Queue optimization: Skipped $properties_skipped_no_changes properties (no changes detected)" );
+		error_log( "[BATCH-ORCHESTRATOR] ✅ Queued $properties_queued properties (have changes)" );
 
 		$total_queued = $agencies_queued + $properties_queued;
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Queue created', array(
 			'agencies' => $agencies_queued,
 			'properties' => $properties_queued,
+			'properties_skipped' => $properties_skipped_no_changes, // ✨ v1.7.0
 			'total' => $total_queued,
 			'agencies_failed' => $agencies_failed,
-			'properties_failed' => $properties_failed
+			'properties_failed' => $properties_failed,
+			'optimization_enabled' => true // ✨ v1.7.0
 		));
 
 		// ═════════════════════════════════════════════════════════
