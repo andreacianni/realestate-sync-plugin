@@ -140,6 +140,10 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-processor.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-orchestrator.php';
 
+        // Deletion System classes (v1.7.1+)
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-deletion-manager.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-attachment-cleanup.php'; // 🗑️ Auto-cleanup attachments on delete
+
         // require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php'; // DISABLED: Using external Git Updater plugin instead
 
         // Admin classes
@@ -179,7 +183,10 @@ class RealEstate_Sync {
         
         $this->instances['cron_manager'] = new RealEstate_Sync_Cron_Manager();
         $this->instances['tracking_manager'] = new RealEstate_Sync_Tracking_Manager();
-        
+
+        // Initialize Attachment Cleanup hooks (v1.7.2+)
+        RealEstate_Sync_Attachment_Cleanup::init();
+
         // Initialize GitHub updater - DISABLED: Using external Git Updater plugin
         // if (is_admin()) {
         //     $this->instances['github_updater'] = new RealEstate_Sync_GitHub_Updater(REALESTATE_SYNC_PLUGIN_FILE);
@@ -359,6 +366,11 @@ class RealEstate_Sync {
         require_once plugin_dir_path(__FILE__) . 'includes/class-realestate-sync-queue-manager.php';
         $queue_manager = new RealEstate_Sync_Queue_Manager();
         $queue_manager->create_table();
+
+        // ✅ AGENCY TRACKING: Create agency tracking table
+        require_once plugin_dir_path(__FILE__) . 'includes/class-realestate-sync-tracking-manager.php';
+        $tracking_manager = new RealEstate_Sync_Tracking_Manager();
+        $tracking_manager->create_agency_tracking_table();
 
         // Log database creation with detailed info
         if (class_exists('RealEstate_Sync_Logger')) {

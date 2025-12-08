@@ -41,3 +41,26 @@ docs/Info-Verification/
 
 # Large XML export files (exceeds GitHub 100MB limit)
 docs/export_*.xml
+
+# Temporary diagnostic and cleanup scripts (not for production)
+check-*.php
+cleanup-*.php
+cleanup-*.sh
+force-*.php
+queue-*.php
+reset-*.php
+ssh-*.sh
+trigger-*.php
+*-test-connection.sh
+toggle-*.php
+SSH_CLEANUP_INSTRUCTIONS.md
+TEST_ATTACHMENT_CLEANUP.md
+create-agency-table.php
+create-agency-tracking-table.sql
+
+# Image comparison and verification scripts
+compare-*.php
+extract-*.php
+verify-*.php
+*-images.php
+php-extract-*.php

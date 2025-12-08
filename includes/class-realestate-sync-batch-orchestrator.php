@@ -79,10 +79,45 @@ class RealEstate_Sync_Batch_Orchestrator {
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Agencies found', array('count' => count($agencies)));
 
+		// ✨ v1.7.1: Index deleted agencies for removal (AFTER province filter)
+		// Agency Parser skips deleted=1, but we need to track them for deletion
+		$agencies_deleted = array();
+		$agency_ids_seen = array();
+
+		foreach ( $xml->annuncio as $annuncio ) {
+			// Filter by province (same logic as Agency_Parser)
+			$comune_istat = (string) ( $annuncio->info->comune_istat ?? '' );
+			$prefix = substr( $comune_istat, 0, 3 );
+			$is_tn = ( $prefix === '022' && in_array( 'TN', $enabled_provinces ) );
+			$is_bz = ( $prefix === '021' && in_array( 'BZ', $enabled_provinces ) );
+
+			if ( ! $is_tn && ! $is_bz ) {
+				continue; // Not in enabled provinces
+			}
+
+			// Check if agency exists and is deleted
+			if ( isset( $annuncio->agenzia ) ) {
+				$agency_id = (string) ( $annuncio->agenzia->id ?? '' );
+				$is_deleted = ( (string) ( $annuncio->agenzia->deleted ?? '' ) === '1' );
+
+				if ( ! empty( $agency_id ) && $is_deleted && ! isset( $agency_ids_seen[ $agency_id ] ) ) {
+					$agencies_deleted[] = $agency_id;
+					$agency_ids_seen[ $agency_id ] = true;
+
+					$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Agency marked for deletion', array(
+						'agency_id' => $agency_id
+					));
+				}
+			}
+		}
+
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Deleted agencies found', array('count' => count($agencies_deleted)));
+
 		// Index properties (filter by comune_istat)
 		// ✅ OPTIMIZATION: Parse property data NOW to avoid re-loading 324MB XML later
-		$properties      = array();
-		$properties_data = array(); // ← Store FULL property data
+		$properties      = array();      // Active properties (will be queued)
+		$properties_data = array();      // Store FULL property data
+		$properties_deleted = array();   // ✨ v1.7.1: Deleted properties (will be removed)
 		$skipped_count   = 0;
 		$deleted_count   = 0;
 
@@ -91,13 +126,12 @@ class RealEstate_Sync_Batch_Orchestrator {
 
 		foreach ( $xml->annuncio as $annuncio ) {
 
-			// Skip deleted items
-			if ( (string) $annuncio->deleted === '1' ) {
-				$deleted_count++;
+			$property_id = (string) $annuncio->info->id;
+			if ( empty( $property_id ) ) {
 				continue;
 			}
 
-			// Filter by province (comune_istat)
+			// Filter by province FIRST (before checking deleted status)
 			$comune_istat = (string) ( $annuncio->info->comune_istat ?? '' );
 			$prefix       = substr( $comune_istat, 0, 3 );
 
@@ -107,27 +141,89 @@ class RealEstate_Sync_Batch_Orchestrator {
 			$is_tn = ( $prefix === '022' && in_array( 'TN', $enabled_provinces ) );
 			$is_bz = ( $prefix === '021' && in_array( 'BZ', $enabled_provinces ) );
 
-			if ( $is_tn || $is_bz ) {
-				$property_id = (string) $annuncio->info->id;
-				if ( ! empty( $property_id ) ) {
-					$properties[] = $property_id;
-
-					// ✅ Parse FULL property data NOW (avoid re-loading XML later)
-					$property_data = $xml_parser->parse_annuncio_xml( $annuncio->asXML() );
-					if ( $property_data ) {
-						$properties_data[ $property_id ] = $property_data;
-					}
-				}
-			} else {
+			if ( ! $is_tn && ! $is_bz ) {
+				// Not in enabled provinces - skip completely
 				$skipped_count++;
+				continue;
+			}
+
+			// ✨ v1.7.1: Separate active vs deleted properties (AFTER province filter)
+			$is_deleted = ( (string) $annuncio->info->deleted === '1' );
+
+			if ( $is_deleted ) {
+				// Deleted property in TN/BZ - collect for deletion
+				$properties_deleted[] = $property_id;
+				$deleted_count++;
+
+				$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Property marked for deletion', array(
+					'property_id' => $property_id,
+					'comune_istat' => $comune_istat
+				));
+			} else {
+				// Active property - add to queue list
+				$properties[] = $property_id;
+
+				// ✅ Parse FULL property data NOW (avoid re-loading XML later)
+				$property_data = $xml_parser->parse_annuncio_xml( $annuncio->asXML() );
+				if ( $property_data ) {
+					$properties_data[ $property_id ] = $property_data;
+				}
 			}
 		}
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Properties indexed', array(
-			'found' => count($properties),
-			'skipped_provinces' => $skipped_count,
-			'deleted' => $deleted_count
+			'active' => count($properties),
+			'deleted' => count($properties_deleted),
+			'skipped_provinces' => $skipped_count
 		));
+
+		// ═════════════════════════════════════════════════════════
+		// STEP 1b: HANDLE DELETIONS (Before queue creation)
+		// ═════════════════════════════════════════════════════════
+		// ✨ v1.7.1: Delete properties and agencies marked as deleted=1 in XML
+		// User requirement: "dopo il filtro per provincia, gli annunci con del=1 vanno cancellati"
+
+		$deletion_stats = array();
+
+		if ( count($properties_deleted) > 0 || count($agencies_deleted) > 0 ) {
+			$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 1b: Handling deletions', array(
+				'properties_to_delete' => count($properties_deleted),
+				'agencies_to_delete' => count($agencies_deleted)
+			));
+
+			// Initialize Deletion Manager (always LIVE deletion)
+			require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-realestate-sync-deletion-manager.php';
+			$deletion_manager = new RealEstate_Sync_Deletion_Manager();
+
+			// Handle deleted properties (with attachments)
+			if ( count($properties_deleted) > 0 ) {
+				$tracker->log_event('INFO', 'ORCHESTRATOR', 'Processing deleted properties', array(
+					'count' => count($properties_deleted)
+				));
+
+				$property_stats = $deletion_manager->handle_deleted_properties( $properties_deleted, $session_id );
+				$deletion_stats['properties'] = $property_stats;
+
+				$tracker->log_event('INFO', 'ORCHESTRATOR', 'Properties deletion complete', $property_stats);
+			}
+
+			// Handle deleted agencies (with featured images)
+			if ( count($agencies_deleted) > 0 ) {
+				$tracker->log_event('INFO', 'ORCHESTRATOR', 'Processing deleted agencies', array(
+					'count' => count($agencies_deleted)
+				));
+
+				$agency_stats = $deletion_manager->handle_deleted_agencies( $agencies_deleted, $session_id );
+				$deletion_stats['agencies'] = $agency_stats;
+
+				$tracker->log_event('INFO', 'ORCHESTRATOR', 'Agencies deletion complete', $agency_stats);
+			}
+		} else {
+			$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 1b: No deletions needed', array(
+				'properties_deleted' => 0,
+				'agencies_deleted' => 0
+			));
+		}
 
 		// ═════════════════════════════════════════════════════════
 		// STEP 2: CREATE QUEUE
@@ -378,7 +474,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'properties_queued' => $properties_queued,
 			'first_batch_processed' => $first_batch_result['processed'],
 			'complete' => $first_batch_result['complete'],
-			'remaining' => $total_queued - $first_batch_result['processed']
+			'remaining' => $total_queued - $first_batch_result['processed'],
+			'deletion_stats' => $deletion_stats // ✨ v1.7.1
 		));
 
 		// Return results
@@ -393,6 +490,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'properties_processed'   => $first_batch_result['properties_processed'] ?? 0,
 			'complete'               => $first_batch_result['complete'],
 			'remaining'              => $total_queued - $first_batch_result['processed'],
+			'deletion_stats'         => $deletion_stats, // ✨ v1.7.1: Deletion statistics
 		);
 	}
 }
