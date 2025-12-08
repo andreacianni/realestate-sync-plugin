@@ -249,7 +249,7 @@ class RealEstate_Sync_Deletion_Manager {
 		);
 
 		// Find WordPress post by agency_import_id
-		$wp_post_id = $this->find_post_by_property_id($agency_id, 'estate_agent');
+		$wp_post_id = $this->find_post_by_property_id($agency_id, 'estate_agency');
 
 		if (!$wp_post_id) {
 			error_log("[DELETION-MANAGER] Agency $agency_id not found in WP - skipping");
@@ -299,16 +299,18 @@ class RealEstate_Sync_Deletion_Manager {
 	// ========================================================================
 
 	/**
-	 * Find WordPress post by property_import_id or agency_import_id
+	 * Find WordPress post by property_import_id or agency_xml_id
 	 *
 	 * @param string $import_id Property or Agency import ID
-	 * @param string $post_type Post type (estate_property or estate_agent)
+	 * @param string $post_type Post type (estate_property or estate_agency)
 	 * @return int|false Post ID or false if not found
 	 */
 	private function find_post_by_property_id($import_id, $post_type) {
 		global $wpdb;
 
-		$meta_key = ($post_type === 'estate_property') ? 'property_import_id' : 'agency_import_id';
+		$meta_key = ($post_type === 'estate_property') ? 'property_import_id' : 'agency_xml_id';
+
+		error_log("[DELETION-MANAGER] Searching for $post_type with $meta_key = '$import_id'");
 
 		$post_id = $wpdb->get_var($wpdb->prepare(
 			"SELECT p.ID
@@ -322,6 +324,12 @@ class RealEstate_Sync_Deletion_Manager {
 			$meta_key,
 			$import_id
 		));
+
+		if ($post_id) {
+			error_log("[DELETION-MANAGER]   ✅ Found WP post ID: $post_id");
+		} else {
+			error_log("[DELETION-MANAGER]   ❌ NOT FOUND - no post with $meta_key = '$import_id'");
+		}
 
 		return $post_id ? (int) $post_id : false;
 	}
