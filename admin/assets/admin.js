@@ -330,17 +330,19 @@ jQuery(document).ready(function($) {
     function updateScheduleConfigState() {
         const isEnabled = $('#schedule-enabled').is(':checked');
         const $config = $('#schedule-config');
+        const $inputs = $config.find('input, select').not('#schedule-enabled');
+        const $saveButton = $('#save-schedule-config');
 
         if (isEnabled) {
-            $config.css({
-                'opacity': '1',
-                'pointer-events': 'auto'
-            });
+            $config.css('opacity', '1');
+            $inputs.prop('disabled', false);
+            $saveButton.prop('disabled', false);
         } else {
-            $config.css({
-                'opacity': '0.5',
-                'pointer-events': 'none'
-            });
+            $config.css('opacity', '0.5');
+            $inputs.prop('disabled', true);
+            // ✅ IMPORTANTE: Il pulsante Salva deve SEMPRE essere cliccabile
+            // per permettere di salvare lo stato "disabilitato"
+            $saveButton.prop('disabled', false);
         }
     }
 
@@ -995,6 +997,149 @@ jQuery(document).ready(function($) {
             },
             complete: function() {
                 $button.prop('disabled', false).html('<span class="dashicons dashicons-warning"></span> Svuota Tutta la Queue');
+            }
+        });
+    });
+
+    // ========================================================================
+    // Cleanup Orphan Posts (post senza tracking)
+    // ========================================================================
+
+    let orphanPostsData = null; // Cache dei post trovati
+
+    $('#scan-orphan-posts').on('click', function() {
+        const $button = $(this);
+        const $report = $('#orphan-posts-report');
+        const $cleanupButton = $('#cleanup-orphan-posts');
+
+        $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Scansione...');
+        $report.hide();
+        $cleanupButton.hide();
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_scan_orphan_posts',
+                nonce: realestateSync.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    orphanPostsData = response.data;
+                    const count = orphanPostsData.orphans.length;
+
+                    let html = '<div style="padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px;">';
+
+                    if (count === 0) {
+                        html += '<p style="color: #46b450; font-weight: bold;">✅ Nessun post orfano trovato!</p>';
+                        html += '<p style="font-size: 13px; color: #666;">Tutti i post hanno un record nella tracking table.</p>';
+                    } else {
+                        html += '<p style="color: #d63638; font-weight: bold;">⚠️ Trovati ' + count + ' post orfani:</p>';
+                        html += '<ul style="max-height: 200px; overflow-y: auto; margin: 10px 0; padding-left: 20px;">';
+
+                        orphanPostsData.orphans.forEach(function(post) {
+                            html += '<li style="margin: 5px 0; font-size: 13px;">';
+                            html += '<strong>ID ' + post.id + '</strong>: ' + post.title;
+                            if (post.import_id) {
+                                html += ' <span style="color: #666;">(import_id: ' + post.import_id + ')</span>';
+                            }
+                            html += '</li>';
+                        });
+
+                        html += '</ul>';
+
+                        html += '<div style="margin-top: 15px; padding: 10px; background: #fff3cd; border-left: 3px solid #f0ad4e;">';
+                        html += '<p style="margin: 0; font-size: 13px;"><strong>Cosa verrà cancellato:</strong></p>';
+                        html += '<ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 12px;">';
+                        html += '<li>' + count + ' post (estate_property)</li>';
+                        html += '<li>Tutti i meta associati</li>';
+                        html += '<li>Tutte le immagini caricate (hook attivo)</li>';
+                        html += '<li>Eventuali tracking (hook attivo)</li>';
+                        html += '</ul>';
+                        html += '</div>';
+
+                        $cleanupButton.show();
+                    }
+
+                    html += '</div>';
+
+                    $report.html(html).slideDown();
+
+                } else {
+                    alert('Errore: ' + (response.data || 'Errore sconosciuto'));
+                }
+            },
+            error: function() {
+                alert('Errore di connessione');
+            },
+            complete: function() {
+                $button.prop('disabled', false).html('<span class="dashicons dashicons-search"></span> Scansiona Post Orfani');
+            }
+        });
+    });
+
+    $('#cleanup-orphan-posts').on('click', function() {
+        if (!orphanPostsData || orphanPostsData.orphans.length === 0) {
+            alert('Nessun post da cancellare');
+            return;
+        }
+
+        const count = orphanPostsData.orphans.length;
+
+        if (!confirm('⚠️ ATTENZIONE!\n\nStai per cancellare PERMANENTEMENTE ' + count + ' post orfani.\n\nQuesta azione:\n- Cancella i post dal database\n- Cancella tutte le immagini associate\n- È IRREVERSIBILE\n\nSei ASSOLUTAMENTE sicuro?')) {
+            return;
+        }
+
+        const $button = $(this);
+        const $report = $('#orphan-posts-report');
+
+        $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Cancellazione...');
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_cleanup_orphan_posts',
+                nonce: realestateSync.nonce,
+                post_ids: orphanPostsData.orphans.map(p => p.id)
+            },
+            success: function(response) {
+                if (response.success) {
+                    const result = response.data;
+
+                    let html = '<div style="padding: 15px; background: #d4edda; border: 1px solid #c3e6cb; border-radius: 4px;">';
+                    html += '<p style="color: #155724; font-weight: bold; margin: 0 0 10px 0;">✅ Cleanup completato!</p>';
+                    html += '<ul style="margin: 0; padding-left: 20px; font-size: 13px;">';
+                    html += '<li>Post cancellati: ' + result.deleted + '</li>';
+                    html += '<li>Tracking puliti: ' + result.tracking_cleaned + '</li>';
+                    html += '<li>Property IDs da reimportare: ' + result.property_ids.length + '</li>';
+                    html += '</ul>';
+
+                    if (result.property_ids.length > 0) {
+                        html += '<div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-left: 3px solid #f0ad4e;">';
+                        html += '<p style="margin: 0 0 5px 0; font-size: 13px; font-weight: bold;">📋 Property da reimportare:</p>';
+                        html += '<p style="margin: 0; font-size: 12px; font-family: monospace;">' + result.property_ids.join(', ') + '</p>';
+                        html += '</div>';
+                    }
+
+                    html += '</div>';
+
+                    $report.html(html);
+                    $button.hide();
+                    orphanPostsData = null;
+
+                    // Refresh import status
+                    setTimeout(refreshImportStatus, 1000);
+
+                } else {
+                    alert('Errore: ' + (response.data || 'Errore sconosciuto'));
+                }
+            },
+            error: function() {
+                alert('Errore di connessione');
+            },
+            complete: function() {
+                $button.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Cancella Post Orfani');
             }
         });
     });
