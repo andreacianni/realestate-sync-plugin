@@ -110,6 +110,11 @@ class RealEstate_Sync_Tracking_Manager {
         // HASH SU TUTTI I CAMPI - Risolve change detection failed
         $hash_data = $property_data;
 
+        // 🔧 FIX BUG #1: Exclude agency_data from property hash calculation
+        // Agency data should NOT affect property hash (agency changes shouldn't trigger property updates)
+        unset($hash_data['agency_data']);
+        unset($hash_data['agency_id']);  // Also exclude agency_id reference
+
         // 🔍 LOG: Debug hash calculation (check if price is included)
         $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
         if ($tracker->is_active()) {
@@ -119,7 +124,10 @@ class RealEstate_Sync_Tracking_Manager {
                 'price_value' => $property_data['price'] ?? null,
                 'has_numeric_data' => isset($property_data['numeric_data']),
                 'has_features' => isset($property_data['features']),
-                'total_fields' => count($property_data)
+                'has_agency_data' => isset($property_data['agency_data']),
+                'agency_excluded' => true,
+                'total_fields' => count($property_data),
+                'hash_fields' => count($hash_data)
             ));
         }
 
@@ -144,12 +152,14 @@ class RealEstate_Sync_Tracking_Manager {
         $hash_string = serialize($hash_data);
         $hash = md5($hash_string);
 
-        // 🔍 LOG: Hash generated
+        // 🔍 LOG: Hash generated with FULL field list for debugging
         if ($tracker->is_active()) {
             $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Hash generated', array(
                 'property_id' => $property_data['id'] ?? null,
                 'hash' => $hash,
-                'data_size' => strlen($hash_string)
+                'data_size' => strlen($hash_string),
+                'fields' => array_keys($hash_data),  // ← MOSTRA TUTTI I CAMPI
+                'serialized_preview' => substr($hash_string, 0, 500)  // ← PRIMI 500 CHAR
             ));
         }
 
@@ -164,7 +174,7 @@ class RealEstate_Sync_Tracking_Manager {
      */
     public function get_tracking_record($property_id) {
         $table_name = $this->wpdb->prefix . self::TABLE_NAME;
-        
+
         $result = $this->wpdb->get_row(
             $this->wpdb->prepare(
                 "SELECT * FROM $table_name WHERE property_id = %d",
@@ -172,7 +182,17 @@ class RealEstate_Sync_Tracking_Manager {
             ),
             ARRAY_A
         );
-        
+
+        // 🔍 DEBUG: Log the database query result
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'get_tracking_record result', array(
+            'property_id' => $property_id,
+            'table' => $table_name,
+            'found' => !empty($result),
+            'result' => $result,
+            'wpdb_error' => $this->wpdb->last_error
+        ));
+
         return $result;
     }
     
@@ -185,16 +205,35 @@ class RealEstate_Sync_Tracking_Manager {
      */
     public function check_property_changes($property_id, $new_hash) {
         $existing = $this->get_tracking_record($property_id);
-        
+
+        // 🔍 DEBUG: Log what we got from tracking table
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'check_property_changes called', array(
+            'property_id' => $property_id,
+            'new_hash' => $new_hash,
+            'existing_found' => !empty($existing),
+            'existing_hash' => $existing['property_hash'] ?? null,
+            'existing_wp_post_id' => $existing['wp_post_id'] ?? null
+        ));
+
         if (!$existing) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Property not in tracking table → INSERT', array(
+                'property_id' => $property_id
+            ));
             return array(
                 'has_changed' => true,
                 'action' => 'insert',
                 'reason' => 'new_property'
             );
         }
-        
+
         if ($existing['property_hash'] !== $new_hash) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Property hash CHANGED → UPDATE', array(
+                'property_id' => $property_id,
+                'stored_hash' => $existing['property_hash'],
+                'new_hash' => $new_hash,
+                'wp_post_id' => $existing['wp_post_id']
+            ));
             return array(
                 'has_changed' => true,
                 'action' => 'update',
@@ -202,7 +241,12 @@ class RealEstate_Sync_Tracking_Manager {
                 'wp_post_id' => $existing['wp_post_id']
             );
         }
-        
+
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Property hash UNCHANGED → SKIP', array(
+            'property_id' => $property_id,
+            'hash' => $new_hash,
+            'wp_post_id' => $existing['wp_post_id']
+        ));
         return array(
             'has_changed' => false,
             'action' => 'skip',
@@ -242,33 +286,73 @@ class RealEstate_Sync_Tracking_Manager {
             $data['price'] = isset($property_data['price']) ? floatval($property_data['price']) : null;
         }
         
+        // 🔧 FIX PRIORITÀ 4: Build format array dynamically based on actual fields in $data
+        $formats = array();
+        foreach (array_keys($data) as $key) {
+            switch ($key) {
+                case 'wp_post_id':
+                case 'category_id':
+                    $formats[] = '%d';  // Integer
+                    break;
+                case 'price':
+                    $formats[] = '%f';  // Float
+                    break;
+                default:
+                    $formats[] = '%s';  // String (property_hash, last_import_date, status, data_snapshot, province)
+                    break;
+            }
+        }
+
         // Check se record esiste
         $existing = $this->get_tracking_record($property_id);
-        
+
         if ($existing) {
             // UPDATE
             $result = $this->wpdb->update(
                 $table_name,
                 $data,
                 array('property_id' => $property_id),
-                array('%s', '%s', '%s', '%d', '%s', '%s', '%d', '%f'),
-                array('%d')
+                $formats,      // ✅ Dynamic format specifiers
+                array('%s')    // 🔧 FIX: property_id is VARCHAR(50), not INT!
             );
         } else {
-            // INSERT
+            // INSERT - add property_id to data and formats
             $data['property_id'] = $property_id;
+            $formats = array_merge(array('%s'), $formats);  // 🔧 FIX: property_id is VARCHAR(50)
+
             $result = $this->wpdb->insert(
                 $table_name,
                 $data,
-                array('%d', '%s', '%s', '%d', '%s', '%s', '%s', '%d', '%f')
+                $formats      // ✅ Dynamic format specifiers
             );
         }
         
         if ($result === false) {
             $this->logger->log("Error updating tracking record for property $property_id: " . $this->wpdb->last_error, 'error');
+
+            // 🔍 DEBUG: Log failure details
+            $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+            $tracker->log_event('ERROR', 'TRACKING_MANAGER', 'Failed to save property tracking record', array(
+                'property_id' => $property_id,
+                'property_hash' => $property_hash,
+                'wp_post_id' => $wp_post_id,
+                'wpdb_error' => $this->wpdb->last_error,
+                'operation' => $existing ? 'UPDATE' : 'INSERT'
+            ));
+
             return false;
         }
-        
+
+        // 🔍 DEBUG: Log successful save
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Property tracking record saved', array(
+            'property_id' => $property_id,
+            'property_hash' => $property_hash,
+            'wp_post_id' => $wp_post_id,
+            'operation' => $existing ? 'UPDATE' : 'INSERT',
+            'status' => $status
+        ));
+
         $this->logger->log("Tracking record updated for property $property_id (status: $status)", 'debug');
         return true;
     }
@@ -416,25 +500,36 @@ class RealEstate_Sync_Tracking_Manager {
      * @return void
      */
     public function cleanup_tracking_on_delete($post_id, $post) {
-        // Solo per estate_property post type
-        if ($post->post_type !== 'estate_property') {
-            return;
-        }
+        // 🔧 FIX: Gestisci sia property che agency
+        if ($post->post_type === 'estate_property') {
+            // Delete da property tracking table
+            $table_name = $this->wpdb->prefix . self::TABLE_NAME;
+            $deleted = $this->wpdb->delete(
+                $table_name,
+                array('wp_post_id' => $post_id),
+                array('%d')
+            );
 
-        $table_name = $this->wpdb->prefix . self::TABLE_NAME;
+            if ($deleted) {
+                $this->logger->log("[TRACKING-CLEANUP] Removed tracking for deleted property (wp_post_id: {$post_id})", 'info');
+            } else {
+                $this->logger->log("[TRACKING-CLEANUP] No tracking found for deleted property (wp_post_id: {$post_id})", 'debug');
+            }
 
-        // Delete tracking record per questo wp_post_id
-        $deleted = $this->wpdb->delete(
-            $table_name,
-            array('wp_post_id' => $post_id),
-            array('%d')
-        );
+        } elseif ($post->post_type === 'estate_agency') {
+            // 🆕 Delete da agency tracking table
+            $table_name = $this->wpdb->prefix . self::AGENCY_TABLE_NAME;
+            $deleted = $this->wpdb->delete(
+                $table_name,
+                array('wp_post_id' => $post_id),
+                array('%d')
+            );
 
-        if ($deleted) {
-            $this->logger->log("[TRACKING-CLEANUP] Removed tracking for deleted property (wp_post_id: {$post_id})", 'info');
-        } else {
-            // Non è un errore - property potrebbe non avere tracking (es. creata manualmente)
-            $this->logger->log("[TRACKING-CLEANUP] No tracking found for deleted property (wp_post_id: {$post_id})", 'debug');
+            if ($deleted) {
+                $this->logger->log("[TRACKING-CLEANUP] Removed tracking for deleted agency (wp_post_id: {$post_id})", 'info');
+            } else {
+                $this->logger->log("[TRACKING-CLEANUP] No tracking found for deleted agency (wp_post_id: {$post_id})", 'debug');
+            }
         }
     }
 
@@ -505,13 +600,15 @@ class RealEstate_Sync_Tracking_Manager {
         $hash_string = serialize($hash_data);
         $hash = md5($hash_string);
 
-        // Debug logging
+        // Debug logging with FULL field list for debugging
         $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
         if ($tracker->is_active()) {
             $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Agency hash generated', array(
                 'agency_id' => $agency_data['id'] ?? null,
                 'hash' => $hash,
-                'data_size' => strlen($hash_string)
+                'data_size' => strlen($hash_string),
+                'fields' => array_keys($hash_data),  // ← MOSTRA TUTTI I CAMPI
+                'serialized_preview' => substr($hash_string, 0, 500)  // ← PRIMI 500 CHAR
             ));
         }
 
@@ -531,7 +628,20 @@ class RealEstate_Sync_Tracking_Manager {
     public function check_agency_changes($agency_id, $new_hash) {
         $existing = $this->get_agency_tracking_record($agency_id);
 
+        // 🔍 DEBUG: Log what we got from tracking table
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'check_agency_changes called', array(
+            'agency_id' => $agency_id,
+            'new_hash' => $new_hash,
+            'existing_found' => !empty($existing),
+            'existing_hash' => $existing['agency_hash'] ?? null,
+            'existing_wp_post_id' => $existing['wp_post_id'] ?? null
+        ));
+
         if (!$existing) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Agency not in tracking table → INSERT', array(
+                'agency_id' => $agency_id
+            ));
             return array(
                 'has_changed' => true,
                 'action' => 'insert',
@@ -540,6 +650,12 @@ class RealEstate_Sync_Tracking_Manager {
         }
 
         if ($existing['agency_hash'] !== $new_hash) {
+            $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Agency hash CHANGED → UPDATE', array(
+                'agency_id' => $agency_id,
+                'stored_hash' => $existing['agency_hash'],
+                'new_hash' => $new_hash,
+                'wp_post_id' => $existing['wp_post_id']
+            ));
             return array(
                 'has_changed' => true,
                 'action' => 'update',
@@ -548,6 +664,11 @@ class RealEstate_Sync_Tracking_Manager {
             );
         }
 
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Agency hash UNCHANGED → SKIP', array(
+            'agency_id' => $agency_id,
+            'hash' => $new_hash,
+            'wp_post_id' => $existing['wp_post_id']
+        ));
         return array(
             'has_changed' => false,
             'action' => 'skip',
@@ -573,6 +694,16 @@ class RealEstate_Sync_Tracking_Manager {
             ),
             ARRAY_A
         );
+
+        // 🔍 DEBUG: Log the database query result
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'get_agency_tracking_record result', array(
+            'agency_id' => $agency_id,
+            'table' => $table_name,
+            'found' => !empty($result),
+            'result' => $result,
+            'wpdb_error' => $this->wpdb->last_error
+        ));
 
         return $result;
     }
@@ -607,6 +738,19 @@ class RealEstate_Sync_Tracking_Manager {
             $data['provincia'] = isset($agency_data['provincia']) ? $agency_data['provincia'] : null;
         }
 
+        // 🔧 FIX PRIORITÀ 4: Build format array dynamically based on actual fields in $data
+        $formats = array();
+        foreach (array_keys($data) as $key) {
+            switch ($key) {
+                case 'wp_post_id':
+                    $formats[] = '%d';  // Integer
+                    break;
+                default:
+                    $formats[] = '%s';  // String (agency_hash, last_import_date, status, data_snapshot, provincia)
+                    break;
+            }
+        }
+
         // Check if record exists
         $existing = $this->get_agency_tracking_record($agency_id);
 
@@ -616,23 +760,46 @@ class RealEstate_Sync_Tracking_Manager {
                 $table_name,
                 $data,
                 array('agency_id' => $agency_id),
-                array('%s', '%s', '%s', '%d', '%s', '%s'),
-                array('%s')
+                $formats,      // ✅ Dynamic format specifiers
+                array('%s')    // agency_id is string
             );
         } else {
-            // INSERT
+            // INSERT - add agency_id to data and formats
             $data['agency_id'] = $agency_id;
+            $formats = array_merge(array('%s'), $formats);  // agency_id is string (varchar50)
+
             $result = $this->wpdb->insert(
                 $table_name,
                 $data,
-                array('%s', '%s', '%s', '%d', '%s', '%s', '%s')
+                $formats      // ✅ Dynamic format specifiers
             );
         }
 
         if ($result === false) {
             $this->logger->log("Error updating agency tracking record for agency $agency_id: " . $this->wpdb->last_error, 'error');
+
+            // 🔍 DEBUG: Log failure details
+            $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+            $tracker->log_event('ERROR', 'TRACKING_MANAGER', 'Failed to save agency tracking record', array(
+                'agency_id' => $agency_id,
+                'agency_hash' => $agency_hash,
+                'wp_post_id' => $wp_post_id,
+                'wpdb_error' => $this->wpdb->last_error,
+                'operation' => $existing ? 'UPDATE' : 'INSERT'
+            ));
+
             return false;
         }
+
+        // 🔍 DEBUG: Log successful save
+        $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+        $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Agency tracking record saved', array(
+            'agency_id' => $agency_id,
+            'agency_hash' => $agency_hash,
+            'wp_post_id' => $wp_post_id,
+            'operation' => $existing ? 'UPDATE' : 'INSERT',
+            'status' => $status
+        ));
 
         $this->logger->log("Agency tracking record updated for agency $agency_id (status: $status)", 'debug');
         return true;

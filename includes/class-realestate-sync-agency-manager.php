@@ -40,6 +40,11 @@ class RealEstate_Sync_Agency_Manager {
     private $api_writer;
 
     /**
+     * Tracking Manager instance
+     */
+    private $tracking_manager;
+
+    /**
      * Import statistics
      */
     private $import_stats = array(
@@ -57,6 +62,7 @@ class RealEstate_Sync_Agency_Manager {
     public function __construct() {
         $this->logger = RealEstate_Sync_Logger::get_instance();
         $this->api_writer = new RealEstate_Sync_WPResidence_Agency_API_Writer($this->logger);
+        $this->tracking_manager = new RealEstate_Sync_Tracking_Manager();
     }
 
     /**
@@ -87,6 +93,10 @@ class RealEstate_Sync_Agency_Manager {
 
         foreach ($agencies as $agency_data) {
             try {
+                // 🔧 FIX HASH: Calculate hash BEFORE conversion (like properties)
+                // This ensures hash consistency between orchestrator and agency manager
+                $agency_hash = $this->tracking_manager->calculate_agency_hash($agency_data);
+
                 // Convert Agency Parser format to Agency Manager format
                 $converted_data = $this->convert_parser_data_to_manager_format($agency_data);
 
@@ -94,8 +104,8 @@ class RealEstate_Sync_Agency_Manager {
                 $existing_id = $this->find_agency_by_xml_id($converted_data['xml_agency_id']);
 
                 if ($existing_id) {
-                    // Update existing
-                    $result = $this->update_agency_via_api($existing_id, $converted_data, $mark_as_test);
+                    // Update existing (pass precalculated hash)
+                    $result = $this->update_agency_via_api($existing_id, $converted_data, $mark_as_test, $agency_hash);
                     if ($result) {
                         $this->import_stats['updated']++;
                         $this->import_stats['agency_ids'][] = $existing_id;
@@ -103,8 +113,8 @@ class RealEstate_Sync_Agency_Manager {
                         $this->import_stats['errors']++;
                     }
                 } else {
-                    // Create new
-                    $new_id = $this->create_agency_via_api($converted_data, $mark_as_test);
+                    // Create new (pass precalculated hash)
+                    $new_id = $this->create_agency_via_api($converted_data, $mark_as_test, $agency_hash);
                     if ($new_id) {
                         $this->import_stats['imported']++;
                         $this->import_stats['agency_ids'][] = $new_id;
@@ -126,7 +136,12 @@ class RealEstate_Sync_Agency_Manager {
 
         $this->logger->log('Agency import completed via API', 'SUCCESS', $this->import_stats);
 
-        return $this->import_stats;
+        // 🔧 FIX PRIORITÀ 3: Return wp_post_id for queue update (first agency ID from batch)
+        $wp_post_id = !empty($this->import_stats['agency_ids']) ? $this->import_stats['agency_ids'][0] : null;
+
+        return array_merge($this->import_stats, array(
+            'wp_post_id' => $wp_post_id  // WordPress Post ID of first (and typically only) agency
+        ));
     }
 
     /**
@@ -225,11 +240,12 @@ class RealEstate_Sync_Agency_Manager {
     /**
      * Create agency via API
      *
-     * @param array $agency_data Agency data
+     * @param array $agency_data Agency data (converted format)
      * @param bool $mark_as_test Mark as test import
+     * @param string $agency_hash Precalculated hash (from original parser data)
      * @return int|false Agency ID on success, false on failure
      */
-    private function create_agency_via_api($agency_data, $mark_as_test = false) {
+    private function create_agency_via_api($agency_data, $mark_as_test = false, $agency_hash = null) {
         // 🔍 Debug tracker
         $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 
@@ -286,6 +302,27 @@ class RealEstate_Sync_Agency_Manager {
             update_post_meta($agency_id, '_test_import', 1);
         }
 
+        // 🔧 FIX HASH: Use precalculated hash (calculated BEFORE conversion)
+        // If not provided (backward compatibility), calculate it (but this shouldn't happen)
+        if ($agency_hash === null) {
+            $agency_hash = $this->tracking_manager->calculate_agency_hash($agency_data);
+        }
+
+        // Track agency in agency_tracking table
+        $this->tracking_manager->update_agency_tracking_record(
+            $xml_id,           // agency_id (XML ID)
+            $agency_hash,      // agency_hash (precalculated from parser data)
+            $agency_id,        // wp_post_id
+            $agency_data,      // agency_data
+            'active'           // status
+        );
+
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency tracking record created', array(
+            'xml_id' => $xml_id,
+            'wp_id' => $agency_id,
+            'hash' => $agency_hash
+        ));
+
         return $agency_id;
     }
 
@@ -293,11 +330,12 @@ class RealEstate_Sync_Agency_Manager {
      * Update agency via API
      *
      * @param int $agency_id Agency post ID
-     * @param array $agency_data Agency data
+     * @param array $agency_data Agency data (converted format)
      * @param bool $mark_as_test Mark as test import
+     * @param string $agency_hash Precalculated hash (from original parser data)
      * @return bool Success status
      */
-    private function update_agency_via_api($agency_id, $agency_data, $mark_as_test = false) {
+    private function update_agency_via_api($agency_id, $agency_data, $mark_as_test = false, $agency_hash = null) {
         // 🔍 Debug tracker
         $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 
@@ -309,6 +347,19 @@ class RealEstate_Sync_Agency_Manager {
 
         // Format for API
         $api_body = $this->api_writer->format_api_body($agency_data);
+
+        // 🔧 FIX IMAGE DUPLICATION: Skip logo if unchanged
+        if (!empty($api_body['featured_image']) && !empty($agency_data['logo_url'])) {
+            $logo_changed = $this->api_writer->has_logo_changed($agency_id, $agency_data['logo_url']);
+            if (!$logo_changed) {
+                // Logo URL unchanged → remove from API body to avoid re-upload
+                unset($api_body['featured_image']);
+                $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Logo unchanged, skipped from API call', array(
+                    'wp_id' => $agency_id,
+                    'logo_url' => $agency_data['logo_url']
+                ));
+            }
+        }
 
         // Update via API
         $result = $this->api_writer->update_agency($agency_id, $api_body);
@@ -340,6 +391,28 @@ class RealEstate_Sync_Agency_Manager {
         if ($mark_as_test) {
             update_post_meta($agency_id, '_test_import', 1);
         }
+
+        // 🔧 FIX HASH: Use precalculated hash (calculated BEFORE conversion)
+        // If not provided (backward compatibility), calculate it (but this shouldn't happen)
+        if ($agency_hash === null) {
+            $agency_hash = $this->tracking_manager->calculate_agency_hash($agency_data);
+        }
+
+        // Track agency in agency_tracking table
+        $xml_id = $agency_data['xml_agency_id'];
+        $this->tracking_manager->update_agency_tracking_record(
+            $xml_id,           // agency_id (XML ID)
+            $agency_hash,      // agency_hash (precalculated from parser data)
+            $agency_id,        // wp_post_id
+            $agency_data,      // agency_data
+            'active'           // status
+        );
+
+        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency tracking record updated', array(
+            'xml_id' => $xml_id,
+            'wp_id' => $agency_id,
+            'hash' => $agency_hash
+        ));
 
         return true;
     }

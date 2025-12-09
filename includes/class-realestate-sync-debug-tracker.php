@@ -154,6 +154,55 @@ class RealEstate_Sync_Debug_Tracker {
     }
 
     /**
+     * Resume existing trace session
+     *
+     * Reopens an existing trace log file to continue logging.
+     * Used by background batch processors to maintain single session log.
+     *
+     * @param string $trace_id Trace ID to resume
+     * @param float $start_time Original start timestamp
+     * @param array $context Original context data
+     * @return bool Success
+     */
+    public function resume_trace($trace_id, $start_time = null, $context = array()) {
+        // Don't resume if trace already active
+        if ($this->trace_id) {
+            return false;
+        }
+
+        // Set trace data
+        $this->trace_id = $trace_id;
+        $this->start_time = $start_time ? $start_time : microtime(true);
+        $this->context = $context;
+
+        // Reopen log file in append mode
+        $log_dir = plugin_dir_path(dirname(__FILE__)) . 'logs';
+        $log_file_path = $log_dir . '/import-' . $this->trace_id . '.log';
+
+        // Check if log file exists
+        if (!file_exists($log_file_path)) {
+            error_log("[DEBUG-TRACKER] ⚠️ Cannot resume trace: log file not found: {$log_file_path}");
+            return false;
+        }
+
+        // Open file in append mode
+        $this->log_file = fopen($log_file_path, 'a');
+
+        if (!$this->log_file) {
+            error_log("[DEBUG-TRACKER] ❌ Failed to reopen log file: {$log_file_path}");
+            return false;
+        }
+
+        // Log resume event
+        $this->log_event('INFO', 'SYSTEM', "Trace resumed (background continuation)", array(
+            'resumed_at' => date('Y-m-d H:i:s'),
+            'original_trace_id' => $trace_id
+        ));
+
+        return true;
+    }
+
+    /**
      * Log event (with level filtering)
      *
      * @param string $level Log level (CRITICAL, ERROR, WARNING, INFO, DEBUG, TRACE)

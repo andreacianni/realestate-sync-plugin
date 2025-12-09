@@ -167,6 +167,25 @@ class RealEstate_Sync_WP_Importer_API {
 
 			// 4. Create or update property via API
 			if ($existing_post_id) {
+				// 🔧 FIX IMAGE DUPLICATION: Filter unchanged gallery images for UPDATE
+				if (!empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
+					$original_count = count($mapped_property['gallery']);
+					$filtered_gallery = $this->api_writer->filter_unchanged_gallery_images($existing_post_id, $mapped_property['gallery']);
+
+					if (count($filtered_gallery) < $original_count) {
+						// Re-format API body with filtered gallery
+						$mapped_property['gallery'] = $filtered_gallery;
+						$api_body = $this->api_writer->format_api_body($mapped_property);
+
+						$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Gallery filtered for UPDATE', array(
+							'import_id' => $import_id,
+							'original_images' => $original_count,
+							'new_images' => count($filtered_gallery),
+							'skipped_images' => $original_count - count($filtered_gallery)
+						));
+					}
+				}
+
 				// Update existing property
 				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Calling API to UPDATE property', array(
 					'import_id' => $import_id,

@@ -244,6 +244,22 @@ class RealEstate_Sync_Batch_Processor {
      * @return array Batch results
      */
     public function process_next_batch() {
+        // 🔄 Resume trace if not already active (background continuation)
+        if (!$this->tracker->is_active()) {
+            $trace_id = get_option('realestate_sync_current_trace_id');
+            $trace_start_time = get_option('realestate_sync_current_trace_start_time');
+            $trace_context = get_option('realestate_sync_current_trace_context', array());
+
+            if ($trace_id) {
+                $resumed = $this->tracker->resume_trace($trace_id, $trace_start_time, $trace_context);
+                if ($resumed) {
+                    error_log("[BATCH-PROCESSOR] ✅ Trace resumed: {$trace_id}");
+                } else {
+                    error_log("[BATCH-PROCESSOR] ⚠️  Failed to resume trace: {$trace_id}");
+                }
+            }
+        }
+
         error_log("[BATCH-PROCESSOR] >>> Processing next batch (max " . self::ITEMS_PER_BATCH . " items, timeout " . self::BATCH_TIMEOUT . "s)");
 
         $start_time = time();
@@ -287,9 +303,21 @@ class RealEstate_Sync_Batch_Processor {
                 if ($item->item_type === 'agency') {
                     $result = $this->process_agency($item);
                     $agencies_processed++; // ✅ Count agencies
+
+                    // 🔧 FIX PRIORITÀ 3: Update wp_post_id IMMEDIATELY after agency creation
+                    if (!empty($result['wp_post_id'])) {
+                        $this->queue_manager->update_wp_post_id($item->id, $result['wp_post_id']);
+                        error_log("[BATCH-PROCESSOR]    ✅ wp_post_id updated: {$result['wp_post_id']}");
+                    }
                 } else {
                     $result = $this->process_property($item);
                     $properties_processed++; // ✅ Count properties
+
+                    // 🔧 FIX PRIORITÀ 3: Update wp_post_id IMMEDIATELY after property creation
+                    if (!empty($result['post_id'])) {
+                        $this->queue_manager->update_wp_post_id($item->id, $result['post_id']);
+                        error_log("[BATCH-PROCESSOR]    ✅ wp_post_id updated: {$result['post_id']}");
+                    }
                 }
 
                 // Mark as done
@@ -312,6 +340,24 @@ class RealEstate_Sync_Batch_Processor {
         $stats = $this->queue_manager->get_session_stats($this->session_id);
 
         error_log("[BATCH-PROCESSOR] <<< Batch complete: processed={$processed}, errors={$errors}, remaining=" . $stats['pending']);
+
+        // 🏁 End trace if ALL batches complete
+        if ($is_complete && $this->tracker->is_active()) {
+            $this->tracker->end_trace('completed', array(
+                'session_id' => $this->session_id,
+                'final_stats' => $stats,
+                'total_processed' => $stats['completed'],
+                'total_errors' => $stats['failed'],
+                'completion_time' => date('Y-m-d H:i:s')
+            ));
+
+            // Clean up trace metadata
+            delete_option('realestate_sync_current_trace_id');
+            delete_option('realestate_sync_current_trace_start_time');
+            delete_option('realestate_sync_current_trace_context');
+
+            error_log("[BATCH-PROCESSOR] ✅ All batches complete - trace ended and session log closed");
+        }
 
         return array(
             'success' => true,

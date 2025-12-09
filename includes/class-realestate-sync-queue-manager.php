@@ -216,6 +216,30 @@ class RealEstate_Sync_Queue_Manager {
     }
 
     /**
+     * Update wp_post_id for queue item
+     *
+     * 🔧 FIX PRIORITÀ 3: Update wp_post_id immediately after post creation
+     * This ensures wp_post_id is saved even if batch fails/timeouts later
+     *
+     * @param int $id         Queue item ID
+     * @param int $wp_post_id WordPress Post ID
+     * @return bool Success
+     */
+    public function update_wp_post_id($id, $wp_post_id) {
+        global $wpdb;
+
+        $result = $wpdb->update(
+            $this->table_name,
+            array('wp_post_id' => $wp_post_id),
+            array('id' => $id),
+            array('%d'),  // wp_post_id is bigint
+            array('%d')   // id is int
+        );
+
+        return $result !== false;
+    }
+
+    /**
      * Get session statistics
      *
      * @param string $session_id Session ID

@@ -51,6 +51,15 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'mark_as_test' => $mark_as_test
 		));
 
+		// 💾 Save trace metadata for background continuation
+		update_option('realestate_sync_current_trace_id', $trace_id, false);
+		update_option('realestate_sync_current_trace_start_time', microtime(true), false);
+		update_option('realestate_sync_current_trace_context', array(
+			'session_id' => $session_id,
+			'xml_file' => basename($xml_file),
+			'mark_as_test' => $mark_as_test
+		), false);
+
 		// ═════════════════════════════════════════════════════════
 		// STEP 1: INDEX & FILTER (TN/BZ only)
 		// ═════════════════════════════════════════════════════════
@@ -466,8 +475,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 			) );
 		}
 
-		// 🔍 End debug trace
-		$tracker->end_trace('completed', array(
+		// 🔍 Log orchestrator completion (but keep trace OPEN for background batches)
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Orchestrator phase complete, background continuation will follow', array(
 			'session_id' => $session_id,
 			'total_queued' => $total_queued,
 			'agencies_queued' => $agencies_queued,
@@ -477,6 +486,10 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'remaining' => $total_queued - $first_batch_result['processed'],
 			'deletion_stats' => $deletion_stats // ✨ v1.7.1
 		));
+
+		// ⚠️ DO NOT call end_trace() here!
+		// The trace will be resumed by background batch processor
+		// and closed only when ALL batches are complete.
 
 		// Return results
 		return array(

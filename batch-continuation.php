@@ -238,32 +238,19 @@ if (empty($xml_file_path)) {
     exit;
 }
 
-if (!file_exists($xml_file_path)) {
-    error_log("[BATCH-CONTINUATION] ❌ ERROR: XML file does not exist: {$xml_file_path}");
-    error_log("[BATCH-CONTINUATION] >>> Marking session as FAILED to prevent infinite loop");
+// ⚠️  XML file check REMOVED - batch processor uses pre-parsed data from database!
+// The XML file is only needed during orchestrator phase (already completed).
+// Background batches read data from wp_options, not from XML file.
+// See: class-realestate-sync-batch-processor.php:477 - get_option("realestate_sync_batch_data_{$session_id}")
+//
+// if (!file_exists($xml_file_path)) {
+//     error_log("[BATCH-CONTINUATION] ❌ ERROR: XML file does not exist: {$xml_file_path}");
+//     ...OMITTED...
+// }
 
-    // Mark all pending items as failed to stop the loop
-    $wpdb->query($wpdb->prepare("
-        UPDATE {$queue_table}
-        SET status = 'failed',
-            error_message = 'XML file deleted - session aborted'
-        WHERE session_id = %s
-          AND status IN ('pending', 'processing')
-    ", $session_id));
-
-    $failed_count = $wpdb->rows_affected;
-    error_log("[BATCH-CONTINUATION] >>> Marked {$failed_count} items as failed");
-
-    // Clear progress option
-    delete_option('realestate_sync_background_import_progress');
-
-    delete_transient('realestate_sync_processing_lock'); // Release lock
-    echo "ERROR - XML file not found, session marked as failed\n";
-    exit;
-}
-
-error_log("[BATCH-CONTINUATION] >>> XML file: {$xml_file_path}");
+error_log("[BATCH-CONTINUATION] >>> XML file (stored but not used): {$xml_file_path}");
 error_log("[BATCH-CONTINUATION] >>> Mark as test: " . ($mark_as_test ? 'YES' : 'NO'));
+error_log("[BATCH-CONTINUATION] >>> Batch processor will use pre-parsed data from database");
 
 // Load the batch processor
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-queue-manager.php');

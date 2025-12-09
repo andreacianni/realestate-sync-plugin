@@ -587,4 +587,104 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			'message' => "API returned HTTP $http_code",
 		);
 	}
+
+	/**
+	 * Filter gallery to include only new/changed images
+	 *
+	 * Compares new gallery URLs with existing attachment URLs
+	 * to avoid re-uploading unchanged images.
+	 *
+	 * @param int $property_id WordPress post ID of property
+	 * @param array $new_gallery New gallery array from mapper
+	 * @return array Filtered gallery with only new/changed images
+	 */
+	public function filter_unchanged_gallery_images($property_id, $new_gallery) {
+		// 🔍 Debug tracker
+		$tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+
+		if (empty($new_gallery) || !is_array($new_gallery)) {
+			return $new_gallery;
+		}
+
+		$original_count = count($new_gallery);
+
+		// Get existing attachments for this property
+		$existing_attachments = get_attached_media('image', $property_id);
+
+		if (empty($existing_attachments)) {
+			// No existing images → all are new
+			$tracker->log_event('DEBUG', 'PROPERTY_API_WRITER', 'No existing gallery, will upload all images', array(
+				'property_id' => $property_id,
+				'new_images_count' => $original_count
+			));
+			return $new_gallery;
+		}
+
+		// Build array of existing attachment URLs (normalized)
+		$existing_urls = array();
+		foreach ($existing_attachments as $attachment) {
+			$url = wp_get_attachment_url($attachment->ID);
+			if ($url) {
+				$existing_urls[] = $this->normalize_image_url($url);
+			}
+		}
+
+		// Filter gallery: keep only images not already attached
+		$filtered_gallery = array();
+		$skipped_count = 0;
+
+		foreach ($new_gallery as $image) {
+			$new_url = isset($image['url']) ? $image['url'] : '';
+			if (empty($new_url)) {
+				continue;
+			}
+
+			$normalized_new = $this->normalize_image_url($new_url);
+
+			// Check if this URL already exists
+			if (in_array($normalized_new, $existing_urls)) {
+				$skipped_count++;
+				continue; // Skip this image
+			}
+
+			// New image → include in filtered gallery
+			$filtered_gallery[] = $image;
+		}
+
+		if ($skipped_count > 0) {
+			$tracker->log_event('INFO', 'PROPERTY_API_WRITER', 'Gallery images filtered', array(
+				'property_id' => $property_id,
+				'original_count' => $original_count,
+				'existing_count' => count($existing_attachments),
+				'skipped_count' => $skipped_count,
+				'new_to_upload' => count($filtered_gallery)
+			));
+		} else {
+			$tracker->log_event('DEBUG', 'PROPERTY_API_WRITER', 'No matching images found, will upload all', array(
+				'property_id' => $property_id,
+				'images_count' => count($filtered_gallery)
+			));
+		}
+
+		return $filtered_gallery;
+	}
+
+	/**
+	 * Normalize image URL for comparison
+	 *
+	 * Removes protocol and trailing slashes to avoid false positives
+	 * when comparing http vs https or URLs with/without trailing slashes.
+	 *
+	 * @param string $url Image URL
+	 * @return string Normalized URL
+	 */
+	private function normalize_image_url($url) {
+		// Extract filename from URL (works for both local and remote URLs)
+		$filename = basename(parse_url($url, PHP_URL_PATH));
+
+		// Lowercase for case-insensitive comparison
+		$filename = strtolower($filename);
+
+		return $filename;
+	}
 }

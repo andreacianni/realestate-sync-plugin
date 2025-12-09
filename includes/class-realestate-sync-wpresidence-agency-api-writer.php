@@ -518,6 +518,97 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 	}
 
 	/**
+	 * Check if agency logo URL has changed
+	 *
+	 * Compares new logo URL with existing featured image URL
+	 * to avoid re-uploading unchanged images.
+	 *
+	 * @param int $agency_id WordPress post ID of agency
+	 * @param string $new_logo_url New logo URL from XML
+	 * @return bool True if logo changed, false if same
+	 */
+	public function has_logo_changed($agency_id, $new_logo_url) {
+		// 🔍 Debug tracker
+		$tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+
+		// Get current featured image URL
+		$current_thumbnail_id = get_post_thumbnail_id($agency_id);
+
+		// 🔍 DEBUG: Check what get_post_thumbnail_id returns
+		$tracker->log_event('DEBUG', 'AGENCY_API_WRITER', 'get_post_thumbnail_id result', array(
+			'agency_id' => $agency_id,
+			'thumbnail_id' => $current_thumbnail_id,
+			'is_empty' => empty($current_thumbnail_id),
+			'type' => gettype($current_thumbnail_id)
+		));
+
+		if (!$current_thumbnail_id) {
+			// No existing logo → consider as changed
+			$tracker->log_event('DEBUG', 'AGENCY_API_WRITER', 'No existing logo, will upload', array(
+				'agency_id' => $agency_id,
+				'new_logo_url' => $new_logo_url
+			));
+			return true;
+		}
+
+		$current_logo_url = wp_get_attachment_url($current_thumbnail_id);
+
+		if (!$current_logo_url) {
+			// Can't get current URL → consider as changed
+			$tracker->log_event('DEBUG', 'AGENCY_API_WRITER', 'Cannot get current logo URL, will upload', array(
+				'agency_id' => $agency_id,
+				'thumbnail_id' => $current_thumbnail_id
+			));
+			return true;
+		}
+
+		// Normalize URLs for comparison (strip protocol, trailing slashes)
+		$current_normalized = $this->normalize_image_url($current_logo_url);
+		$new_normalized = $this->normalize_image_url($new_logo_url);
+
+		// Compare normalized URLs
+		$changed = ($current_normalized !== $new_normalized);
+
+		if ($changed) {
+			$tracker->log_event('INFO', 'AGENCY_API_WRITER', 'Logo CHANGED, will upload', array(
+				'agency_id' => $agency_id,
+				'current_logo' => $current_logo_url,
+				'new_logo' => $new_logo_url,
+				'current_normalized' => $current_normalized,
+				'new_normalized' => $new_normalized
+			));
+		} else {
+			$tracker->log_event('INFO', 'AGENCY_API_WRITER', 'Logo UNCHANGED, skipping upload', array(
+				'agency_id' => $agency_id,
+				'logo_url' => $new_logo_url,
+				'current_normalized' => $current_normalized,
+				'new_normalized' => $new_normalized
+			));
+		}
+
+		return $changed;
+	}
+
+	/**
+	 * Normalize image URL for comparison
+	 *
+	 * Removes protocol and trailing slashes to avoid false positives
+	 * when comparing http vs https or URLs with/without trailing slashes.
+	 *
+	 * @param string $url Image URL
+	 * @return string Normalized URL
+	 */
+	private function normalize_image_url($url) {
+		// Extract filename from URL (works for both local and remote URLs)
+		$filename = basename(parse_url($url, PHP_URL_PATH));
+
+		// Lowercase for case-insensitive comparison
+		$filename = strtolower($filename);
+
+		return $filename;
+	}
+
+	/**
 	 * Test API connectivity and authentication
 	 *
 	 * @return array Test result with success status and details

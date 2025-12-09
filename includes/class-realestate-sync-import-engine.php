@@ -804,20 +804,23 @@ class RealEstate_Sync_Import_Engine {
             error_log("[IMPORT-ENGINE]     Title: {$property_title}");
 
             // STEP 3: Process property using standard workflow
-            $this->process_property_by_action($property_data, $change_status, $property_hash);
+            $wp_post_id = $this->process_property_by_action($property_data, $change_status, $property_hash);
 
             error_log("[IMPORT-ENGINE] <<< Property {$property_id} processed successfully");
 
             // 🔍 LOG: Property processed successfully
             $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property processed successfully', array(
                 'property_id' => $property_id,
-                'action' => $change_status['action']
+                'action' => $change_status['action'],
+                'wp_post_id' => $wp_post_id
             ));
 
+            // 🔧 FIX PRIORITÀ 3: Return post_id for queue update
             return array(
                 'success' => true,
                 'property_id' => $property_id,
-                'action' => $change_status['action']
+                'action' => $change_status['action'],
+                'post_id' => $wp_post_id  // WordPress Post ID
             );
 
         } catch (Exception $e) {
@@ -866,14 +869,14 @@ class RealEstate_Sync_Import_Engine {
         //     $this->logger->log("DEBUG ORIGINAL XML DATA for ID $property_id: " . print_r($property_data, true), 'info');
         //     $this->logger->log("DEBUG CONVERTED v3.0 DATA for ID $property_id: " . print_r($v3_formatted_data, true), 'info');
         // }
-        
+
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
         $this->logger->log("➤ STEP 4: PROPERTY MAPPER - Mapping data to WP structure", 'info');
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);
 
         if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
             $this->logger->log("❌ STEP 4a: Property mapping FAILED for ID $property_id", 'warning');
-            return;
+            return null;  // 🔧 FIX PRIORITÀ 3: Return null on mapping failure
         }
 
         $mapped_data = $mapped_result['properties'][0];
@@ -931,8 +934,12 @@ class RealEstate_Sync_Import_Engine {
                 $this->stats['new_properties']++;
 
                 $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
+
+                // 🔧 FIX PRIORITÀ 3: Return post_id for queue update
+                return $result['post_id'];
             } else {
                 $this->logger->log("❌ STEP 5a: Property creation FAILED: {$result['error']}", 'error');
+                return null;  // 🔧 FIX PRIORITÀ 3: Return null on failure
             }
 
         } elseif ($change_status['action'] === 'update') {
@@ -987,13 +994,20 @@ class RealEstate_Sync_Import_Engine {
                 );
 
                 $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
+
+                // 🔧 FIX PRIORITÀ 3: Return post_id for queue update
+                return $result['post_id'];
             } else {
                 $this->logger->log("❌ STEP 5a: Property update FAILED: {$result['error']}", 'error');
+                return null;  // 🔧 FIX PRIORITÀ 3: Return null on failure
             }
         }
 
         $this->stats['total_processed']++;
         $this->logger->log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
+
+        // 🔧 FIX PRIORITÀ 3: Return null as fallback (shouldn't reach here normally)
+        return null;
     }
     
     /**
