@@ -64,3 +64,8 @@ extract-*.php
 verify-*.php
 *-images.php
 php-extract-*.php
+
+# Sript di analisi e pulizia dati (non per produzione)
+includes/scripts/analyze-*.php
+includes/scripts/delete-*.php
+includes/scripts/fix-*.php
