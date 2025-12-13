@@ -742,6 +742,28 @@ $import_stats = $tracking_manager->get_import_statistics();
                         <span class="dashicons dashicons-warning"></span> Svuota Tutta la Queue
                     </button>
                 </div>
+
+                <!-- Cleanup Orphan Posts -->
+                <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border: 1px solid #f0ad4e; border-radius: 4px;">
+                    <h5 style="margin: 0 0 10px 0; color: #856404;">
+                        <span class="dashicons dashicons-admin-tools"></span> 🧹 Cleanup Post Orfani
+                    </h5>
+                    <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
+                        Trova e cancella tutti i post (estate_property) che <strong>NON hanno</strong> un record nella tracking table.
+                    </p>
+                    <p style="margin: 0 0 15px 0; font-size: 12px; color: #d63638;">
+                        ⚠️ <strong>ATTENZIONE:</strong> Cancellazione permanente! Gli hook WP puliscono anche tracking e immagini.
+                    </p>
+                    <div style="display: flex; gap: 10px;">
+                        <button type="button" class="rs-button-secondary" id="scan-orphan-posts">
+                            <span class="dashicons dashicons-search"></span> Scansiona Post Orfani
+                        </button>
+                        <button type="button" class="rs-button-danger" id="cleanup-orphan-posts" style="display: none;">
+                            <span class="dashicons dashicons-trash"></span> Cancella Post Orfani
+                        </button>
+                    </div>
+                    <div id="orphan-posts-report" style="margin-top: 15px; display: none;"></div>
+                </div>
             </div>
         </div>
 

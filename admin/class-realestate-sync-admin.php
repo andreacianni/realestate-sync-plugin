@@ -49,6 +49,8 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_get_failed_items', array($this, 'handle_get_failed_items'));
         add_action('wp_ajax_realestate_sync_retry_failed_items', array($this, 'handle_retry_failed_items'));
         add_action('wp_ajax_realestate_sync_delete_queue_items', array($this, 'handle_delete_queue_items'));
+        add_action('wp_ajax_realestate_sync_scan_orphan_posts', array($this, 'handle_scan_orphan_posts'));
+        add_action('wp_ajax_realestate_sync_cleanup_orphan_posts', array($this, 'handle_cleanup_orphan_posts'));
         add_action('wp_ajax_realestate_sync_reset_stuck_items', array($this, 'handle_reset_stuck_items'));
         add_action('wp_ajax_realestate_sync_clear_all_queue', array($this, 'handle_clear_all_queue'));
         add_action('wp_ajax_realestate_sync_retry_single_item', array($this, 'handle_retry_single_item'));
@@ -3505,6 +3507,136 @@ class RealEstate_Sync_Admin {
         } else {
             echo '<p>❌ Nessuna featured image impostata</p>';
         }
+    }
+
+    /**
+     * Scan for orphan posts (posts without tracking record)
+     */
+    public function handle_scan_orphan_posts() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        global $wpdb;
+        $tracking_table = $wpdb->prefix . 'realestate_sync_tracking';
+
+        // Find all estate_property posts that don't have a tracking record
+        $orphan_posts = $wpdb->get_results("
+            SELECT
+                p.ID as id,
+                p.post_title as title,
+                pm.meta_value as import_id,
+                p.post_date as created
+            FROM {$wpdb->posts} p
+            LEFT JOIN {$wpdb->postmeta} pm ON (p.ID = pm.post_id AND pm.meta_key = 'property_import_id')
+            LEFT JOIN {$tracking_table} t ON t.property_id = pm.meta_value
+            WHERE p.post_type = 'estate_property'
+            AND p.post_status != 'trash'
+            AND t.property_id IS NULL
+            ORDER BY p.ID ASC
+        ", ARRAY_A);
+
+        $this->logger->log("Orphan posts scan: Found " . count($orphan_posts) . " posts without tracking", 'info');
+
+        wp_send_json_success(array(
+            'orphans' => $orphan_posts,
+            'count' => count($orphan_posts)
+        ));
+    }
+
+    /**
+     * Cleanup orphan posts (permanent deletion with WP hooks)
+     */
+    public function handle_cleanup_orphan_posts() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $post_ids = isset($_POST['post_ids']) ? array_map('intval', $_POST['post_ids']) : array();
+
+        if (empty($post_ids)) {
+            wp_send_json_error('No posts to delete');
+            return;
+        }
+
+        $this->logger->log("Starting cleanup of " . count($post_ids) . " orphan posts", 'warning');
+
+        global $wpdb;
+        $deleted_count = 0;
+        $property_ids = array();
+        $tracking_cleaned = 0;
+
+        foreach ($post_ids as $post_id) {
+            // Get import_id before deletion
+            $import_id = get_post_meta($post_id, 'property_import_id', true);
+
+            if ($import_id && !in_array($import_id, $property_ids)) {
+                $property_ids[] = $import_id;
+            }
+
+            $post_title = get_the_title($post_id);
+
+            // Permanent deletion with hooks active
+            // - Triggers 'before_delete_post' and 'deleted_post' hooks
+            // - Deletes meta, taxonomies, attachments
+            // - Our hook cleans tracking + images
+            $result = wp_delete_post($post_id, true);
+
+            if ($result) {
+                $deleted_count++;
+                $this->logger->log("Deleted orphan post {$post_id}: {$post_title} (import_id: {$import_id})", 'info');
+            } else {
+                $this->logger->log("Failed to delete orphan post {$post_id}", 'error');
+            }
+
+            // Small delay to avoid overload
+            usleep(50000); // 0.05 seconds
+        }
+
+        // Manual tracking cleanup (if hook didn't work)
+        if (!empty($property_ids)) {
+            $tracking_table = $wpdb->prefix . 'realestate_sync_tracking';
+
+            $placeholders = implode(',', array_fill(0, count($property_ids), '%s'));
+            $tracking_cleaned = $wpdb->query($wpdb->prepare("
+                DELETE FROM {$tracking_table}
+                WHERE property_id IN ({$placeholders})
+            ", $property_ids));
+
+            if ($tracking_cleaned > 0) {
+                $this->logger->log("Manual cleanup: Removed {$tracking_cleaned} tracking records", 'info');
+            }
+
+            // Reset queue for reimport
+            $queue_table = $wpdb->prefix . 'realestate_import_queue';
+            $reset_count = $wpdb->query($wpdb->prepare("
+                UPDATE {$queue_table}
+                SET status = 'pending',
+                    wp_post_id = NULL,
+                    error_message = 'Orphan post cleaned - ready for reimport',
+                    retry_count = 0,
+                    processed_at = NULL
+                WHERE item_id IN ({$placeholders})
+                AND item_type = 'property'
+            ", $property_ids));
+
+            $this->logger->log("Queue reset: {$reset_count} items ready for reimport", 'info');
+        }
+
+        $this->logger->log("Cleanup completed: {$deleted_count} posts deleted, {$tracking_cleaned} tracking cleaned", 'info');
+
+        wp_send_json_success(array(
+            'deleted' => $deleted_count,
+            'tracking_cleaned' => $tracking_cleaned,
+            'property_ids' => $property_ids,
+            'message' => "Cleanup completato: {$deleted_count} post cancellati"
+        ));
     }
 }
 
