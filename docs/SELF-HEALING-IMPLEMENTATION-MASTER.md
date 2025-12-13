@@ -69,10 +69,11 @@ SCENARIO CON SELF-HEALING:
 5. ✨ SELF-HEALING: Cerca post con meta_key='property_import_id' value='4589478'
 6. ✅ TROVA wp_post_id = 88841
 7. Ricostruisce tracking record mancante
-8. Return action='heal' → Skip processing
-9. NESSUN DUPLICATO CREATO! 🎉
+8. Return action='update' → Force update per garantire dati corretti
+9. Post aggiornato con dati più recenti
+10. NESSUN DUPLICATO CREATO! 🎉
 
-RISULTATO: 1 SOLO POST per property_id (garantito)
+RISULTATO: 1 SOLO POST per property_id (garantito) + Dati sempre aggiornati
 ```
 
 ---
@@ -110,10 +111,10 @@ RISULTATO: 1 SOLO POST per property_id (garantito)
                 ┌──────────────────────┐   ┌────────────────┐
                 │ 🩹 SELF-HEAL:        │   │ STEP 3: Compare│
                 │ rebuild_tracking()   │   │ Hash           │
-                │ action: 'heal'       │   └────────────────┘
-                └──────────────────────┘            │
-                                        ┌───────────┴────────┐
-                                        │                    │
+                │ ⚠️ THEN force        │   └────────────────┘
+                │ action: 'update'     │            │
+                │ (garantisce dati OK) │┌───────────┴────────┐
+                └──────────────────────┘│                    │
                                   hash uguale          hash diverso
                                         │                    │
                                         ▼                    ▼
@@ -129,8 +130,13 @@ RISULTATO: 1 SOLO POST per property_id (garantito)
 |--------|-------------|------------|----------|------------|
 | **create** | Crea nuovo post | NULL | ❌ | ✅ Sì, chiama API |
 | **update** | Aggiorna post esistente | Esiste | ✅ | ✅ Sì, chiama API |
+| **update** (🩹 heal) | 🩹 Self-Healing: tracking mancante → rebuild + force update | Esiste | ❌→✅ | ✅ Sì, garantisce dati aggiornati |
 | **skip** | Nessun cambiamento | Esiste | ✅ | ❌ No, salta |
-| **heal** | 🩹 Ricostruisce tracking | Esiste | ❌→✅ | ❌ No, auto-fix |
+
+**Nota importante**: Quando viene rilevato un post orfano (tracking mancante), il sistema:
+1. Ricostruisce il tracking record
+2. **Forza sempre un update del post** per garantire che i dati siano sincronizzati
+3. Questo previene il caso in cui il post abbia dati vecchi ma tracking "aggiornato"
 
 ---
 
@@ -187,7 +193,7 @@ class RealEstate_Sync_Self_Healing_Manager {
      * @param string $property_id Import ID from gestionale
      * @param string $new_hash MD5 hash of property data
      * @return array {
-     *     @type string $action         'create'|'update'|'skip'|'heal'
+     *     @type string $action         'create'|'update'|'skip'
      *     @type int|null $wp_post_id   WordPress post ID (if exists)
      *     @type string $reason         Human-readable reason
      * }
@@ -218,26 +224,23 @@ class RealEstate_Sync_Self_Healing_Manager {
 
         if (!$tracking_record) {
             // 🩹 SELF-HEAL: Tracking missing but post exists!
-            $this->logger->log("🩹 SELF-HEALING: Post exists but tracking missing! Rebuilding...", 'warning');
+            $this->logger->log("🩹 SELF-HEALING: Post exists but tracking missing! Rebuilding and forcing update...", 'warning');
 
             $healed = $this->rebuild_tracking_record($property_id, $existing_post_id, $new_hash);
 
             if ($healed) {
-                $this->logger->log("✅ Tracking record rebuilt successfully", 'success');
-                return array(
-                    'action' => 'heal',
-                    'wp_post_id' => $existing_post_id,
-                    'reason' => 'tracking_missing_rebuilt'
-                );
+                $this->logger->log("✅ Tracking rebuilt → Forcing UPDATE to guarantee data consistency", 'success');
             } else {
-                // Fallback: treat as update
-                $this->logger->log("⚠️ Healing failed, treating as update", 'warning');
-                return array(
-                    'action' => 'update',
-                    'wp_post_id' => $existing_post_id,
-                    'reason' => 'tracking_rebuild_failed'
-                );
+                $this->logger->log("⚠️ Tracking rebuild failed, forcing UPDATE anyway", 'warning');
             }
+
+            // ⚠️ ALWAYS return 'update' after heal to guarantee post data is up-to-date
+            // This prevents scenario: old post data + new tracking hash = data inconsistency
+            return array(
+                'action' => 'update',
+                'wp_post_id' => $existing_post_id,
+                'reason' => 'tracking_missing_force_update'
+            );
         }
 
         $this->logger->log("✅ Tracking record exists", 'info');
@@ -310,6 +313,7 @@ class RealEstate_Sync_Self_Healing_Manager {
         $tracking_table = $wpdb->prefix . 'realestate_sync_tracking';
 
         // Insert tracking record
+        // NOTE: Using 'updated' as status because post will be force-updated after heal
         $result = $wpdb->insert(
             $tracking_table,
             array(
@@ -319,7 +323,7 @@ class RealEstate_Sync_Self_Healing_Manager {
                 'first_import_date' => current_time('mysql'),
                 'last_update_date' => current_time('mysql'),
                 'update_count' => 0,
-                'last_sync_status' => 'healed'
+                'last_sync_status' => 'updated'
             ),
             array('%s', '%d', '%s', '%s', '%s', '%d', '%s')
         );
@@ -455,29 +459,11 @@ if (!$change_status['has_changed']) {
 
 **SOSTITUISCI CON**:
 ```php
-// 🩹 SELF-HEALING: Resolve action (create/update/skip/heal)
+// 🩹 SELF-HEALING: Resolve action (create/update/skip)
+// NOTA: Quando trova tracking mancante, il sistema:
+//       1. Ricostruisce il tracking record
+//       2. Ritorna SEMPRE 'update' per garantire dati aggiornati
 $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
-
-// Gestione azioni speciali: HEAL
-if ($change_status['action'] === 'heal') {
-    // Tracking ricostruito → skip processing, già sistemato
-    $this->logger->log("✅ Property {$property_id} healed (tracking rebuilt)", 'success');
-
-    // Aggiorna queue item come 'done'
-    $this->queue_manager->update_queue_item_status(
-        $queue_item['id'],
-        'done',
-        100,
-        'Property healed: tracking record rebuilt'
-    );
-
-    return array(
-        'success' => true,
-        'property_id' => $property_id,
-        'action' => 'healed',
-        'post_id' => $change_status['wp_post_id']
-    );
-}
 
 // Gestione azioni speciali: SKIP
 if ($change_status['action'] === 'skip') {
@@ -501,6 +487,7 @@ if ($change_status['action'] === 'skip') {
 }
 
 // Se action è 'create' o 'update', procedi con workflow normale
+// NOTA: 'update' include anche il caso di self-healing (tracking mancante + force update)
 $this->logger->log("🔄 Property {$property_id} needs processing: action={$change_status['action']}", 'info');
 
 // Force has_changed to true per compatibility con codice esistente
@@ -634,7 +621,7 @@ $query = "SELECT * FROM {$queue_table} WHERE status = 'done' AND ...";
 - [ ] **2.3: Modifica Import Engine - Change Detection**
   - File: `includes/class-realestate-sync-import-engine.php`
   - Sostituisci `check_property_changes` con `resolve_property_action` (vedi Modifica 1.2)
-  - Aggiungi gestione 'heal' e 'skip' actions
+  - Aggiungi gestione 'skip' action (self-healing ritorna 'update', non servono gestioni speciali)
   - Verifica syntax dopo modifica
 
 - [ ] **2.4: Modifica Import Engine - Timeout Error Handling**
@@ -675,17 +662,21 @@ $query = "SELECT * FROM {$queue_table} WHERE status = 'done' AND ...";
     DELETE FROM kre_realestate_sync_tracking WHERE property_id = '[test_property_id]';
     ```
   - Esegui import della property
-  - Expected: `action = 'heal'`, tracking ricostruito, NESSUN nuovo post
+  - Expected: `action = 'update'` (reason: 'tracking_missing_force_update')
+  - Tracking ricostruito + Post aggiornato + NESSUN nuovo post creato
   - Verifica:
     ```sql
     SELECT * FROM kre_realestate_sync_tracking WHERE property_id = '[test_property_id]';
-    -- Deve esistere con last_sync_status = 'healed'
+    -- Deve esistere con dati aggiornati
     SELECT COUNT(*) FROM kre_posts p
     INNER JOIN kre_postmeta pm ON p.ID = pm.post_id
     WHERE pm.meta_key = 'property_import_id'
     AND pm.meta_value = '[test_property_id]';
     -- Deve essere = 1 (nessun duplicato!)
     ```
+  - Verifica log:
+    - "SELF-HEALING: Post exists but tracking missing! Rebuilding and forcing update..."
+    - "Tracking rebuilt → Forcing UPDATE to guarantee data consistency"
 
 - [ ] **3.4: Test Case 3 - Property Invariata**
   - Scenario: Property esiste, tracking esiste, hash uguale
@@ -722,7 +713,8 @@ $query = "SELECT * FROM {$queue_table} WHERE status = 'done' AND ...";
 
   - Add Self-Healing Manager class for idempotent operations
   - Replace check_property_changes with resolve_property_action
-  - Add heal/skip action handling
+  - Self-healing rebuilds tracking + forces update (guarantees data consistency)
+  - Add skip action handling for unchanged properties
   - Fix timeout bug: throw exception if wp_post_id NULL
   - Fix verifier bug: status 'completed' → 'done'
   - Increase API timeout 120s → 180s
@@ -763,15 +755,16 @@ Verifica:
   ✅ Log: "Property [id] is NEW → action: CREATE"
 ```
 
-#### **Scenario B: Property con Post Orfano**
+#### **Scenario B: Property con Post Orfano (Self-Healing)**
 ```
 Setup: DELETE tracking record per property esistente
-Expected: action='heal'
+Expected: action='update' (reason='tracking_missing_force_update')
 Verifica:
   ✅ Tracking record ricostruito
-  ✅ NESSUN nuovo post creato
-  ✅ Log: "SELF-HEALING: Post exists but tracking missing! Rebuilding..."
-  ✅ Log: "Tracking record rebuilt successfully"
+  ✅ Post aggiornato con dati più recenti
+  ✅ NESSUN nuovo post creato (idempotenza garantita)
+  ✅ Log: "SELF-HEALING: Post exists but tracking missing! Rebuilding and forcing update..."
+  ✅ Log: "Tracking rebuilt → Forcing UPDATE to guarantee data consistency"
 ```
 
 #### **Scenario C: Property Già Importata (Senza Modifiche)**
@@ -825,17 +818,29 @@ HAVING COUNT(*) > 1;
 ```
 
 #### **3. Self-Healing Events**
+
+**NOTA**: Gli eventi di self-healing (tracking rebuilt) sono tracciati nei **log file**, non nel database. Cerca nei log:
+
+```bash
+# Cerca eventi self-healing nei log
+grep "SELF-HEALING: Post exists but tracking missing" wp-content/uploads/realestate-sync-logs/*.log
+grep "Forcing UPDATE to guarantee data consistency" wp-content/uploads/realestate-sync-logs/*.log
+```
+
+**Alternativa**: Query per trovare tracking record potenzialmente creati via self-healing (recenti con update_count basso):
 ```sql
 SELECT
     property_id,
     wp_post_id,
-    last_sync_status,
+    first_import_date,
+    update_count,
     last_update_date
 FROM kre_realestate_sync_tracking
-WHERE last_sync_status = 'healed'
-ORDER BY last_update_date DESC
+WHERE update_count <= 1
+AND first_import_date > DATE_SUB(NOW(), INTERVAL 7 DAY)
+ORDER BY first_import_date DESC
 LIMIT 20;
--- Mostra properties che hanno beneficiato del self-healing
+-- Record recenti con pochi update potrebbero essere stati self-healed
 ```
 
 #### **4. Import Success Rate**
@@ -1084,13 +1089,12 @@ RENAME TABLE kre_posts_backup_20251209 TO kre_posts;
    ```
    Expected: **0 rows**
 
-3. **Self-Healing Events**
-   ```sql
-   SELECT COUNT(*), MAX(last_update_date)
-   FROM kre_realestate_sync_tracking
-   WHERE last_sync_status = 'healed';
+3. **Self-Healing Events** (verifica log file)
+   ```bash
+   # Conta eventi self-healing nell'ultimo log
+   grep -c "SELF-HEALING: Post exists but tracking missing" wp-content/uploads/realestate-sync-logs/$(ls -t wp-content/uploads/realestate-sync-logs/*.log | head -1)
    ```
-   Se count > 0: Self-healing sta funzionando! ✅
+   Se count > 0: Self-healing ha rilevato e fixato post orfani! ✅
 
 4. **Error Rate**
    ```sql
