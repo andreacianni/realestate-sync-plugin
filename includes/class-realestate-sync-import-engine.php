@@ -789,28 +789,48 @@ class RealEstate_Sync_Import_Engine {
                 'hash' => $property_hash
             ));
 
-            // STEP 2: Check if property exists and needs update
-            $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
+            // 🩹 STEP 2: TRACKING - Self-healing property resolution
+            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
+            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
 
-            // 🔍 LOG: Change detection result
-            $existing_record = $this->tracking_manager->get_tracking_record($property_id);
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Change detection complete', array(
+            $this->logger->log("✅ STEP 2a: Action determined", 'info', [
+                'action' => $change_status['action'],
+                'reason' => $change_status['reason']
+            ]);
+
+            // 🔍 LOG: Change detection result (debug tracker)
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Self-healing resolution complete', array(
                 'property_id' => $property_id,
                 'action' => $change_status['action'],
-                'has_changed' => $change_status['has_changed'],
                 'reason' => $change_status['reason'],
-                'old_hash' => $existing_record ? $existing_record['property_hash'] : null,
-                'new_hash' => $property_hash,
-                'hash_match' => $existing_record ? ($existing_record['property_hash'] === $property_hash) : false
+                'wp_post_id' => $change_status['wp_post_id'] ?? null
             ));
 
             // 🔍 ENHANCED LOGGING: Show WHY this action was chosen
-            $wp_post_id = $existing_record ? ($existing_record['post_id'] ?? 'none') : 'none';
             $property_title = $property_data['title'] ?? 'no title';
             error_log("[IMPORT-ENGINE] >>> Processing property {$property_id} (action: {$change_status['action']})");
             error_log("[IMPORT-ENGINE]     Reason: {$change_status['reason']}");
-            error_log("[IMPORT-ENGINE]     WP Post ID: {$wp_post_id}");
             error_log("[IMPORT-ENGINE]     Title: {$property_title}");
+
+            // Gestione azione SKIP
+            if ($change_status['action'] === 'skip') {
+                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'info');
+
+                return array(
+                    'success' => true,
+                    'property_id' => $property_id,
+                    'action' => 'skipped',
+                    'post_id' => $change_status['wp_post_id']
+                );
+            }
+
+            // Per 'create' e 'update', procedi con processing normale
+            $this->logger->log("✅ STEP 2c: Property will be processed", 'info', [
+                'action' => $change_status['action']
+            ]);
+
+            // Force has_changed to true per compatibility con codice esistente
+            $change_status['has_changed'] = true;
 
             // STEP 3: Process property using standard workflow
             $wp_post_id = $this->process_property_by_action($property_data, $change_status, $property_hash);
