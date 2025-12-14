@@ -839,6 +839,7 @@ class RealEstate_Sync_Property_Mapper {
         // Reference and tracking
         $meta['property_ref'] = 'TI-' . $xml_property['id'];
         $meta['property_import_id'] = $xml_property['id'];
+        $meta['property_internal_id'] = $xml_property['id'];  // API requirement
         $meta['property_import_source'] = 'GestionaleImmobiliare';
         $meta['property_import_date'] = current_time('mysql');
         $meta['property_content_hash_v3'] = $this->generate_content_hash_v3($xml_property);
@@ -1087,14 +1088,40 @@ class RealEstate_Sync_Property_Mapper {
         return implode(' ', $parts);
     }
     
+    /**
+     * Get best description with optional German translation
+     *
+     * @param array $xml_property XML property data
+     * @return string Description (IT + optional DE)
+     */
     private function get_best_description($xml_property) {
+        $base_description = '';
+
+        // Get base description (Italian)
         if (!empty($xml_property['description'])) {
-            return $xml_property['description'];
+            $base_description = $xml_property['description'];
+        } elseif (!empty($xml_property['abstract'])) {
+            $base_description = $xml_property['abstract'];
+        } else {
+            $base_description = 'Proprietà immobiliare in Trentino Alto Adige.';
         }
-        if (!empty($xml_property['abstract'])) {
-            return $xml_property['abstract'];
+
+        // Append German description if available
+        if (!empty($xml_property['description_de'])) {
+            $separator = "\n\n" . str_repeat('-', 60) . "\n";
+            $separator .= "Deutsche Beschreibung / Descrizione in Tedesco\n";
+            $separator .= str_repeat('-', 60) . "\n\n";
+
+            $base_description .= $separator . $xml_property['description_de'];
+
+            $this->logger->log("Appended German description to property", 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'it_length' => strlen($base_description) - strlen($xml_property['description_de']) - strlen($separator),
+                'de_length' => strlen($xml_property['description_de'])
+            ]);
         }
-        return 'Proprietà immobiliare in Trentino Alto Adige.';
+
+        return $base_description;
     }
     
     private function get_best_surface_area($xml_property) {

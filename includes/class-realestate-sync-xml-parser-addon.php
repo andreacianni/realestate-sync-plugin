@@ -514,12 +514,25 @@ class RealEstate_Sync_XML_Parser {
                 $this->logger->log("Agency data extracted: ID {$agency_data['id']}, Name: " . ($agency_data['ragione_sociale'] ?? 'Unknown'), 'debug');
             }
         }
-        
+
+        // Parse i18n German description if available
+        $i18n_de_nodes = $xpath->query('//i18n/description[@lang="de"]');
+        if ($i18n_de_nodes->length > 0) {
+            $de_description = trim($i18n_de_nodes->item(0)->textContent);
+            if (!empty($de_description)) {
+                $property_data['description_de'] = $de_description;
+                $this->logger->log("German description found for property", 'debug', [
+                    'property_id' => $property_data['id'] ?? 'unknown',
+                    'length' => strlen($de_description)
+                ]);
+            }
+        }
+
         // Validate required fields
         if (!isset($property_data['id']) || empty($property_data['id'])) {
             return null; // Skip properties senza ID
         }
-        
+
         return $property_data;
     }
     
