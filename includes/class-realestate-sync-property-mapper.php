@@ -1350,10 +1350,10 @@ class RealEstate_Sync_Property_Mapper {
             // ============================================================
 
             if ($agency_id) {
-                $this->logger->log('✅ Agency assigned to property ' . $property_id . ' - XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
+                $this->logger->log('✅ Agency assigned to property ' . $xml_property['id'] . ' - XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
                 return $agency_id;
             } else {
-                $this->logger->log('⚠️ Agency NOT found for property ' . $property_id . ' - XML ID: ' . $xml_agency_id . ' (was it created in PHASE 1?)', 'warning');
+                $this->logger->log('⚠️ Agency NOT found for property ' . $xml_property['id'] . ' - XML ID: ' . $xml_agency_id . ' (was it created in PHASE 1?)', 'warning');
                 return false;
             }
 
