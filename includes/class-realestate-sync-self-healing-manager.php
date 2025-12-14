@@ -163,9 +163,9 @@ class RealEstate_Sync_Self_Healing_Manager {
                 'wp_post_id' => $wp_post_id,
                 'property_hash' => $property_hash,
                 'status' => 'active',
-                'last_sync' => current_time('mysql')
+                'last_import_date' => current_time('mysql')
             ],
-            ['%s', '%d', '%s', '%s', '%s']
+            ['%d', '%d', '%s', '%s', '%s']
         );
 
         if ($result === false) {
