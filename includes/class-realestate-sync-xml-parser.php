@@ -378,7 +378,17 @@ class RealEstate_Sync_XML_Parser {
         } else {
             error_log("🏢 XML PARSER: No <agenzia> section found in this annuncio");
         }
-        
+
+        // 🌍 Parse i18n German description if available
+        $i18n_de_nodes = $xpath->query('//i18n/description[@lang="de"]');
+        if ($i18n_de_nodes->length > 0) {
+            $de_description = trim($i18n_de_nodes->item(0)->textContent);
+            if (!empty($de_description)) {
+                $property_data['description_de'] = $de_description;
+                error_log("🌍 XML PARSER: German description found for property ID: " . ($property_data['id'] ?? 'unknown') . ", length: " . strlen($de_description));
+            }
+        }
+
         // Validate required fields
         if (!isset($property_data['id']) || empty($property_data['id'])) {
             return null; // Skip properties senza ID
