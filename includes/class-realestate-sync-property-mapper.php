@@ -1303,9 +1303,9 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     private function generate_content_hash_v3($xml_property) {
-        $hash_fields = ['id', 'price', 'description', 'abstract', 'mq', 'indirizzo', 'zona', 'age', 'agency_code', 'ipe', 'ape', 'categorie_micro_id', 'url', 'video_tour', 'virtual_tour'];
+        $hash_fields = ['id', 'price', 'description', 'description_de', 'abstract', 'mq', 'indirizzo', 'zona', 'age', 'agency_code', 'ipe', 'ape', 'categorie_micro_id', 'url', 'video_tour', 'virtual_tour'];
         $hash_data = [];
-        
+
         foreach ($hash_fields as $field) {
             $hash_data[$field] = $xml_property[$field] ?? '';
         }
