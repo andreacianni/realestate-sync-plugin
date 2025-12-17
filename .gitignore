@@ -75,3 +75,6 @@ php-extract-*.php
 includes/scripts/analyze-*.php
 includes/scripts/delete-*.php
 includes/scripts/fix-*.php
+
+# Feng Shui analysis scripts
+feng-shui-analysis/
