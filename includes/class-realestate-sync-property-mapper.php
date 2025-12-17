@@ -1090,12 +1090,13 @@ class RealEstate_Sync_Property_Mapper {
     
     /**
      * Get best description with optional German translation
-     * Intelligently converts newlines to HTML based on content:
-     * - Double newlines (\n\n) → wpautop() for paragraphs
-     * - Single newlines (\n) → nl2br() for line breaks
+     *
+     * IMPORTANT: Returns plain text with natural newlines (\n)
+     * WordPress will apply wpautop() automatically via the_content filter
+     * This prevents HTML tags from being stripped by API sanitization
      *
      * @param array $xml_property XML property data
-     * @return string Description (IT + optional DE) with HTML formatting
+     * @return string Description (IT + optional DE) with natural newlines
      */
     private function get_best_description($xml_property) {
         $base_description = '';
@@ -1120,26 +1121,19 @@ class RealEstate_Sync_Property_Mapper {
             $this->logger->log("Appended German description to property", 'debug', [
                 'property_id' => $xml_property['id'] ?? 'unknown',
                 'it_length' => strlen($base_description) - strlen($xml_property['description_de']) - strlen($separator),
-                'de_length' => strlen($xml_property['description_de'])
+                'de_length' => strlen($xml_property['description_de']),
+                'total_newlines' => substr_count($base_description, "\n")
             ]);
         }
 
-        // Smart newline conversion:
-        // If has double newlines (paragraphs) → use wpautop()
-        // Otherwise (single newlines) → use nl2br()
-        if (strpos($base_description, "\n\n") !== false) {
-            $formatted = wpautop($base_description);
-            $this->logger->log("Description formatted with wpautop (paragraphs)", 'debug', [
-                'property_id' => $xml_property['id'] ?? 'unknown'
-            ]);
-        } else {
-            $formatted = nl2br($base_description);
-            $this->logger->log("Description formatted with nl2br (line breaks)", 'debug', [
-                'property_id' => $xml_property['id'] ?? 'unknown'
-            ]);
-        }
+        // Return plain text with natural newlines
+        // WordPress will apply wpautop() automatically when displaying
+        $this->logger->log("Description preserved with natural newlines", 'debug', [
+            'property_id' => $xml_property['id'] ?? 'unknown',
+            'newline_count' => substr_count($base_description, "\n")
+        ]);
 
-        return $formatted;
+        return $base_description;
     }
     
     private function get_best_surface_area($xml_property) {
