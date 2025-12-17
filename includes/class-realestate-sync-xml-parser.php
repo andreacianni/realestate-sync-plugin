@@ -261,6 +261,7 @@ class RealEstate_Sync_XML_Parser {
     private function parse_annuncio_dom($annuncio_xml) {
         // Parse con DOMDocument per singolo annuncio (efficiente)
         $dom = new DOMDocument();
+        $dom->preserveWhiteSpace = true; // 🔧 CRITICAL: Preserve newlines in CDATA blocks
         if (!$dom->loadXML($annuncio_xml)) {
             return null;
         }
