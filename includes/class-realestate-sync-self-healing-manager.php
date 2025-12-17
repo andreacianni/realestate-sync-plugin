@@ -50,10 +50,10 @@ class RealEstate_Sync_Self_Healing_Manager {
         $existing_post_id = $this->find_post_by_import_id($property_id);
 
         if (!$existing_post_id) {
-            // ✅ Post NON esiste → CREATE
-            $this->logger->log("🩹 [SELF-HEALING] No existing post found → CREATE", 'debug');
+            // ✅ Post NON esiste → INSERT (compatibility with legacy code)
+            $this->logger->log("🩹 [SELF-HEALING] No existing post found → INSERT", 'debug');
             return [
-                'action' => 'create',
+                'action' => 'insert',
                 'wp_post_id' => null,
                 'reason' => 'new_property'
             ];
@@ -65,8 +65,8 @@ class RealEstate_Sync_Self_Healing_Manager {
         $tracking_record = $this->tracking_manager->get_tracking_record($property_id);
 
         if (!$tracking_record) {
-            // 🔧 Tracking MANCANTE → SELF-HEAL
-            $this->logger->log("🩹 [SELF-HEALING] Tracking missing → HEAL (rebuild tracking)", 'warning', [
+            // 🔧 Tracking MANCANTE → SELF-HEAL + FORCE UPDATE
+            $this->logger->log("🩹 [SELF-HEALING] Tracking missing → REBUILD + UPDATE", 'warning', [
                 'property_id' => $property_id,
                 'wp_post_id' => $existing_post_id
             ]);
@@ -74,10 +74,11 @@ class RealEstate_Sync_Self_Healing_Manager {
             // Ricostruisci tracking
             $this->rebuild_tracking_record($property_id, $existing_post_id, $new_hash);
 
+            // Forza UPDATE per garantire dati aggiornati (conservative approach)
             return [
-                'action' => 'heal',
+                'action' => 'update',
                 'wp_post_id' => $existing_post_id,
-                'reason' => 'tracking_missing_rebuilt'
+                'reason' => 'tracking_missing_force_update'
             ];
         }
 
@@ -162,9 +163,9 @@ class RealEstate_Sync_Self_Healing_Manager {
                 'wp_post_id' => $wp_post_id,
                 'property_hash' => $property_hash,
                 'status' => 'active',
-                'last_sync' => current_time('mysql')
+                'last_import_date' => current_time('mysql')
             ],
-            ['%s', '%d', '%s', '%s', '%s']
+            ['%d', '%d', '%s', '%s', '%s']
         );
 
         if ($result === false) {

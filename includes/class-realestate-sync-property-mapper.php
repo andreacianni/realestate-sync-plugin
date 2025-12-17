@@ -839,6 +839,7 @@ class RealEstate_Sync_Property_Mapper {
         // Reference and tracking
         $meta['property_ref'] = 'TI-' . $xml_property['id'];
         $meta['property_import_id'] = $xml_property['id'];
+        $meta['property_internal_id'] = $xml_property['id'];  // API requirement
         $meta['property_import_source'] = 'GestionaleImmobiliare';
         $meta['property_import_date'] = current_time('mysql');
         $meta['property_content_hash_v3'] = $this->generate_content_hash_v3($xml_property);
@@ -1087,14 +1088,52 @@ class RealEstate_Sync_Property_Mapper {
         return implode(' ', $parts);
     }
     
+    /**
+     * Get best description with optional German translation
+     *
+     * IMPORTANT: Returns plain text with natural newlines (\n)
+     * WordPress will apply wpautop() automatically via the_content filter
+     * This prevents HTML tags from being stripped by API sanitization
+     *
+     * @param array $xml_property XML property data
+     * @return string Description (IT + optional DE) with natural newlines
+     */
     private function get_best_description($xml_property) {
+        $base_description = '';
+
+        // Get base description (Italian)
         if (!empty($xml_property['description'])) {
-            return $xml_property['description'];
+            $base_description = $xml_property['description'];
+        } elseif (!empty($xml_property['abstract'])) {
+            $base_description = $xml_property['abstract'];
+        } else {
+            $base_description = 'Proprietà immobiliare in Trentino Alto Adige.';
         }
-        if (!empty($xml_property['abstract'])) {
-            return $xml_property['abstract'];
+
+        // Append German description if available
+        if (!empty($xml_property['description_de'])) {
+            $separator = "\n\n" . str_repeat('-', 60) . "\n";
+            $separator .= "Deutsche Beschreibung / Descrizione in Tedesco\n";
+            $separator .= str_repeat('-', 60) . "\n\n";
+
+            $base_description .= $separator . $xml_property['description_de'];
+
+            $this->logger->log("Appended German description to property", 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown',
+                'it_length' => strlen($base_description) - strlen($xml_property['description_de']) - strlen($separator),
+                'de_length' => strlen($xml_property['description_de']),
+                'total_newlines' => substr_count($base_description, "\n")
+            ]);
         }
-        return 'Proprietà immobiliare in Trentino Alto Adige.';
+
+        // Return plain text with natural newlines
+        // WordPress will apply wpautop() automatically when displaying
+        $this->logger->log("Description preserved with natural newlines", 'debug', [
+            'property_id' => $xml_property['id'] ?? 'unknown',
+            'newline_count' => substr_count($base_description, "\n")
+        ]);
+
+        return $base_description;
     }
     
     private function get_best_surface_area($xml_property) {
@@ -1276,9 +1315,9 @@ class RealEstate_Sync_Property_Mapper {
     }
     
     private function generate_content_hash_v3($xml_property) {
-        $hash_fields = ['id', 'price', 'description', 'abstract', 'mq', 'indirizzo', 'zona', 'age', 'agency_code', 'ipe', 'ape', 'categorie_micro_id', 'url', 'video_tour', 'virtual_tour'];
+        $hash_fields = ['id', 'price', 'description', 'description_de', 'abstract', 'mq', 'indirizzo', 'zona', 'age', 'agency_code', 'ipe', 'ape', 'categorie_micro_id', 'url', 'video_tour', 'virtual_tour'];
         $hash_data = [];
-        
+
         foreach ($hash_fields as $field) {
             $hash_data[$field] = $xml_property[$field] ?? '';
         }
@@ -1350,10 +1389,10 @@ class RealEstate_Sync_Property_Mapper {
             // ============================================================
 
             if ($agency_id) {
-                $this->logger->log('✅ Agency assigned to property ' . $property_id . ' - XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
+                $this->logger->log('✅ Agency assigned to property ' . $xml_property['id'] . ' - XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
                 return $agency_id;
             } else {
-                $this->logger->log('⚠️ Agency NOT found for property ' . $property_id . ' - XML ID: ' . $xml_agency_id . ' (was it created in PHASE 1?)', 'warning');
+                $this->logger->log('⚠️ Agency NOT found for property ' . $xml_property['id'] . ' - XML ID: ' . $xml_agency_id . ' (was it created in PHASE 1?)', 'warning');
                 return false;
             }
 

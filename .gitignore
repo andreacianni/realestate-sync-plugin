@@ -9,6 +9,12 @@ STATUS_*.md
 NEXT_FIX_*.md
 .claude/settings.local.json
 
+# Temporary trash folder for obsolete files
+TRASH/
+
+# Development scripts with sensitive credentials (FTP passwords, SSH keys)
+scripts/
+
 # API test files (temporary testing)
 API_TEST_*.json
 test-*.php

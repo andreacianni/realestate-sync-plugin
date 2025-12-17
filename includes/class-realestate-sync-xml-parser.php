@@ -261,6 +261,7 @@ class RealEstate_Sync_XML_Parser {
     private function parse_annuncio_dom($annuncio_xml) {
         // Parse con DOMDocument per singolo annuncio (efficiente)
         $dom = new DOMDocument();
+        $dom->preserveWhiteSpace = true; // 🔧 CRITICAL: Preserve newlines in CDATA blocks
         if (!$dom->loadXML($annuncio_xml)) {
             return null;
         }
@@ -378,7 +379,29 @@ class RealEstate_Sync_XML_Parser {
         } else {
             error_log("🏢 XML PARSER: No <agenzia> section found in this annuncio");
         }
-        
+
+        // 🌍 Parse i18n German description if available
+        $i18n_de_nodes = $xpath->query('//i18n/description[@lang="de"]');
+        error_log("🌍 XML PARSER DEBUG: i18n nodes found: " . $i18n_de_nodes->length);
+
+        if ($i18n_de_nodes->length > 0) {
+            $de_description = trim($i18n_de_nodes->item(0)->textContent);
+            if (!empty($de_description)) {
+                $property_data['description_de'] = $de_description;
+
+                // Detailed logging
+                error_log("🌍 XML PARSER: German description found for property ID: " . ($property_data['id'] ?? 'unknown'));
+                error_log("🌍   → Length: " . strlen($de_description) . " chars");
+                error_log("🌍   → First 100 chars: " . substr($de_description, 0, 100));
+                error_log("🌍   → Has newlines: " . (strpos($de_description, "\n") !== false ? 'YES' : 'NO'));
+                error_log("🌍   → Double newlines: " . (strpos($de_description, "\n\n") !== false ? 'YES' : 'NO'));
+            } else {
+                error_log("🌍 XML PARSER: i18n/description found but empty after trim");
+            }
+        } else {
+            error_log("🌍 XML PARSER: No i18n/description[@lang='de'] found in XML");
+        }
+
         // Validate required fields
         if (!isset($property_data['id']) || empty($property_data['id'])) {
             return null; // Skip properties senza ID

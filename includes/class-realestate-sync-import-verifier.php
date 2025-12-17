@@ -50,7 +50,7 @@ class RealEstate_Sync_Import_Verifier {
             FROM {$queue_table}
             WHERE session_id = %s
               AND item_type = 'property'
-              AND status = 'completed'
+              AND status = 'done'
         ", $session_id), ARRAY_A);
 
         if (empty($processed_items)) {

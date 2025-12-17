@@ -87,6 +87,13 @@ class RealEstate_Sync_Import_Engine {
         $this->tracking_manager = new RealEstate_Sync_Tracking_Manager();
         $this->streaming_parser = new RealEstate_Sync_XML_Parser();
 
+        // 🩹 Initialize Self-Healing Manager
+        require_once plugin_dir_path(__FILE__) . 'class-realestate-sync-self-healing-manager.php';
+        $this->self_healing_manager = new RealEstate_Sync_Self_Healing_Manager(
+            $this->tracking_manager,
+            $this->logger
+        );
+
         // 🔧 FIX: Initialize agency & media components (required for import workflow)
         $this->agency_parser = new RealEstate_Sync_Agency_Parser();
         // ✅ Agency_Importer replaced by Agency_Manager (API-based import)
@@ -161,6 +168,7 @@ class RealEstate_Sync_Import_Engine {
             'latitude' => $property_data['latitude'] ?? '',
             'longitude' => $property_data['longitude'] ?? '',
             'description' => $property_data['description'] ?? '',
+            'description_de' => $property_data['description_de'] ?? '', // 🌍 i18n German description
             'abstract' => substr($property_data['description'] ?? '', 0, 200),
             'title' => $property_data['title'] ?? '', // 🎯 FIX: Use 'title' not 'seo_title'
             'seo_title' => $property_data['title'] ?? '', // Keep for compatibility
@@ -712,27 +720,29 @@ class RealEstate_Sync_Import_Engine {
             $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
             $property_id = intval($property_data['id']);
 
-            // Check changes
-            $this->logger->log("➤ STEP 2: TRACKING - Checking for changes", 'info');
-            $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
+            // 🩹 SELF-HEALING: Resolve action (create/update/skip)
+            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
+            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
 
-            $this->logger->log("✅ STEP 2a: Change status determined", 'info', [
+            $this->logger->log("✅ STEP 2a: Action determined", 'info', [
                 'action' => $change_status['action'],
-                'has_changed' => $change_status['has_changed']
+                'reason' => $change_status['reason']
             ]);
-            
-            // 📋 OPTIONAL SKIP MODE: Skip only if explicitly enabled AND no changes
-            $skip_unchanged_mode = get_option('realestate_sync_skip_unchanged_mode', false);
 
-            if ($skip_unchanged_mode && !$change_status['has_changed']) {
+            // Gestione azione SKIP
+            if ($change_status['action'] === 'skip') {
                 $this->stats['skipped_properties']++;
-                $this->logger->log("❌ STEP 2b: Property {$property_id} SKIPPED - unchanged (skip mode enabled)", 'info');
+                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'info');
                 return;
             }
 
+            // Per 'create' e 'update', procedi con processing normale
             $this->logger->log("✅ STEP 2c: Property will be processed", 'info', [
                 'action' => $change_status['action']
             ]);
+
+            // Force has_changed to true per compatibility con codice esistente
+            $change_status['has_changed'] = true;
 
             // Process property based on action needed
             $this->logger->log("➤ STEP 3: DATA CONVERSION - Converting to v3.0 format", 'info');
@@ -780,31 +790,70 @@ class RealEstate_Sync_Import_Engine {
                 'hash' => $property_hash
             ));
 
-            // STEP 2: Check if property exists and needs update
-            $change_status = $this->tracking_manager->check_property_changes($property_id, $property_hash);
+            // 🩹 STEP 2: TRACKING - Self-healing property resolution
+            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
+            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
 
-            // 🔍 LOG: Change detection result
-            $existing_record = $this->tracking_manager->get_tracking_record($property_id);
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Change detection complete', array(
+            $this->logger->log("✅ STEP 2a: Action determined", 'info', [
+                'action' => $change_status['action'],
+                'reason' => $change_status['reason']
+            ]);
+
+            // 🔍 LOG: Change detection result (debug tracker)
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Self-healing resolution complete', array(
                 'property_id' => $property_id,
                 'action' => $change_status['action'],
-                'has_changed' => $change_status['has_changed'],
                 'reason' => $change_status['reason'],
-                'old_hash' => $existing_record ? $existing_record['property_hash'] : null,
-                'new_hash' => $property_hash,
-                'hash_match' => $existing_record ? ($existing_record['property_hash'] === $property_hash) : false
+                'wp_post_id' => $change_status['wp_post_id'] ?? null
             ));
 
             // 🔍 ENHANCED LOGGING: Show WHY this action was chosen
-            $wp_post_id = $existing_record ? ($existing_record['post_id'] ?? 'none') : 'none';
             $property_title = $property_data['title'] ?? 'no title';
             error_log("[IMPORT-ENGINE] >>> Processing property {$property_id} (action: {$change_status['action']})");
             error_log("[IMPORT-ENGINE]     Reason: {$change_status['reason']}");
-            error_log("[IMPORT-ENGINE]     WP Post ID: {$wp_post_id}");
             error_log("[IMPORT-ENGINE]     Title: {$property_title}");
+
+            // Gestione azione SKIP
+            if ($change_status['action'] === 'skip') {
+                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'info');
+
+                return array(
+                    'success' => true,
+                    'property_id' => $property_id,
+                    'action' => 'skipped',
+                    'post_id' => $change_status['wp_post_id']
+                );
+            }
+
+            // Per 'create' e 'update', procedi con processing normale
+            $this->logger->log("✅ STEP 2c: Property will be processed", 'info', [
+                'action' => $change_status['action']
+            ]);
+
+            // Force has_changed to true per compatibility con codice esistente
+            $change_status['has_changed'] = true;
 
             // STEP 3: Process property using standard workflow
             $wp_post_id = $this->process_property_by_action($property_data, $change_status, $property_hash);
+
+            // 🔧 FIX 2: Verify wp_post_id is valid before marking as success
+            if (empty($wp_post_id)) {
+                error_log("[IMPORT-ENGINE] ❌ Property {$property_id} processing returned NULL wp_post_id (API timeout or failure)");
+
+                $this->tracker->log_event('ERROR', 'IMPORT_ENGINE', 'Property processing returned no wp_post_id', array(
+                    'property_id' => $property_id,
+                    'action' => $change_status['action'],
+                    'error' => 'API timeout or failure - no post ID returned'
+                ));
+
+                return array(
+                    'success' => false,
+                    'property_id' => $property_id,
+                    'action' => $change_status['action'],
+                    'error' => 'Property processing returned no wp_post_id (API timeout or failure)',
+                    'post_id' => null
+                );
+            }
 
             error_log("[IMPORT-ENGINE] <<< Property {$property_id} processed successfully");
 
@@ -935,6 +984,11 @@ class RealEstate_Sync_Import_Engine {
 
                 $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
 
+                // ⚠️ FIX TIMEOUT BUG: Verifica che wp_post_id non sia NULL
+                if (empty($result['post_id'])) {
+                    throw new Exception("Property create/update succeeded but no wp_post_id returned (possible timeout or API error)");
+                }
+
                 // 🔧 FIX PRIORITÀ 3: Return post_id for queue update
                 return $result['post_id'];
             } else {
@@ -994,6 +1048,11 @@ class RealEstate_Sync_Import_Engine {
                 );
 
                 $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
+
+                // ⚠️ FIX TIMEOUT BUG: Verifica che wp_post_id non sia NULL
+                if (empty($result['post_id'])) {
+                    throw new Exception("Property create/update succeeded but no wp_post_id returned (possible timeout or API error)");
+                }
 
                 // 🔧 FIX PRIORITÀ 3: Return post_id for queue update
                 return $result['post_id'];
