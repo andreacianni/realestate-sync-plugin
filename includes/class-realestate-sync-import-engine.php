@@ -168,6 +168,7 @@ class RealEstate_Sync_Import_Engine {
             'latitude' => $property_data['latitude'] ?? '',
             'longitude' => $property_data['longitude'] ?? '',
             'description' => $property_data['description'] ?? '',
+            'description_de' => $property_data['description_de'] ?? '', // 🌍 i18n German description
             'abstract' => substr($property_data['description'] ?? '', 0, 200),
             'title' => $property_data['title'] ?? '', // 🎯 FIX: Use 'title' not 'seo_title'
             'seo_title' => $property_data['title'] ?? '', // Keep for compatibility
@@ -834,6 +835,25 @@ class RealEstate_Sync_Import_Engine {
 
             // STEP 3: Process property using standard workflow
             $wp_post_id = $this->process_property_by_action($property_data, $change_status, $property_hash);
+
+            // 🔧 FIX 2: Verify wp_post_id is valid before marking as success
+            if (empty($wp_post_id)) {
+                error_log("[IMPORT-ENGINE] ❌ Property {$property_id} processing returned NULL wp_post_id (API timeout or failure)");
+
+                $this->tracker->log_event('ERROR', 'IMPORT_ENGINE', 'Property processing returned no wp_post_id', array(
+                    'property_id' => $property_id,
+                    'action' => $change_status['action'],
+                    'error' => 'API timeout or failure - no post ID returned'
+                ));
+
+                return array(
+                    'success' => false,
+                    'property_id' => $property_id,
+                    'action' => $change_status['action'],
+                    'error' => 'Property processing returned no wp_post_id (API timeout or failure)',
+                    'post_id' => null
+                );
+            }
 
             error_log("[IMPORT-ENGINE] <<< Property {$property_id} processed successfully");
 
