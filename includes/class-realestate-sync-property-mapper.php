@@ -1090,9 +1090,12 @@ class RealEstate_Sync_Property_Mapper {
     
     /**
      * Get best description with optional German translation
+     * Intelligently converts newlines to HTML based on content:
+     * - Double newlines (\n\n) → wpautop() for paragraphs
+     * - Single newlines (\n) → nl2br() for line breaks
      *
      * @param array $xml_property XML property data
-     * @return string Description (IT + optional DE)
+     * @return string Description (IT + optional DE) with HTML formatting
      */
     private function get_best_description($xml_property) {
         $base_description = '';
@@ -1121,7 +1124,22 @@ class RealEstate_Sync_Property_Mapper {
             ]);
         }
 
-        return $base_description;
+        // Smart newline conversion:
+        // If has double newlines (paragraphs) → use wpautop()
+        // Otherwise (single newlines) → use nl2br()
+        if (strpos($base_description, "\n\n") !== false) {
+            $formatted = wpautop($base_description);
+            $this->logger->log("Description formatted with wpautop (paragraphs)", 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown'
+            ]);
+        } else {
+            $formatted = nl2br($base_description);
+            $this->logger->log("Description formatted with nl2br (line breaks)", 'debug', [
+                'property_id' => $xml_property['id'] ?? 'unknown'
+            ]);
+        }
+
+        return $formatted;
     }
     
     private function get_best_surface_area($xml_property) {
