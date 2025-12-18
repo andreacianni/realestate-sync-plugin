@@ -678,7 +678,7 @@ class RealEstate_Sync_Admin {
      * Enqueue admin assets
      */
     public function enqueue_admin_assets($hook) {
-        if ($hook !== 'tools_page_' . $this->plugin_slug) {
+        if ($hook !== 'toplevel_page_' . $this->plugin_slug) {
             return;
         }
         

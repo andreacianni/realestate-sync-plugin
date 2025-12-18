@@ -438,13 +438,18 @@ class RealEstate_Sync {
      * Add admin menu
      */
     public function add_admin_menu() {
-        // Main menu under Tools
-        add_management_page(
-            __('RealEstate Sync', 'realestate-sync'),
-            __('RealEstate Sync', 'realestate-sync'),
+        // Custom SVG icon (commented for future use)
+        // $icon_svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor"><path d="M14 7c.55 0 1 .45 1 1 0 .17-.04.33-.12.47C15.47 8.88 16 9.86 16 11c0 1.66-1.34 3-3 3H6c-1.66 0-3-1.34-3-3 0-1.53 1.14-2.79 2.62-2.97C5.87 6.84 7.29 6 9 6c1.4 0 2.6.71 3.32 1.78.23-.11.49-.17.76-.17h.92z"/><path d="M10 9l-3 3h2v3h2v-3h2l-3-3z"/><circle cx="15.5" cy="15.5" r="3" fill="currentColor"/><circle cx="15.5" cy="15.5" r="2.5" fill="none" stroke="white" stroke-width="0.5"/><path d="M15.5 13.5v2h1.5" stroke="white" stroke-width="0.5" fill="none"/></svg>';
+        // $icon = 'data:image/svg+xml;base64,' . base64_encode($icon_svg);
+
+        add_menu_page(
+            __('Import dal Gestionale', 'realestate-sync'),
+            __('Import dal Gestionale', 'realestate-sync'),
             'manage_options',
             'realestate-sync',
-            [$this->instances['admin'], 'display_admin_page']
+            [$this->instances['admin'], 'display_admin_page'],
+            'dashicons-download',
+            25
         );
 
         // Debug DB page (only available when WP_DEBUG is enabled)

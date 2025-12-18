@@ -26,16 +26,13 @@ $import_stats = $tracking_manager->get_import_statistics();
 
     <div id="rs-alerts-container"></div>
 
-    <!-- 5-TAB NAVIGATION WITH AUTOMAZIONE TAB -->
+    <!-- 4-TAB NAVIGATION -->
     <div class="nav-tab-wrapper">
         <a href="#dashboard" class="nav-tab nav-tab-active" data-tab="dashboard">
             <span class="dashicons dashicons-dashboard"></span> Dashboard
         </a>
         <a href="#automazione" class="nav-tab" data-tab="automazione">
             <span class="dashicons dashicons-clock"></span> Automazione Import
-        </a>
-        <a href="#info" class="nav-tab" data-tab="info">
-            <span class="dashicons dashicons-info"></span> Info
         </a>
         <a href="#tools" class="nav-tab" data-tab="tools">
             <span class="dashicons dashicons-admin-tools"></span> Tools
@@ -441,208 +438,7 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 3: INFO - REFINED LAYOUT WITH COLLAPSIBLE SECTIONS -->
-    <div id="info" class="tab-content">
-        
-        <!-- CARD 1: Required Custom Fields (Always Visible) -->
-        <div class="rs-card rs-info-card-fixed">
-            <h3><span class="dashicons dashicons-info"></span> 📋 Required Custom Fields</h3>
-            
-            <div class="rs-info-box">
-                <p>The RealEstate Sync plugin requires 9 additional custom fields to be created manually in WpResidence.<br>
-                These fields enhance property details with specialized data from GestionaleImmobiliare.it XML.</p>
-            </div>
-                
-                <table class="rs-custom-fields-table">
-                    <thead>
-                        <tr>
-                            <th>Nome Campo</th>
-                            <th>Etichetta</th>
-                            <th>Tipo</th>
-                            <th>Descrizione</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><code>superficie-giardino</code></td>
-                            <td>Superficie giardino (m²)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Area del giardino in metri quadrati</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>aree-esterne</code></td>
-                            <td>Aree esterne (m²)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Superficie totale aree esterne</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>superficie-commerciale</code></td>
-                            <td>Superficie commerciale (m²)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Metratura commerciale dell'immobile</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>superficie-utile</code></td>
-                            <td>Superficie utile (m²)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Superficie effettivamente utilizzabile</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>totale-piani-edificio</code></td>
-                            <td>Totale piani edificio</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Numero totale di piani dell'edificio</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>deposito-cauzionale</code></td>
-                            <td>Deposito cauzionale (€)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Importo del deposito cauzionale</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>distanza-mare</code></td>
-                            <td>Distanza dal mare (m)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Distanza in metri dal mare</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>rendita-catastale</code></td>
-                            <td>Rendita catastale (€)</td>
-                            <td><span class="rs-field-type">numeric</span></td>
-                            <td>Valore rendita catastale annuale</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                        <tr>
-                            <td><code>destinazione-catastale</code></td>
-                            <td>Destinazione catastale</td>
-                            <td><span class="rs-field-type">short_text</span></td>
-                            <td>Classificazione catastale dell'immobile</td>
-                            <td><span class="rs-status-manual">❌ Manual</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-        </div>
-        
-        <!-- CARD 2: Manual Creation Guide (Collapsible Sections) -->
-        <div class="rs-card rs-info-card-collapsible">
-            <h3 class="rs-collapsible-header">
-                <span class="dashicons dashicons-admin-generic"></span> 📝 Manual Creation Guide
-                <span class="rs-collapsible-toggle">Click to expand sections below</span>
-            </h3>
-            
-            <!-- Collapsible Section 1: Field Status -->
-            <div class="rs-collapsible-section">
-                <h4 class="rs-collapsible-trigger" data-section="field-status">
-                    <span class="rs-toggle-icon">▶</span> 🔧 Property Custom Fields Status
-                </h4>
-                <div class="rs-collapsible-content" id="section-field-status">
-                    <div id="field-status-auto-display" class="rs-auto-status-display">
-                        <p><span class="rs-spinner"></span> Checking field status...</p>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Collapsible Section 2: Step-by-Step Instructions -->
-            <div class="rs-collapsible-section">
-                <h4 class="rs-collapsible-trigger" data-section="step-instructions">
-                    <span class="rs-toggle-icon">▶</span> 🎯 Step-by-Step Instructions
-                </h4>
-                <div class="rs-collapsible-content" id="section-step-instructions">
-                    <div class="rs-instruction-box">
-                        <ol class="rs-instruction-list">
-                            <li><strong>Access WpResidence Admin:</strong> Go to WordPress Admin → Properties → Add Custom Details</li>
-                            <li><strong>Create Each Field:</strong> Use the exact field names from the table above</li>
-                            <li><strong>Field Configuration:</strong>
-                                <ul>
-                                    <li><strong>Type:</strong> Select "numeric" for measurements and "short_text" for text</li>
-                                    <li><strong>Label:</strong> Use the exact labels shown in the table</li>
-                                    <li><strong>Slug:</strong> Use the exact field names (importante per il mapping!)</li>
-                                </ul>
-                            </li>
-                            <li><strong>Verification:</strong> Sections below auto-update when fields are created</li>
-                        </ol>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Collapsible Section 3: Important Notes -->
-            <div class="rs-collapsible-section">
-                <h4 class="rs-collapsible-trigger" data-section="important-notes">
-                    <span class="rs-toggle-icon">▶</span> ⚠️ Important Notes
-                </h4>
-                <div class="rs-collapsible-content" id="section-important-notes">
-                    <div class="rs-warning-box">
-                        <ul>
-                            <li><strong>Exact Names:</strong> Field names must match exactly for automatic mapping</li>
-                            <li><strong>WpResidence Only:</strong> These fields can only be created through WpResidence admin</li>
-                            <li><strong>One-Time Setup:</strong> Create once, used by all future imports</li>
-                            <li><strong>95% Coverage:</strong> With these fields, XML mapping reaches 95%+ coverage</li>
-                            <li><strong>Auto-Update:</strong> Status and mapping update automatically on this page</li>
-                        </ul>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- CARD 3: XML Mapping (Always Expanded Table) -->
-        <div class="rs-card rs-info-card-expanded">
-            <h3><span class="dashicons dashicons-networking"></span> 🗺️ XML Mapping Coverage</h3>
-            
-            <div class="rs-info-box">
-                <p><strong>Always Expanded:</strong> Complete XML → WordPress field mapping with real-time status</p>
-            </div>
-            
-            <div id="xml-mapping-always-expanded" class="rs-mapping-table-container">
-                <table class="rs-mapping-table">
-                    <thead>
-                        <tr>
-                            <th>XML Field</th>
-                            <th>WpResidence Field</th>
-                            <th>Status</th>
-                            <th>Notes</th>
-                        </tr>
-                    </thead>
-                    <tbody id="mapping-table-body">
-                        <tr>
-                            <td colspan="4" style="text-align: center; padding: 20px;">
-                                <span class="rs-spinner"></span> Loading XML mapping data...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-        
-        <!-- CARD 4: Field Management Actions (Streamlined) -->
-        <div class="rs-card rs-info-card-actions">
-            <h3><span class="dashicons dashicons-admin-tools"></span> 🔧 Field Management</h3>
-            
-            <div class="rs-streamlined-actions">
-                <div class="rs-action-item">
-                    <div class="rs-action-info">
-                        <h4>🧪 Test Field Population</h4>
-                        <p>Test custom fields mapping with sample XML data to verify correct population</p>
-                    </div>
-                    <button type="button" class="rs-button-primary" id="test-field-population-enhanced">
-                        <span class="dashicons dashicons-performance"></span> Run Test
-                    </button>
-                </div>
-                
-                <div class="rs-test-results" id="test-results-display" style="display: none;">
-                    <h5>🧪 Test Results</h5>
-                    <div id="test-results-content"></div>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- TAB INFO REMOVED -->
 
     <!-- TAB 3: TOOLS -->
     <div id="tools" class="tab-content">
@@ -807,56 +603,14 @@ $import_stats = $tracking_manager->get_import_statistics();
                 </div>
             </div>
             
-            <!-- 🔄 PROCESSING MODE INFO SECTION -->
-            <div class="rs-processing-info-section" style="border-left: 4px solid #10b981; padding: 15px; margin-top: 20px; background: #f0fdf4;">
-                <h4><span class="dashicons dashicons-yes"></span> 🎯 Normal Processing Mode</h4>
-                <p><strong>Standard Behavior:</strong> All properties are processed and updated if different from XML data.</p>
-                
-                <div style="margin: 15px 0;">
-                    <div style="padding: 10px; border-radius: 4px; background: #dcfce7; color: #15803d;">
-                        <strong>Current Mode:</strong> Normal Processing ✅<br>
-                        <small>ℹ️ Properties are always processed and updated when XML data differs from WordPress data</small>
-                    </div>
-                </div>
-                
-                <div style="margin-top: 15px; font-size: 13px; color: #6b7280;">
-                    <strong>Note:</strong> This is the correct behavior for production. 
-                    Properties are efficiently processed and only updated when necessary.
-                </div>
-            </div>
-            
             <!-- Database Tools Section -->
             <div class="rs-testing-section" style="border-left: 4px solid #f0ad4e; padding: 15px; margin-top: 20px;">
                 <h4><span class="dashicons dashicons-admin-tools"></span> Database Tools</h4>
-                
+
                 <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-                    <button type="button" class="rs-button-primary" id="create-property-fields" style="background: #6366f1; border-color: #6366f1;">
-                        <span class="dashicons dashicons-plus-alt"></span> 🔥 Create Property Fields (NEW)
-                    </button>
-                    
-                    <button type="button" class="rs-button-primary" id="create-properties-from-sample" style="background: #00a32a; border-color: #00a32a;">
-                        <span class="dashicons dashicons-plus-alt"></span> Crea Properties da Sample v3.0
-                    </button>
-                    
-                    <button type="button" class="rs-button-secondary" id="show-property-stats">
-                        <span class="dashicons dashicons-chart-bar"></span> Mostra Statistiche Properties
-                    </button>
-                    
                     <button type="button" class="rs-button-warning" id="cleanup-test-data" style="background: #ffc107; border-color: #ffc107; color: #000;">
                         <span class="dashicons dashicons-trash"></span> Cleanup Test Data
                     </button>
-                    
-                    <button type="button" class="rs-button-danger" id="cleanup-properties" style="background: #dc3545; border-color: #dc3545;">
-                        <span class="dashicons dashicons-dismiss"></span> Cleanup ALL Database
-                    </button>
-                </div>
-
-                <!-- Property Stats Display -->
-                <div id="property-stats-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #f9f9f9; border-radius: 4px;">
-                    <h4>Statistiche Properties Database</h4>
-                    <div id="property-stats-content">
-                        <p>Caricamento statistiche...</p>
-                    </div>
                 </div>
             </div>
 
@@ -908,67 +662,7 @@ $import_stats = $tracking_manager->get_import_statistics();
                 </div>
             </div>
 
-            <!-- 🚀 PROFESSIONAL ACTIVATION TOOLS SECTION -->
-            <div class="rs-activation-section" style="border-left: 4px solid #6366f1; padding: 15px; margin-top: 20px; background: #f8faff;">
-                <h4><span class="dashicons dashicons-admin-tools"></span> 🚀 Professional Activation Tools</h4>
-                <p><strong>wp_loaded System:</strong> Breakthrough activation system with perfect WordPress timing</p>
-                
-                <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
-                    <button type="button" class="rs-button-primary" id="check-activation-status" style="background: #6366f1; border-color: #6366f1;">
-                        <span class="dashicons dashicons-admin-generic"></span> Check Activation Status
-                    </button>
-                    
-                    <button type="button" class="rs-button-secondary" id="view-activation-info">
-                        <span class="dashicons dashicons-info"></span> View System Info
-                    </button>
-                    
-                    <button type="button" class="rs-button-secondary" id="test-activation-workflow">
-                        <span class="dashicons dashicons-performance"></span> Test Workflow
-                    </button>
-                </div>
-
-                <!-- Activation Status Display -->
-                <div id="activation-status-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #ffffff; border-radius: 4px; border: 1px solid #e1e5e9;">
-                    <h5>Activation System Status</h5>
-                    <div id="activation-status-content">
-                        <p>Loading activation status...</p>
-                    </div>
-                </div>
-                
-                <!-- Activation Info Display -->
-                <div id="activation-info-display" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #ffffff; border-radius: 4px; border: 1px solid #e1e5e9;">
-                    <h5>Professional Activation System v2.0</h5>
-                    <div id="activation-info-content">
-                        <div style="background: #f0f6fc; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                            <h6>💎 Breakthrough Implementation:</h6>
-                            <ul style="margin: 10px 0; padding-left: 20px;">
-                                <li><strong>Problem Solved:</strong> WordPress timing issues with register_activation_hook</li>
-                                <li><strong>Solution:</strong> Two-phase activation via wp_loaded hook</li>
-                                <li><strong>Result:</strong> Perfect timing, no manual intervention required</li>
-                            </ul>
-                        </div>
-                        
-                        <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
-                            <h6>🔄 Activation Workflow:</h6>
-                            <ol style="margin: 10px 0; padding-left: 20px;">
-                                <li><strong>Phase 1:</strong> register_activation_hook sets activation flag</li>
-                                <li><strong>Phase 2:</strong> wp_loaded completes activation when WordPress ready</li>
-                                <li><strong>One-time:</strong> Flag cleanup prevents re-execution</li>
-                            </ol>
-                        </div>
-                        
-                        <div style="background: #fff3cd; padding: 15px; border-radius: 4px;">
-                            <h6>✨ Benefits:</h6>
-                            <ul style="margin: 10px 0; padding-left: 20px;">
-                                <li>Perfect WordPress timing - no early execution issues</li>
-                                <li>One-time execution - no infinite loops</li>
-                                <li>Professional user experience - zero manual intervention</li>
-                                <li>Resilient operation - handles edge cases gracefully</li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <!-- Professional Activation Tools REMOVED -->
         </div>
     </div>
 
