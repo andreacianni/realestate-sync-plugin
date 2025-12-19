@@ -362,6 +362,34 @@ class RealEstate_Sync {
         require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
         $result = dbDelta($sql);
 
+        // ✅ IMPORT SESSIONS: Create import sessions table for history tracking
+        $sessions_table = $wpdb->prefix . 'realestate_import_sessions';
+
+        $sql_sessions = "CREATE TABLE $sessions_table (
+            id bigint(20) NOT NULL AUTO_INCREMENT,
+            session_id varchar(50) NOT NULL,
+            started_at datetime NOT NULL,
+            completed_at datetime DEFAULT NULL,
+            status varchar(20) DEFAULT 'pending',
+            type varchar(20) DEFAULT 'manual',
+            total_items int(11) DEFAULT 0,
+            processed_items int(11) DEFAULT 0,
+            new_properties int(11) DEFAULT 0,
+            updated_properties int(11) DEFAULT 0,
+            failed_properties int(11) DEFAULT 0,
+            error_log text DEFAULT NULL,
+            marked_as_test tinyint(1) DEFAULT 0,
+            created_at datetime DEFAULT CURRENT_TIMESTAMP,
+            updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY (id),
+            UNIQUE KEY session_id (session_id),
+            KEY status (status),
+            KEY type (type),
+            KEY started_at (started_at)
+        ) $charset_collate;";
+
+        $result_sessions = dbDelta($sql_sessions);
+
         // ✅ BATCH SYSTEM: Create import queue table
         require_once plugin_dir_path(__FILE__) . 'includes/class-realestate-sync-queue-manager.php';
         $queue_manager = new RealEstate_Sync_Queue_Manager();
@@ -377,14 +405,19 @@ class RealEstate_Sync {
             $logger = RealEstate_Sync_Logger::get_instance();
             $logger->log("Database table creation attempted: $table_name", 'info');
             $logger->log("dbDelta result: " . print_r($result, true), 'debug');
-            
+
             // Check if table actually exists
             $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$table_name'") === $table_name;
             $logger->log("Table exists after creation: " . ($table_exists ? 'YES' : 'NO'), 'info');
-            
+
             if (!$table_exists) {
                 $logger->log("WARNING: Table creation may have failed. Manual verification required.", 'warning');
             }
+
+            // Log sessions table creation
+            $logger->log("Import sessions table creation attempted: $sessions_table", 'info');
+            $sessions_table_exists = $wpdb->get_var("SHOW TABLES LIKE '$sessions_table'") === $sessions_table;
+            $logger->log("Sessions table exists after creation: " . ($sessions_table_exists ? 'YES' : 'NO'), 'info');
         }
     }
     

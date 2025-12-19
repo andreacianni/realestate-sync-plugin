@@ -281,13 +281,13 @@ jQuery(document).ready(function($) {
                     });
 
                     // Show success message
-                    alert('Proprietà ignorata con successo');
+                    rsToast.success('La proprietà è stata marcata come verificata');
                 } else {
-                    alert('Errore: ' + (response.data || 'Errore sconosciuto'));
+                    rsToast.error(response.data || 'Errore sconosciuto');
                 }
             },
             error: function() {
-                alert('Errore di comunicazione con il server');
+                rsToast.error('Errore di comunicazione con il server');
             }
         });
     };
@@ -1147,5 +1147,132 @@ jQuery(document).ready(function($) {
     // Auto-refresh status when entering Tools tab
     $('.nav-tab[data-tab="tools"]').on('click', function() {
         setTimeout(refreshImportStatus, 300);
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // TOAST NOTIFICATION SYSTEM - FASE 3 Polish
+    // ═══════════════════════════════════════════════════════════════════════════
+    window.rsToast = {
+        container: null,
+
+        init: function() {
+            if (!this.container) {
+                this.container = $('<div class="rs-toast-container"></div>');
+                $('body').append(this.container);
+            }
+        },
+
+        show: function(message, type = 'info', title = null, duration = 5000) {
+            this.init();
+
+            // Icon mapping
+            const icons = {
+                success: 'yes-alt',
+                error: 'dismiss',
+                warning: 'warning',
+                info: 'info'
+            };
+
+            // Default titles
+            const titles = {
+                success: 'Successo',
+                error: 'Errore',
+                warning: 'Attenzione',
+                info: 'Informazione'
+            };
+
+            const toastTitle = title || titles[type];
+            const icon = icons[type] || icons.info;
+
+            const toast = $(`
+                <div class="rs-toast rs-toast-${type}">
+                    <span class="dashicons dashicons-${icon} rs-toast-icon"></span>
+                    <div class="rs-toast-content">
+                        <div class="rs-toast-title">${toastTitle}</div>
+                        <div class="rs-toast-message">${message}</div>
+                    </div>
+                    <button class="rs-toast-close" aria-label="Chiudi">&times;</button>
+                </div>
+            `);
+
+            // Close button handler
+            toast.find('.rs-toast-close').on('click', function() {
+                rsToast.hide(toast);
+            });
+
+            // Add to container
+            this.container.append(toast);
+
+            // Auto-hide after duration
+            if (duration > 0) {
+                setTimeout(() => {
+                    this.hide(toast);
+                }, duration);
+            }
+
+            return toast;
+        },
+
+        hide: function(toast) {
+            toast.addClass('rs-toast-hiding');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        },
+
+        success: function(message, title = null, duration = 5000) {
+            return this.show(message, 'success', title, duration);
+        },
+
+        error: function(message, title = null, duration = 7000) {
+            return this.show(message, 'error', title, duration);
+        },
+
+        warning: function(message, title = null, duration = 6000) {
+            return this.show(message, 'warning', title, duration);
+        },
+
+        info: function(message, title = null, duration = 5000) {
+            return this.show(message, 'info', title, duration);
+        }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // DEVELOPER MODE TOGGLE
+    // ═══════════════════════════════════════════════════════════════════════════
+    $('#developer-mode-toggle').on('change', function() {
+        const isEnabled = $(this).is(':checked');
+        const $message = $('#developer-mode-message');
+        const $developerSections = $('.rs-developer-only');
+
+        // Toggle visibility of developer sections
+        if (isEnabled) {
+            $developerSections.removeClass('rs-hidden').slideDown(300);
+            $message.text('Modalità Sviluppatore attiva - Strumenti tecnici visibili');
+        } else {
+            $developerSections.slideUp(300, function() {
+                $(this).addClass('rs-hidden');
+            });
+            $message.text('Modalità Utente Standard - Solo strumenti essenziali');
+        }
+
+        // Save preference to user meta via AJAX
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_toggle_developer_mode',
+                nonce: realestateSync.nonce,
+                enabled: isEnabled ? 1 : 0
+            },
+            success: function(response) {
+                if (response.success) {
+                    console.log('Developer mode preference saved:', isEnabled);
+                }
+            },
+            error: function() {
+                console.error('Failed to save developer mode preference');
+            }
+        });
     });
 });

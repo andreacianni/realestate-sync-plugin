@@ -26,27 +26,211 @@ $import_stats = $tracking_manager->get_import_statistics();
 
     <div id="rs-alerts-container"></div>
 
-    <!-- 4-TAB NAVIGATION -->
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    NAVIGAZIONE DASHBOARD - 4 TAB
+    ───────────────────────────────────────────────────────────────────────────
+    TAB 1 - IMPORT: Operazioni quotidiane (admin non tecnico)
+    TAB 2 - AUTOMAZIONE: Configurazione schedule import automatici
+    TAB 3 - STRUMENTI: Tools tecnici e pulizia database (developer mode)
+    TAB 4 - STORICO: Monitoring import passati e log di sistema
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
     <div class="nav-tab-wrapper">
         <a href="#dashboard" class="nav-tab nav-tab-active" data-tab="dashboard">
-            <span class="dashicons dashicons-dashboard"></span> Dashboard
+            <span class="dashicons dashicons-download"></span> <?php _e('Import', 'realestate-sync'); ?>
         </a>
         <a href="#automazione" class="nav-tab" data-tab="automazione">
-            <span class="dashicons dashicons-clock"></span> Automazione Import
+            <span class="dashicons dashicons-clock"></span> <?php _e('Automazione', 'realestate-sync'); ?>
         </a>
         <a href="#tools" class="nav-tab" data-tab="tools">
-            <span class="dashicons dashicons-admin-tools"></span> Tools
+            <span class="dashicons dashicons-admin-tools"></span> <?php _e('Strumenti', 'realestate-sync'); ?>
         </a>
         <a href="#logs" class="nav-tab" data-tab="logs">
-            <span class="dashicons dashicons-list-view"></span> Logs
+            <span class="dashicons dashicons-chart-line"></span> <?php _e('Storico & Log', 'realestate-sync'); ?>
         </a>
     </div>
 
-    <!-- TAB 1: DASHBOARD -->
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    TAB 1: IMPORT - Operazioni Quotidiane
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
     <div id="dashboard" class="tab-content rs-tab-active">
         <div class="rs-dashboard-grid">
 
-            <!-- ⚠️ VERIFICATION RESULTS WIDGET -->
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: IMPORT IMMEDIATO                                          ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Admin Non Tecnico                                         ║
+            ║ SCOPO: Trigger manuale download e import da gestionale            ║
+            ║ AZIONI: Scarica XML + Processa + Importa Media                    ║
+            ║ MANIPOLA: Posts, Tracking, Queue, Media Library                   ║
+            ║ FREQUENZA: Occasionale (backup automazione)                       ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
+            <div class="rs-card">
+                <h3><span class="dashicons dashicons-download"></span> <?php _e('Import Immediato', 'realestate-sync'); ?></h3>
+
+                <div class="rs-info-box">
+                    <strong>Import Immediato</strong><br>
+                    Scarica e importa immediatamente i dati XML da GestionaleImmobiliare.it
+                </div>
+
+                <div style="margin: 15px 0; padding: 12px; background: #fff3cd; border-left: 3px solid #f0ad4e; border-radius: 4px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="mark-as-test-manual-import" checked style="margin: 0 8px 0 0; width: 18px; height: 18px;">
+                        <span style="font-weight: 500;">
+                            <span class="dashicons dashicons-flag" style="color: #f0ad4e; vertical-align: middle;"></span>
+                            Marca come Test Import
+                        </span>
+                    </label>
+                    <small style="display: block; margin-top: 5px; color: #666; padding-left: 26px;">
+                        Le proprietà, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
+                    </small>
+                </div>
+
+                <button type="button" class="rs-button-primary" id="start-manual-import">
+                    <span class="dashicons dashicons-download"></span> <?php _e('Scarica e Importa Ora', 'realestate-sync'); ?>
+                </button>
+
+                <!-- Manual Import Log Output -->
+                <div id="manual-import-log-output" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+                    <h5>Log Processo:</h5>
+                    <pre id="manual-import-log-content" style="margin: 0; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">Avvio processo...</pre>
+                </div>
+            </div>
+
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: STATO ATTUALE                                             ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Admin Non Tecnico                                         ║
+            ║ SCOPO: Overview rapido stato sincronizzazione                     ║
+            ║                                                                   ║
+            ║ MOSTRA:                                                           ║
+            ║  - Totale proprietà sincronizzate                                 ║
+            ║  - Ultima modifica tracking (come proxy per ultimo import)        ║
+            ║  - Prossimo import automatico programmato                         ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - wp_realestate_sync_tracking: (read only - count)               ║
+            ║  - WP Cron: (read only - get next scheduled)                      ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Sempre                                                ║
+            ║ FREQUENZA USO: Vista principale dashboard                         ║
+            ║ CRITICO: No (informativo)                                         ║
+            ║                                                                   ║
+            ║ NOTE: In futuro query wp_realestate_import_sessions per stats     ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
+            <?php
+            // Get next scheduled import
+            $cron_manager = new RealEstate_Sync_Cron_Manager();
+            $next_run_timestamp = $cron_manager->get_next_scheduled_import();
+            $schedule_enabled = get_option('realestate_sync_schedule_enabled', false);
+
+            // Get total synced properties
+            $total_synced = isset($import_stats['total_properties']) ? $import_stats['total_properties'] : 0;
+
+            // Get last modified tracking record as proxy for last import
+            global $wpdb;
+            $tracking_table = $wpdb->prefix . 'realestate_sync_tracking';
+            $last_modified = $wpdb->get_var("SELECT last_modified FROM {$tracking_table} ORDER BY last_modified DESC LIMIT 1");
+            ?>
+            <div class="rs-card" style="grid-column: 1 / -1; background: #e7f3ff; border-left: 4px solid #2271b1;">
+                <h3 style="color: #135e96;">
+                    <span class="dashicons dashicons-info"></span>
+                    <?php _e('Stato Attuale', 'realestate-sync'); ?>
+                </h3>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-top: 15px;">
+                    <!-- Total Properties -->
+                    <div style="padding: 15px; background: #fff; border-radius: 4px; border: 1px solid #c9d6e7;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">
+                            <?php _e('Proprietà Sincronizzate', 'realestate-sync'); ?>
+                        </div>
+                        <div style="font-size: 32px; font-weight: 600; color: #2271b1;">
+                            <?php echo number_format($total_synced); ?>
+                        </div>
+                    </div>
+
+                    <!-- Last Activity -->
+                    <div style="padding: 15px; background: #fff; border-radius: 4px; border: 1px solid #c9d6e7;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">
+                            <?php _e('Ultima Attività', 'realestate-sync'); ?>
+                        </div>
+                        <div style="font-size: 16px; font-weight: 500; color: #2c3338;">
+                            <?php
+                            if ($last_modified) {
+                                $time_diff = human_time_diff(strtotime($last_modified), current_time('timestamp'));
+                                echo esc_html($time_diff) . ' ' . __('fa', 'realestate-sync');
+                            } else {
+                                _e('Nessun dato', 'realestate-sync');
+                            }
+                            ?>
+                        </div>
+                        <?php if ($last_modified) : ?>
+                            <div style="font-size: 12px; color: #999; margin-top: 3px;">
+                                <?php echo esc_html(date('d/m/Y H:i', strtotime($last_modified))); ?>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <!-- Next Scheduled Import -->
+                    <div style="padding: 15px; background: #fff; border-radius: 4px; border: 1px solid #c9d6e7;">
+                        <div style="font-size: 13px; color: #666; margin-bottom: 5px;">
+                            <?php _e('Prossimo Import Automatico', 'realestate-sync'); ?>
+                        </div>
+                        <?php if ($schedule_enabled && $next_run_timestamp) : ?>
+                            <div style="font-size: 16px; font-weight: 500; color: #2c3338;">
+                                <?php
+                                $time_until = human_time_diff(current_time('timestamp'), $next_run_timestamp);
+                                echo __('Tra', 'realestate-sync') . ' ' . esc_html($time_until);
+                                ?>
+                            </div>
+                            <div style="font-size: 12px; color: #999; margin-top: 3px;">
+                                <?php echo esc_html(date('d/m/Y H:i', $next_run_timestamp)); ?>
+                            </div>
+                        <?php else : ?>
+                            <div style="font-size: 16px; font-weight: 500; color: #d63638;">
+                                <?php _e('Non programmato', 'realestate-sync'); ?>
+                            </div>
+                            <div style="font-size: 12px; color: #666; margin-top: 3px;">
+                                <a href="#automazione" class="nav-tab-trigger" data-tab="automazione">
+                                    <?php _e('Configura automazione →', 'realestate-sync'); ?>
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: PROPRIETÀ DA VERIFICARE                                   ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Admin Non Tecnico                                         ║
+            ║ SCOPO: Mostra proprietà con possibili problemi post-import        ║
+            ║        (immagini mancanti, dati incongruenti)                     ║
+            ║                                                                   ║
+            ║ AZIONI UTENTE:                                                    ║
+            ║  - Visualizza proprietà in WP editor                              ║
+            ║  - Cancella proprietà (sarà ricreata al prossimo import)          ║
+            ║  - Ignora avviso (marca come "falso positivo OK")                 ║
+            ║  - Cancella tutti gli avvisi                                      ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - wp_options: realestate_sync_latest_verification (read/write)   ║
+            ║  - wp_posts: estate_property (delete)                             ║
+            ║  - wp_realestate_sync_tracking: (read only)                       ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Condizionale (solo se ci sono avvisi)                 ║
+            ║ FREQUENZA USO: Dopo ogni import                                   ║
+            ║ CRITICO: No (avvisi possono essere falsi positivi)                ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
             <?php
             $verification = get_option('realestate_sync_latest_verification');
             if ($verification && !empty($verification['properties'])) :
@@ -54,7 +238,7 @@ $import_stats = $tracking_manager->get_import_statistics();
             <div class="rs-card" style="grid-column: 1 / -1; background: #fff3cd; border-left: 4px solid #ffc107;">
                 <h3 style="color: #856404;">
                     <span class="dashicons dashicons-warning"></span>
-                    Proprietà da Verificare
+                    <?php _e('Proprietà da Verificare', 'realestate-sync'); ?>
                 </h3>
 
                 <p style="margin: 10px 0;">
@@ -135,48 +319,37 @@ $import_stats = $tracking_manager->get_import_statistics();
 
                 <p style="margin-top: 15px;">
                     <button class="button" onclick="realestateSync.clearAllVerification()">
-                        <span class="dashicons dashicons-dismiss"></span> Cancella Tutti gli Avvisi
+                        <span class="dashicons dashicons-dismiss"></span> <?php _e('Cancella Tutti gli Avvisi', 'realestate-sync'); ?>
                     </button>
                 </p>
             </div>
             <?php endif; ?>
 
-            <!-- Manual Import Section -->
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: CONFIGURAZIONE CREDENZIALI DOWNLOAD XML                   ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Admin Non Tecnico + Tecnico (setup iniziale)             ║
+            ║ SCOPO: Configura credenziali per scaricare XML dal gestionale    ║
+            ║                                                                   ║
+            ║ AZIONI UTENTE:                                                    ║
+            ║  - Modifica URL, username, password per XML feed                  ║
+            ║  - Seleziona sorgente credenziali (hardcoded/database)            ║
+            ║  - Testa connessione al server XML                                ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - wp_options: realestate_sync_xml_url (read/write)               ║
+            ║  - wp_options: realestate_sync_xml_user (read/write)              ║
+            ║  - wp_options: realestate_sync_xml_pass (read/write)              ║
+            ║  - wp_options: realestate_sync_credential_source (read/write)     ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Sempre                                                ║
+            ║ FREQUENZA USO: Setup iniziale, poi raramente                      ║
+            ║ CRITICO: Sì (credenziali errate = import falliti)                 ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
             <div class="rs-card">
-                <h3><span class="dashicons dashicons-download"></span> Import Manuale</h3>
-
-                <div class="rs-info-box">
-                    <strong>Import Immediato</strong><br>
-                    Scarica e importa immediatamente i dati XML da GestionaleImmobiliare.it
-                </div>
-
-                <div style="margin: 15px 0; padding: 12px; background: #fff3cd; border-left: 3px solid #f0ad4e; border-radius: 4px;">
-                    <label style="display: flex; align-items: center; cursor: pointer;">
-                        <input type="checkbox" id="mark-as-test-manual-import" checked style="margin: 0 8px 0 0; width: 18px; height: 18px;">
-                        <span style="font-weight: 500;">
-                            <span class="dashicons dashicons-flag" style="color: #f0ad4e; vertical-align: middle;"></span>
-                            Marca come Test Import
-                        </span>
-                    </label>
-                    <small style="display: block; margin-top: 5px; color: #666; padding-left: 26px;">
-                        Le proprietà, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
-                    </small>
-                </div>
-
-                <button type="button" class="rs-button-primary" id="start-manual-import">
-                    <span class="dashicons dashicons-download"></span> Scarica e Importa Ora
-                </button>
-
-                <!-- Manual Import Log Output -->
-                <div id="manual-import-log-output" class="rs-hidden" style="margin-top: 20px; padding: 15px; background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; max-height: 300px; overflow-y: auto;">
-                    <h5>Log Processo:</h5>
-                    <pre id="manual-import-log-content" style="margin: 0; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">Avvio processo...</pre>
-                </div>
-            </div>
-
-            <!-- Configuration Panel -->
-            <div class="rs-card">
-                <h3><span class="dashicons dashicons-admin-generic"></span> Configurazione Credenziali Download XML</h3>
+                <h3><span class="dashicons dashicons-admin-generic"></span> <?php _e('Configurazione Credenziali Download XML', 'realestate-sync'); ?></h3>
 
                 <!-- Credential Source Toggle -->
                     <div style="margin-bottom: 20px; padding: 15px; background: #fff8e1; border-left: 3px solid #ffa000; border-radius: 4px;">
@@ -263,7 +436,11 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 2: AUTOMAZIONE IMPORT -->
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    TAB 2: AUTOMAZIONE - Configurazione Import Automatici
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
     <div id="automazione" class="tab-content">
         <?php
         // Get current schedule settings
@@ -284,10 +461,39 @@ $import_stats = $tracking_manager->get_import_statistics();
         $server_timezone = wp_timezone_string();
         ?>
 
+        <!--
+        ╔═══════════════════════════════════════════════════════════════════╗
+        ║ WIDGET: CONFIGURAZIONE IMPORT AUTOMATICO                          ║
+        ╠═══════════════════════════════════════════════════════════════════╣
+        ║ UTENTE: Admin Non Tecnico (setup) + Tecnico                      ║
+        ║ SCOPO: Configura schedule automatico per import periodici        ║
+        ║                                                                   ║
+        ║ AZIONI UTENTE:                                                    ║
+        ║  - Abilita/disabilita import automatici                           ║
+        ║  - Imposta orario esecuzione (formato 24h)                        ║
+        ║  - Seleziona frequenza (daily/weekly/custom days/months)          ║
+        ║  - Marca import come test (flag _test_import=1)                   ║
+        ║  - Vede prossima esecuzione programmata                           ║
+        ║                                                                   ║
+        ║ MANIPOLA:                                                         ║
+        ║  - wp_options: realestate_sync_schedule_enabled (bool)            ║
+        ║  - wp_options: realestate_sync_schedule_time (HH:MM)              ║
+        ║  - wp_options: realestate_sync_schedule_frequency (string)        ║
+        ║  - wp_options: realestate_sync_schedule_weekday (0-6)             ║
+        ║  - wp_options: realestate_sync_schedule_custom_days (int)         ║
+        ║  - wp_options: realestate_sync_schedule_custom_months (int)       ║
+        ║  - wp_options: realestate_sync_schedule_mark_test (bool)          ║
+        ║  - WP Cron: schedule/unschedule import events                     ║
+        ║                                                                   ║
+        ║ VISIBILITÀ: Sempre                                                ║
+        ║ FREQUENZA USO: Setup iniziale, modifiche occasionali              ║
+        ║ CRITICO: Sì (garantisce aggiornamento automatico proprietà)       ║
+        ╚═══════════════════════════════════════════════════════════════════╝
+        -->
         <div class="rs-card">
             <h3>
                 <span class="dashicons dashicons-clock"></span>
-                Configurazione Import Automatico
+                <?php _e('Configurazione Import Automatico', 'realestate-sync'); ?>
             </h3>
 
             <!-- Server Time Info -->
@@ -429,7 +635,7 @@ $import_stats = $tracking_manager->get_import_statistics();
 
                 <!-- Save Button -->
                 <button type="button" class="rs-button-primary" id="save-schedule-config">
-                    <span class="dashicons dashicons-saved"></span> Salva Configurazione
+                    <span class="dashicons dashicons-saved"></span> <?php _e('Salva Configurazione', 'realestate-sync'); ?>
                 </button>
             </div>
 
@@ -438,16 +644,83 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB INFO REMOVED -->
-
-    <!-- TAB 3: TOOLS -->
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    TAB 3: STRUMENTI - Tools Tecnici e Pulizia Database
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
     <div id="tools" class="tab-content">
-        <div class="rs-card">
-            <h3><span class="dashicons dashicons-admin-tools"></span> Strumenti Amministrazione</h3>
+        <?php
+        // Get developer mode preference from user meta
+        $developer_mode = get_user_meta(get_current_user_id(), 'realestate_sync_developer_mode', true);
+        $developer_mode = filter_var($developer_mode, FILTER_VALIDATE_BOOLEAN);
+        ?>
 
-            <!-- 📊 GESTIONE QUEUE IMPORT -->
+        <!-- Developer Mode Toggle -->
+        <div class="rs-card" style="background: #fff3cd; border-left: 4px solid #f0ad4e; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 15px 0;">
+                <span class="dashicons dashicons-admin-tools"></span>
+                <?php _e('Modalità Visualizzazione', 'realestate-sync'); ?>
+            </h3>
+
+            <label style="display: flex; align-items: center; cursor: pointer; padding: 10px; background: #fff; border-radius: 4px;">
+                <input type="checkbox" id="developer-mode-toggle" <?php checked($developer_mode); ?>
+                       style="width: 20px; height: 20px; margin: 0 12px 0 0;">
+                <div>
+                    <strong style="font-size: 16px; display: block; margin-bottom: 5px;">
+                        <span class="dashicons dashicons-admin-generic" style="color: #f0ad4e; vertical-align: middle;"></span>
+                        <?php _e('Modalità Sviluppatore', 'realestate-sync'); ?>
+                    </strong>
+                    <span style="font-size: 13px; color: #666;">
+                        <?php _e('Mostra strumenti tecnici avanzati per debug e gestione sistema', 'realestate-sync'); ?>
+                    </span>
+                </div>
+            </label>
+
+            <div id="developer-mode-status" style="margin-top: 10px; padding: 8px; background: #e7f3ff; border-radius: 4px; font-size: 13px;">
+                <span class="dashicons dashicons-info" style="color: #2271b1;"></span>
+                <span id="developer-mode-message">
+                    <?php echo $developer_mode ? __('Modalità Sviluppatore attiva - Strumenti tecnici visibili', 'realestate-sync') : __('Modalità Utente Standard - Solo strumenti essenziali', 'realestate-sync'); ?>
+                </span>
+            </div>
+        </div>
+
+        <div class="rs-card">
+            <h3><span class="dashicons dashicons-admin-tools"></span> <?php _e('Strumenti Amministrazione', 'realestate-sync'); ?></h3>
+
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: GESTIONE QUEUE IMPORT                                     ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Tecnico (debug sistema)                                  ║
+            ║ SCOPO: Monitor e risoluzione import bloccati/in sospeso          ║
+            ║                                                                   ║
+            ║ AZIONI UTENTE:                                                    ║
+            ║  - Visualizza stato ultimo import (session ID, timestamp, etc)    ║
+            ║  - Vede elementi pending/processing/stuck                         ║
+            ║  - Resetta elementi stuck a "pending" per riprocessare            ║
+            ║  - Elimina elementi dalla queue                                   ║
+            ║  - Svuota completamente la queue (reset totale)                   ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - wp_realestate_import_queue: (read/update/delete)               ║
+            ║  - Legge session_id, status (pending/processing/completed)        ║
+            ║  - Modifica status da "processing" a "pending"                    ║
+            ║  - DELETE FROM queue WHERE condition                              ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Solo Developer Mode                                   ║
+            ║ FREQUENZA USO: Durante debug import falliti                       ║
+            ║ CRITICO: Sì (essenziale per sbloccare import incompleti)          ║
+            ║                                                                   ║
+            ║ NOTE TECNICHE:                                                    ║
+            ║  - Processing elements stuck = import chiuso senza completare     ║
+            ║  - Reset a pending permette retry automatico                      ║
+            ║  - Clear all queue = ricominciare da zero                         ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
+            <div class="rs-developer-only <?php echo !$developer_mode ? 'rs-hidden' : ''; ?>" data-developer-section="queue-management">
             <div class="rs-queue-section" style="border-left: 4px solid #2271b1; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
-                <h4><span class="dashicons dashicons-list-view"></span> Gestione Queue Import</h4>
+                <h4><span class="dashicons dashicons-list-view"></span> <?php _e('Gestione Queue Import', 'realestate-sync'); ?></h4>
                 <p>Controlla lo stato dell'ultimo import e gestisci eventuali elementi rimasti in sospeso.</p>
 
                 <!-- Last Import Status -->
@@ -494,7 +767,7 @@ $import_stats = $tracking_manager->get_import_statistics();
 
                     <div style="margin-top: 15px; text-align: center;">
                         <button type="button" class="rs-button-secondary" id="refresh-import-status">
-                            <span class="dashicons dashicons-update"></span> Aggiorna Stato
+                            <span class="dashicons dashicons-update"></span> <?php _e('Aggiorna Stato', 'realestate-sync'); ?>
                         </button>
                     </div>
                 </div>
@@ -539,10 +812,29 @@ $import_stats = $tracking_manager->get_import_statistics();
                     </button>
                 </div>
 
-                <!-- Cleanup Orphan Posts -->
+                <!--
+                ╔═══════════════════════════════════════════════════════════════════╗
+                ║ SOTTO-WIDGET: CLEANUP POST ORFANI                                 ║
+                ╠═══════════════════════════════════════════════════════════════════╣
+                ║ UTENTE: Tecnico                                                   ║
+                ║ SCOPO: Rimuove post senza record tracking (dati inconsistenti)    ║
+                ║                                                                   ║
+                ║ AZIONI:                                                           ║
+                ║  - Scansiona per trovare estate_property senza tracking           ║
+                ║  - Mostra lista post orfani trovati                               ║
+                ║  - Cancella post orfani (permanente)                              ║
+                ║                                                                   ║
+                ║ MANIPOLA:                                                         ║
+                ║  - wp_posts: estate_property (read/delete)                        ║
+                ║  - wp_realestate_sync_tracking: (read only - per find orphans)    ║
+                ║  - Hook WP before_delete_post rimuove tracking e media            ║
+                ║                                                                   ║
+                ║ CRITICO: Sì (cancellazione permanente, no undo)                   ║
+                ╚═══════════════════════════════════════════════════════════════════╝
+                -->
                 <div style="margin: 20px 0; padding: 15px; background: #fff3cd; border: 1px solid #f0ad4e; border-radius: 4px;">
                     <h5 style="margin: 0 0 10px 0; color: #856404;">
-                        <span class="dashicons dashicons-admin-tools"></span> 🧹 Cleanup Post Orfani
+                        <span class="dashicons dashicons-admin-tools"></span> 🧹 <?php _e('Cleanup Post Orfani', 'realestate-sync'); ?>
                     </h5>
                     <p style="margin: 0 0 10px 0; font-size: 13px; color: #666;">
                         Trova e cancella tutti i post (estate_property) che <strong>NON hanno</strong> un record nella tracking table.
@@ -561,14 +853,39 @@ $import_stats = $tracking_manager->get_import_statistics();
                     <div id="orphan-posts-report" style="margin-top: 15px; display: none;"></div>
                 </div>
             </div>
+            </div>
+            <!-- End of rs-developer-only: Queue Management -->
         </div>
 
         <div class="rs-card">
-            <h3><span class="dashicons dashicons-database-import"></span> Testing & Development</h3>
-            
-            <!-- Upload Test Section -->
+            <h3><span class="dashicons dashicons-database-import"></span> <?php _e('Testing & Development', 'realestate-sync'); ?></h3>
+
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: IMPORT XML (Upload File Manuale)                          ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Entrambi (Admin + Tecnico)                               ║
+            ║ SCOPO: Importa da file XML locale invece che da server remoto    ║
+            ║                                                                   ║
+            ║ AZIONI UTENTE:                                                    ║
+            ║  - Upload file XML dal computer                                   ║
+            ║  - Marca import come test (_test_import=1) opzionale              ║
+            ║  - Processa XML con stesso flusso import remoto                   ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - Stesso del Import Immediato                                    ║
+            ║  - wp_posts: estate_property (create/update)                      ║
+            ║  - wp_realestate_sync_tracking: (create/update)                   ║
+            ║  - wp_realestate_import_queue: (populate)                         ║
+            ║  - Media library: (download/attach images)                        ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Sempre                                                ║
+            ║ FREQUENZA USO: Testing, import one-off                            ║
+            ║ CRITICO: No (utile ma non essenziale per workflow quotidiano)     ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
             <div class="rs-upload-section" style="border-left: 4px solid #2271b1; padding: 20px; margin-bottom: 20px; background: #f8f9fa;">
-                <h4><span class="dashicons dashicons-upload"></span> Import XML</h4>
+                <h4><span class="dashicons dashicons-upload"></span> <?php _e('Import XML', 'realestate-sync'); ?></h4>
                 <p>Upload file XML per importare properties e agenzie (utile sia per test che per produzione)</p>
 
                 <div style="margin: 15px 0;">
@@ -602,10 +919,30 @@ $import_stats = $tracking_manager->get_import_statistics();
                     <pre id="test-log-content" style="margin: 0; font-family: 'Courier New', monospace; font-size: 12px; white-space: pre-wrap;">Avvio processo...</pre>
                 </div>
             </div>
-            
-            <!-- Database Tools Section -->
+
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: DATABASE TOOLS (Cleanup Test Data)                        ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Entrambi (Admin + Tecnico)                               ║
+            ║ SCOPO: Rimuovi dati di test marcati con _test_import=1           ║
+            ║                                                                   ║
+            ║ AZIONI UTENTE:                                                    ║
+            ║  - Cleanup Test Data: rimuove tutte le proprietà marcate test     ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - wp_posts: estate_property WHERE meta_key='_test_import' (del)  ║
+            ║  - wp_postmeta: _test_import=1 (read/delete)                      ║
+            ║  - wp_realestate_sync_tracking: (delete via hook)                 ║
+            ║  - Media library: (delete via hook)                               ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Sempre                                                ║
+            ║ FREQUENZA USO: Dopo testing                                       ║
+            ║ CRITICO: No (solo per pulizia test, non dati produzione)          ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
             <div class="rs-testing-section" style="border-left: 4px solid #f0ad4e; padding: 15px; margin-top: 20px;">
-                <h4><span class="dashicons dashicons-admin-tools"></span> Database Tools</h4>
+                <h4><span class="dashicons dashicons-admin-tools"></span> <?php _e('Database Tools', 'realestate-sync'); ?></h4>
 
                 <div class="rs-button-group" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
                     <button type="button" class="rs-button-warning" id="cleanup-test-data" style="background: #ffc107; border-color: #ffc107; color: #000;">
@@ -614,9 +951,29 @@ $import_stats = $tracking_manager->get_import_statistics();
                 </div>
             </div>
 
-            <!-- 🗑️ CLEANUP PROPRIETÀ SENZA IMMAGINI -->
+            <!--
+            ╔═══════════════════════════════════════════════════════════════════╗
+            ║ WIDGET: CLEANUP PROPRIETÀ SENZA IMMAGINI                          ║
+            ╠═══════════════════════════════════════════════════════════════════╣
+            ║ UTENTE: Entrambi (Admin + Tecnico)                               ║
+            ║ SCOPO: Rimuovi proprietà senza featured image                    ║
+            ║                                                                   ║
+            ║ AZIONI UTENTE:                                                    ║
+            ║  - Step 1: Analizza (safe, no deletion)                           ║
+            ║  - Step 2: Cancella (trash o permanente)                          ║
+            ║                                                                   ║
+            ║ MANIPOLA:                                                         ║
+            ║  - wp_posts: estate_property WHERE _thumbnail_id IS NULL (del)    ║
+            ║  - wp_realestate_sync_tracking: (delete via hook)                 ║
+            ║  - Media library: (delete via hook)                               ║
+            ║                                                                   ║
+            ║ VISIBILITÀ: Sempre                                                ║
+            ║ FREQUENZA USO: Manutenzione periodica qualità dati                ║
+            ║ CRITICO: Medio (cancellazione permanente se scelta)               ║
+            ╚═══════════════════════════════════════════════════════════════════╝
+            -->
             <div class="rs-cleanup-section" style="border-left: 4px solid #dc3545; padding: 20px; margin-top: 20px; background: #fff5f5;">
-                <h4><span class="dashicons dashicons-trash"></span> Cleanup Proprietà Senza Immagini</h4>
+                <h4><span class="dashicons dashicons-trash"></span> <?php _e('Cleanup Proprietà Senza Immagini', 'realestate-sync'); ?></h4>
                 <p>Trova e rimuovi proprietà senza featured image. Il tracking viene cancellato automaticamente.</p>
 
                 <!-- Step 1: Analisi -->
@@ -666,23 +1023,189 @@ $import_stats = $tracking_manager->get_import_statistics();
         </div>
     </div>
 
-    <!-- TAB 4: LOGS -->
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    TAB 4: STORICO & LOG - Monitoring Import e Log Sistema
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
     <div id="logs" class="tab-content">
+        <?php
+        // Check if import_sessions table exists
+        global $wpdb;
+        $sessions_table = $wpdb->prefix . 'realestate_import_sessions';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$sessions_table'") === $sessions_table;
+
+        if ($table_exists) {
+            // Get last 10 import sessions
+            $recent_sessions = $wpdb->get_results("
+                SELECT *
+                FROM {$sessions_table}
+                ORDER BY started_at DESC
+                LIMIT 10
+            ", ARRAY_A);
+        }
+        ?>
+
+        <!--
+        ╔═══════════════════════════════════════════════════════════════════╗
+        ║ WIDGET: STORICO IMPORT                                            ║
+        ╠═══════════════════════════════════════════════════════════════════╣
+        ║ UTENTE: Entrambi (Admin + Tecnico)                               ║
+        ║ SCOPO: Visualizza cronologia import passati                      ║
+        ║                                                                   ║
+        ║ MOSTRA:                                                           ║
+        ║  - Data/ora import                                                ║
+        ║  - Tipo (manuale/scheduled)                                       ║
+        ║  - Risultato (completato/fallito)                                 ║
+        ║  - Dettagli (nuove/aggiornate/fallite)                            ║
+        ║                                                                   ║
+        ║ MANIPOLA:                                                         ║
+        ║  - wp_realestate_import_sessions: (read only)                     ║
+        ║                                                                   ║
+        ║ VISIBILITÀ: Sempre                                                ║
+        ║ FREQUENZA USO: Verifica post-import                               ║
+        ║ CRITICO: No (informativo)                                         ║
+        ╚═══════════════════════════════════════════════════════════════════╝
+        -->
+        <?php if ($table_exists && !empty($recent_sessions)) : ?>
         <div class="rs-card">
-            <h3><span class="dashicons dashicons-list-view"></span> Log & Monitoraggio</h3>
+            <h3><span class="dashicons dashicons-calendar-alt"></span> <?php _e('Storico Import', 'realestate-sync'); ?></h3>
+
+            <p style="margin-bottom: 20px; color: #666;">
+                <?php _e('Cronologia degli ultimi import eseguiti', 'realestate-sync'); ?>
+            </p>
+
+            <table class="widefat" style="background: #fff;">
+                <thead>
+                    <tr>
+                        <th style="width: 18%;"><?php _e('Data/Ora', 'realestate-sync'); ?></th>
+                        <th style="width: 12%;"><?php _e('Tipo', 'realestate-sync'); ?></th>
+                        <th style="width: 15%;"><?php _e('Stato', 'realestate-sync'); ?></th>
+                        <th style="width: 15%;"><?php _e('Durata', 'realestate-sync'); ?></th>
+                        <th style="width: 40%;"><?php _e('Dettagli', 'realestate-sync'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($recent_sessions as $session) :
+                        $started = strtotime($session['started_at']);
+                        $completed = $session['completed_at'] ? strtotime($session['completed_at']) : null;
+                        $duration = $completed ? ($completed - $started) : null;
+
+                        // Status badge
+                        $status_color = 'gray';
+                        $status_text = ucfirst($session['status']);
+                        if ($session['status'] === 'completed') {
+                            $status_color = '#00a32a';
+                            $status_text = __('Completato', 'realestate-sync');
+                        } elseif ($session['status'] === 'failed') {
+                            $status_color = '#d63638';
+                            $status_text = __('Fallito', 'realestate-sync');
+                        } elseif ($session['status'] === 'running') {
+                            $status_color = '#f0ad4e';
+                            $status_text = __('In corso', 'realestate-sync');
+                        }
+
+                        // Type badge
+                        $type_text = $session['type'] === 'manual' ? __('Manuale', 'realestate-sync') : __('Automatico', 'realestate-sync');
+                        $type_icon = $session['type'] === 'manual' ? 'admin-users' : 'clock';
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo esc_html(date('d/m/Y', $started)); ?></strong><br>
+                            <small style="color: #666;"><?php echo esc_html(date('H:i:s', $started)); ?></small>
+                        </td>
+                        <td>
+                            <span class="dashicons dashicons-<?php echo $type_icon; ?>" style="vertical-align: middle;"></span>
+                            <?php echo esc_html($type_text); ?>
+                            <?php if ($session['marked_as_test']) : ?>
+                                <br><span style="color: #f0ad4e; font-size: 12px;">
+                                    <span class="dashicons dashicons-flag" style="font-size: 12px;"></span> Test
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span style="display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; color: white; background: <?php echo $status_color; ?>;">
+                                <?php echo esc_html($status_text); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php if ($duration !== null) : ?>
+                                <?php
+                                $minutes = floor($duration / 60);
+                                $seconds = $duration % 60;
+                                echo sprintf('%d:%02d', $minutes, $seconds);
+                                ?>
+                            <?php else : ?>
+                                <span style="color: #999;">-</span>
+                            <?php endif; ?>
+                        </td>
+                        <td style="font-size: 13px;">
+                            <?php if ($session['status'] === 'completed') : ?>
+                                <span style="color: #00a32a;">✓ <?php echo esc_html($session['new_properties']); ?></span> nuove,
+                                <span style="color: #2271b1;">↻ <?php echo esc_html($session['updated_properties']); ?></span> aggiornate
+                                <?php if ($session['failed_properties'] > 0) : ?>
+                                    , <span style="color: #d63638;">✗ <?php echo esc_html($session['failed_properties']); ?></span> fallite
+                                <?php endif; ?>
+                            <?php elseif ($session['status'] === 'failed') : ?>
+                                <span style="color: #d63638;">
+                                    <?php echo esc_html(substr($session['error_log'], 0, 100)); ?>
+                                    <?php if (strlen($session['error_log']) > 100) echo '...'; ?>
+                                </span>
+                            <?php elseif ($session['status'] === 'running') : ?>
+                                <span style="color: #f0ad4e;">
+                                    <?php echo esc_html($session['processed_items']); ?>/<?php echo esc_html($session['total_items']); ?> processati
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <!--
+        ╔═══════════════════════════════════════════════════════════════════╗
+        ║ WIDGET: LOG & MONITORAGGIO                                        ║
+        ╠═══════════════════════════════════════════════════════════════════╣
+        ║ UTENTE: Entrambi (Admin + Tecnico)                               ║
+        ║ SCOPO: Visualizza log sistema per troubleshooting                ║
+        ║                                                                   ║
+        ║ AZIONI UTENTE:                                                    ║
+        ║  - Visualizza log file in browser                                 ║
+        ║  - Scarica log file sul computer                                  ║
+        ║  - Cancella log file (reset)                                      ║
+        ║  - System Check: verifica configurazione WP                       ║
+        ║                                                                   ║
+        ║ MANIPOLA:                                                         ║
+        ║  - wp-content/debug.log (read/write/delete)                       ║
+        ║  - Nessuna manipolazione database                                 ║
+        ║                                                                   ║
+        ║ VISIBILITÀ: Sempre                                                ║
+        ║ FREQUENZA USO: Troubleshooting, post-import verification          ║
+        ║ CRITICO: No (informativo, no modifiche dati)                      ║
+        ║                                                                   ║
+        ║ NOTE FUTURE:                                                      ║
+        ║  - TODO: Aggiungere widget "Storico Import" sopra Log             ║
+        ║  - Query wp_realestate_import_sessions per mostrare history       ║
+        ║  - Tabella: Data | Tipo | Risultato | Dettagli                    ║
+        ╚═══════════════════════════════════════════════════════════════════╝
+        -->
+        <div class="rs-card">
+            <h3><span class="dashicons dashicons-list-view"></span> <?php _e('Log & Monitoraggio', 'realestate-sync'); ?></h3>
             
             <div style="display: flex; gap: 15px; margin-bottom: 20px;">
                 <button type="button" class="rs-button-secondary" id="view-logs">
-                    <span class="dashicons dashicons-media-text"></span> Visualizza Log
+                    <span class="dashicons dashicons-media-text"></span> <?php _e('Visualizza Log', 'realestate-sync'); ?>
                 </button>
                 <button type="button" class="rs-button-secondary" id="download-logs">
-                    <span class="dashicons dashicons-download"></span> Scarica Log
+                    <span class="dashicons dashicons-download"></span> <?php _e('Scarica Log', 'realestate-sync'); ?>
                 </button>
                 <button type="button" class="rs-button-secondary" id="clear-logs">
-                    <span class="dashicons dashicons-trash"></span> Cancella Log
+                    <span class="dashicons dashicons-trash"></span> <?php _e('Cancella Log', 'realestate-sync'); ?>
                 </button>
                 <button type="button" class="rs-button-secondary" id="system-check">
-                    <span class="dashicons dashicons-admin-tools"></span> Verifica Sistema
+                    <span class="dashicons dashicons-admin-tools"></span> <?php _e('Verifica Sistema', 'realestate-sync'); ?>
                 </button>
             </div>
 

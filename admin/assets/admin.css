@@ -339,3 +339,520 @@
         width: 40px;
     }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOAST NOTIFICATIONS - FASE 3 Polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.rs-toast-container {
+    position: fixed;
+    top: 32px;
+    right: 20px;
+    z-index: 99999;
+    pointer-events: none;
+}
+
+.rs-toast {
+    min-width: 300px;
+    max-width: 500px;
+    margin-bottom: 10px;
+    padding: 16px 20px;
+    background: #fff;
+    border-left: 4px solid #2271b1;
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    pointer-events: auto;
+    animation: rs-toast-slide-in 0.3s ease-out;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+.rs-toast.rs-toast-hiding {
+    animation: rs-toast-slide-out 0.3s ease-in forwards;
+}
+
+.rs-toast-success {
+    border-left-color: #00a32a;
+}
+
+.rs-toast-error {
+    border-left-color: #d63638;
+}
+
+.rs-toast-warning {
+    border-left-color: #f0ad4e;
+}
+
+.rs-toast-info {
+    border-left-color: #2271b1;
+}
+
+.rs-toast-icon {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+}
+
+.rs-toast-success .rs-toast-icon {
+    color: #00a32a;
+}
+
+.rs-toast-error .rs-toast-icon {
+    color: #d63638;
+}
+
+.rs-toast-warning .rs-toast-icon {
+    color: #f0ad4e;
+}
+
+.rs-toast-info .rs-toast-icon {
+    color: #2271b1;
+}
+
+.rs-toast-content {
+    flex: 1;
+}
+
+.rs-toast-title {
+    font-weight: 600;
+    font-size: 14px;
+    margin: 0 0 4px 0;
+    color: #1d2327;
+}
+
+.rs-toast-message {
+    font-size: 13px;
+    margin: 0;
+    color: #50575e;
+    line-height: 1.5;
+}
+
+.rs-toast-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    color: #787c82;
+    font-size: 16px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.rs-toast-close:hover {
+    color: #1d2327;
+}
+
+@keyframes rs-toast-slide-in {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes rs-toast-slide-out {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+
+/* Mobile adjustments for toasts */
+@media screen and (max-width: 600px) {
+    .rs-toast-container {
+        left: 10px;
+        right: 10px;
+        top: 46px;
+    }
+
+    .rs-toast {
+        min-width: auto;
+        width: 100%;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TOOLTIP SYSTEM - FASE 3 Polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-tooltip] {
+    position: relative;
+    cursor: help;
+}
+
+[data-tooltip]:before {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    padding: 8px 12px;
+    background: #1d2327;
+    color: #fff;
+    font-size: 12px;
+    line-height: 1.4;
+    white-space: nowrap;
+    border-radius: 4px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 10000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+
+[data-tooltip]:after {
+    content: '';
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-2px);
+    border: 5px solid transparent;
+    border-top-color: #1d2327;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    z-index: 10000;
+}
+
+[data-tooltip]:hover:before,
+[data-tooltip]:hover:after {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Tooltip position variants */
+[data-tooltip-pos="top"]:before {
+    bottom: 100%;
+    top: auto;
+    margin-bottom: 8px;
+}
+
+[data-tooltip-pos="bottom"]:before {
+    top: 100%;
+    bottom: auto;
+    margin-top: 8px;
+    transform: translateX(-50%) translateY(8px);
+}
+
+[data-tooltip-pos="bottom"]:after {
+    top: 100%;
+    bottom: auto;
+    margin-top: 2px;
+    border-top-color: transparent;
+    border-bottom-color: #1d2327;
+    transform: translateX(-50%) translateY(8px);
+}
+
+[data-tooltip-pos="bottom"]:hover:before,
+[data-tooltip-pos="bottom"]:hover:after {
+    transform: translateX(-50%) translateY(0);
+}
+
+/* Long tooltip support */
+[data-tooltip-long]:before {
+    white-space: normal;
+    max-width: 250px;
+    text-align: center;
+}
+
+/* Mobile: disable tooltips on touch devices */
+@media (hover: none) and (pointer: coarse) {
+    [data-tooltip]:before,
+    [data-tooltip]:after {
+        display: none;
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   IMPROVED VISUAL FEEDBACK - FASE 3 Polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Smooth transitions for cards */
+.rs-card {
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.rs-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+/* Enhanced button interactions */
+.rs-button-primary,
+.rs-button-secondary,
+.rs-button-danger,
+.rs-button-warning {
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.rs-button-primary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.3);
+}
+
+.rs-button-secondary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.rs-button-danger:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+}
+
+.rs-button-primary:active:not(:disabled),
+.rs-button-secondary:active:not(:disabled),
+.rs-button-danger:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+/* Pulse animation for loading states */
+@keyframes rs-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.rs-loading {
+    animation: rs-pulse 1.5s ease-in-out infinite;
+}
+
+/* Smooth status number transitions */
+.rs-status-number {
+    transition: all 0.3s ease;
+}
+
+/* Tab hover effects */
+.nav-tab {
+    transition: all 0.2s ease;
+}
+
+.nav-tab:hover:not(.nav-tab-active) {
+    transform: translateY(-2px);
+}
+
+/* Focus styles for accessibility */
+.rs-button-primary:focus,
+.rs-button-secondary:focus,
+.rs-button-danger:focus,
+.rs-input:focus,
+input[type="checkbox"]:focus {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+
+/* Checkbox enhanced styling */
+input[type="checkbox"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+input[type="checkbox"]:checked {
+    accent-color: #2271b1;
+}
+
+/* Progress indicator for developer mode sections */
+.rs-developer-only {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Skeleton loading animation */
+@keyframes rs-skeleton {
+    0% {
+        background-position: -200px 0;
+    }
+    100% {
+        background-position: calc(200px + 100%) 0;
+    }
+}
+
+.rs-skeleton {
+    background: linear-gradient(90deg, #f0f0f1 0px, #e9e9ea 40px, #f0f0f1 80px);
+    background-size: 200px 100%;
+    animation: rs-skeleton 1.2s ease-in-out infinite;
+}
+
+/* Success state animation */
+@keyframes rs-success-bounce {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.rs-success-animation {
+    animation: rs-success-bounce 0.6s ease;
+}
+
+/* Slide fade in for dynamic content */
+@keyframes rs-slide-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.rs-slide-fade-in {
+    animation: rs-slide-fade-in 0.4s ease-out;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESPONSIVE MOBILE OPTIMIZATIONS - FASE 3 Polish
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 782px) {
+    /* WordPress admin bar mobile adjustment */
+    .rs-toast-container {
+        top: 46px;
+    }
+
+    /* Stack navigation tabs on small screens */
+    .nav-tab-wrapper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+    }
+
+    .nav-tab {
+        flex: 1 1 calc(50% - 5px);
+        text-align: center;
+        font-size: 13px;
+        padding: 8px 10px;
+    }
+
+    .nav-tab .dashicons {
+        display: none;
+    }
+
+    /* Full width status cards on mobile */
+    .rs-status-item {
+        padding: 12px;
+    }
+
+    .rs-status-number {
+        font-size: 24px;
+    }
+
+    /* Button adjustments for touch */
+    .rs-button-primary,
+    .rs-button-secondary,
+    .rs-button-danger {
+        padding: 10px 16px;
+        font-size: 14px;
+        min-height: 44px; /* iOS touch target minimum */
+    }
+
+    /* Form inputs larger for touch */
+    .rs-input,
+    input[type="text"],
+    input[type="time"],
+    select {
+        min-height: 44px;
+        font-size: 16px; /* Prevents iOS zoom */
+    }
+
+    /* Card padding reduction on mobile */
+    .rs-card {
+        padding: 15px;
+    }
+
+    .rs-card h3 {
+        font-size: 16px;
+    }
+
+    /* Table responsive */
+    .widefat {
+        font-size: 13px;
+    }
+
+    .widefat th,
+    .widefat td {
+        padding: 8px 6px;
+    }
+
+    /* Developer mode toggle mobile friendly */
+    #developer-mode-toggle {
+        width: 24px !important;
+        height: 24px !important;
+    }
+
+    /* Toast adjustments already in place above */
+}
+
+@media (max-width: 480px) {
+    /* Extra small screens */
+    .nav-tab {
+        flex: 1 1 100%;
+        margin-bottom: 5px;
+    }
+
+    /* Single column for status cards */
+    [style*="display: grid"][style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+    }
+
+    /* Smaller buttons on very small screens */
+    .rs-button-group {
+        flex-direction: column;
+    }
+
+    .rs-button-group button {
+        width: 100%;
+        margin: 5px 0;
+    }
+
+    /* Stack verification table actions */
+    .rs-card table td {
+        display: block;
+        width: 100%;
+        text-align: left;
+        border-bottom: 1px solid #e0e0e0;
+        padding: 10px;
+    }
+
+    .rs-card table thead {
+        display: none;
+    }
+
+    .rs-card table tr {
+        border: 1px solid #e0e0e0;
+        margin-bottom: 10px;
+        display: block;
+    }
+
+    /* Toast full width on tiny screens */
+    .rs-toast {
+        font-size: 13px;
+        padding: 12px 16px;
+    }
+
+    .rs-toast-title {
+        font-size: 13px;
+    }
+
+    .rs-toast-message {
+        font-size: 12px;
+    }
+}

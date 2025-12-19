@@ -89,6 +89,9 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_get_field_mapping', array($this, 'handle_get_field_mapping'));
         add_action('wp_ajax_realestate_sync_get_field_mapping_table', array($this, 'handle_get_field_mapping_table'));
         add_action('wp_ajax_realestate_sync_test_field_population', array($this, 'handle_test_field_population'));
+
+        // 🛠️ UX PHASE 2: Developer Mode Toggle
+        add_action('wp_ajax_realestate_sync_toggle_developer_mode', array($this, 'handle_toggle_developer_mode'));
     }
     
     /**
@@ -3636,6 +3639,32 @@ class RealEstate_Sync_Admin {
             'tracking_cleaned' => $tracking_cleaned,
             'property_ids' => $property_ids,
             'message' => "Cleanup completato: {$deleted_count} post cancellati"
+        ));
+    }
+
+    /**
+     * 🛠️ UX PHASE 2: Handle developer mode toggle
+     * Saves developer mode preference to user meta
+     */
+    public function handle_toggle_developer_mode() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $enabled = isset($_POST['enabled']) ? intval($_POST['enabled']) : 0;
+        $user_id = get_current_user_id();
+
+        // Save to user meta (persistent preference per user)
+        update_user_meta($user_id, 'realestate_sync_developer_mode', $enabled);
+
+        $this->logger->log("Developer mode " . ($enabled ? 'enabled' : 'disabled') . " for user ID: {$user_id}", 'info');
+
+        wp_send_json_success(array(
+            'enabled' => $enabled,
+            'message' => $enabled ? 'Modalità sviluppatore attivata' : 'Modalità utente standard attivata'
         ));
     }
 }
