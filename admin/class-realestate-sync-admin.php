@@ -684,11 +684,36 @@ class RealEstate_Sync_Admin {
         if ($hook !== 'toplevel_page_' . $this->plugin_slug) {
             return;
         }
-        
+
+        // Bootstrap 5 (CSS only, no jQuery needed)
+        wp_enqueue_style(
+            'rs-bootstrap',
+            'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css',
+            array(),
+            '5.3.2'
+        );
+
+        // Bootstrap 5 JavaScript Bundle (includes Popper)
+        wp_enqueue_script(
+            'rs-bootstrap-js',
+            'https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js',
+            array(),
+            '5.3.2',
+            true
+        );
+
+        // Bootstrap scoping CSS (prevents conflicts with WP admin)
+        wp_enqueue_style(
+            'rs-bootstrap-scope',
+            plugin_dir_url(__FILE__) . '../admin/assets/bootstrap-scope.css',
+            array('rs-bootstrap'),
+            REALESTATE_SYNC_VERSION
+        );
+
         wp_enqueue_script(
             'realestate-sync-admin',
             plugin_dir_url(__FILE__) . '../admin/assets/admin.js',
-            array('jquery'),
+            array('jquery', 'rs-bootstrap-js'),
             '0.9.3',
             true
         );
@@ -696,7 +721,7 @@ class RealEstate_Sync_Admin {
         wp_enqueue_style(
             'realestate-sync-admin',
             plugin_dir_url(__FILE__) . '../admin/assets/admin.css',
-            array(),
+            array('rs-bootstrap-scope'),
             '0.9.3'
         );
         
@@ -721,7 +746,7 @@ class RealEstate_Sync_Admin {
         $tracking_stats = $this->get_tracking_statistics();
         $next_scheduled = wp_next_scheduled('realestate_sync_daily_import');
         
-        include plugin_dir_path(__FILE__) . '../admin/views/dashboard.php';
+        include plugin_dir_path(__FILE__) . '../admin/views/dashboard-modular.php';
     }
     
     /**

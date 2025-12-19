@@ -64,6 +64,10 @@ TEST_ATTACHMENT_CLEANUP.md
 create-agency-table.php
 create-agency-tracking-table.sql
 
+# Exception: Allow widget files in admin/views/widgets/
+!admin/views/widgets/cleanup-properties.php
+!admin/views/widgets/queue-management.php
+
 # Image comparison and verification scripts
 compare-*.php
 extract-*.php
@@ -78,3 +82,4 @@ includes/scripts/fix-*.php
 
 # Feng Shui analysis scripts
 feng-shui-analysis/
+.env

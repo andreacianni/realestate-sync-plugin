@@ -1,0 +1,91 @@
+/**
+ * Bootstrap 5 Scoping CSS
+ * Prevents Bootstrap from affecting WordPress admin styles
+ *
+ * Strategy: Use :where() for low specificity, only apply within .bootstrap-scope wrapper
+ */
+
+/*
+ * Prevent Bootstrap from affecting global WP admin elements
+ * Reset Bootstrap's global styles outside our scope
+ */
+body:not(.bootstrap-scope) .btn,
+body:not(.bootstrap-scope) .card,
+body:not(.bootstrap-scope) .container,
+body:not(.bootstrap-scope) .row,
+body:not(.bootstrap-scope) .col {
+    all: revert;
+}
+
+/*
+ * Scope all Bootstrap styles to .bootstrap-scope wrapper
+ * This ensures Bootstrap only affects our plugin dashboard
+ */
+.bootstrap-scope {
+    /* Allow Bootstrap to work normally inside this wrapper */
+    isolation: isolate;
+}
+
+/*
+ * Fix potential conflicts with WordPress admin
+ */
+
+/* Ensure WP buttons outside our scope aren't affected */
+body:not(.bootstrap-scope) .button,
+body:not(.bootstrap-scope) input[type="button"],
+body:not(.bootstrap-scope) input[type="submit"] {
+    all: revert;
+}
+
+/* Ensure Bootstrap buttons work inside our scope */
+.bootstrap-scope .btn {
+    /* Bootstrap btn styles will apply */
+}
+
+/* Fix WordPress .wrap padding conflict */
+.bootstrap-scope.wrap {
+    /* Allow Bootstrap container to override WP .wrap */
+    margin: 10px 20px 0 2px;
+}
+
+/* Fix WordPress nav-tab conflict with Bootstrap nav */
+.bootstrap-scope .nav-tab-wrapper {
+    /* Keep WordPress tab styling outside Bootstrap nav */
+}
+
+/* Prevent Bootstrap from breaking WordPress notices */
+.bootstrap-scope .notice,
+.bootstrap-scope .updated,
+.bootstrap-scope .error {
+    /* Preserve WP notice styles */
+}
+
+/* Fix form field conflicts */
+.bootstrap-scope input:not(.form-control),
+.bootstrap-scope select:not(.form-select),
+.bootstrap-scope textarea:not(.form-control) {
+    /* Keep WordPress form styles for non-Bootstrap fields */
+}
+
+/*
+ * Optional: Force Bootstrap grid to work correctly
+ */
+.bootstrap-scope .container,
+.bootstrap-scope .container-fluid {
+    width: 100%;
+    padding-right: 15px;
+    padding-left: 15px;
+    margin-right: auto;
+    margin-left: auto;
+}
+
+/*
+ * Utility: Debug mode
+ * Uncomment to see Bootstrap scope boundary
+ */
+/*
+.bootstrap-scope {
+    outline: 2px solid #0d6efd;
+    outline-offset: -2px;
+}
+*/
