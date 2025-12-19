@@ -21,7 +21,7 @@ $import_stats = $tracking_manager->get_import_statistics();
 <div class="wrap realestate-sync-admin">
     <h1>
         <span class="dashicons dashicons-building" style="font-size: 28px; margin-right: 10px; color: #2271b1;"></span>
-        RealEstate Sync Dashboard - 4-TAB SYSTEM WITH INFO TAB ✨
+        <?php printf(__('Pannello di controllo di RealEstate Sync (versione %s) - Import da GestionaleImmobiliare.it', 'realestate-sync'), REALESTATE_SYNC_VERSION); ?>
     </h1>
 
     <div id="rs-alerts-container"></div>
@@ -30,34 +30,162 @@ $import_stats = $tracking_manager->get_import_statistics();
     ═══════════════════════════════════════════════════════════════════════════
     NAVIGAZIONE DASHBOARD - 4 TAB
     ───────────────────────────────────────────────────────────────────────────
-    TAB 1 - IMPORT: Operazioni quotidiane (admin non tecnico)
-    TAB 2 - AUTOMAZIONE: Configurazione schedule import automatici
-    TAB 3 - STRUMENTI: Tools tecnici e pulizia database (developer mode)
-    TAB 4 - STORICO: Monitoring import passati e log di sistema
+    TAB 1 - DASHBOARD: Solo informativa (storico import, monitor, log)
+    TAB 2 - IMPORT: Azioni di import (manuale, XML, info automatico)
+    TAB 3 - SETTING: Configurazioni (automazione, credenziali, email)
+    TAB 4 - STRUMENTI: Tools tecnici e developer mode
     ═══════════════════════════════════════════════════════════════════════════
     -->
     <div class="nav-tab-wrapper">
         <a href="#dashboard" class="nav-tab nav-tab-active" data-tab="dashboard">
+            <span class="dashicons dashicons-dashboard"></span> <?php _e('Dashboard', 'realestate-sync'); ?>
+        </a>
+        <a href="#import" class="nav-tab" data-tab="import">
             <span class="dashicons dashicons-download"></span> <?php _e('Import', 'realestate-sync'); ?>
         </a>
-        <a href="#automazione" class="nav-tab" data-tab="automazione">
-            <span class="dashicons dashicons-clock"></span> <?php _e('Automazione', 'realestate-sync'); ?>
+        <a href="#setting" class="nav-tab" data-tab="setting">
+            <span class="dashicons dashicons-admin-settings"></span> <?php _e('Setting', 'realestate-sync'); ?>
         </a>
         <a href="#tools" class="nav-tab" data-tab="tools">
             <span class="dashicons dashicons-admin-tools"></span> <?php _e('Strumenti', 'realestate-sync'); ?>
-        </a>
-        <a href="#logs" class="nav-tab" data-tab="logs">
-            <span class="dashicons dashicons-chart-line"></span> <?php _e('Storico & Log', 'realestate-sync'); ?>
         </a>
     </div>
 
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TAB 1: IMPORT - Operazioni Quotidiane
+    TAB 1: DASHBOARD - Solo Informativa (NEW)
     ═══════════════════════════════════════════════════════════════════════════
     -->
     <div id="dashboard" class="tab-content rs-tab-active">
-        <div class="rs-dashboard-grid">
+        <?php
+        // Check if import_sessions table exists
+        global $wpdb;
+        $sessions_table = $wpdb->prefix . 'realestate_import_sessions';
+        $table_exists = $wpdb->get_var("SHOW TABLES LIKE '$sessions_table'") === $sessions_table;
+
+        if ($table_exists) {
+            // Get last 10 import sessions
+            $recent_sessions = $wpdb->get_results("
+                SELECT *
+                FROM {$sessions_table}
+                ORDER BY started_at DESC
+                LIMIT 10
+            ", ARRAY_A);
+        }
+        ?>
+
+        <!--
+        ╔═══════════════════════════════════════════════════════════════════╗
+        ║ WIDGET: STORICO IMPORT                                            ║
+        ╚═══════════════════════════════════════════════════════════════════╝
+        -->
+        <?php if ($table_exists && !empty($recent_sessions)) : ?>
+        <div class="rs-card">
+            <h3><span class="dashicons dashicons-calendar-alt"></span> <?php _e('Storico Import', 'realestate-sync'); ?></h3>
+
+            <p style="margin-bottom: 20px; color: #666;">
+                <?php _e('Cronologia degli ultimi import eseguiti', 'realestate-sync'); ?>
+            </p>
+
+            <table class="widefat" style="background: #fff;">
+                <thead>
+                    <tr>
+                        <th style="width: 18%;"><?php _e('Data/Ora', 'realestate-sync'); ?></th>
+                        <th style="width: 12%;"><?php _e('Tipo', 'realestate-sync'); ?></th>
+                        <th style="width: 15%;"><?php _e('Stato', 'realestate-sync'); ?></th>
+                        <th style="width: 15%;"><?php _e('Durata', 'realestate-sync'); ?></th>
+                        <th style="width: 40%;"><?php _e('Dettagli', 'realestate-sync'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($recent_sessions as $session) :
+                        $started = strtotime($session['started_at']);
+                        $completed = $session['completed_at'] ? strtotime($session['completed_at']) : null;
+                        $duration = $completed ? ($completed - $started) : null;
+
+                        // Status badge
+                        $status_color = 'gray';
+                        $status_text = ucfirst($session['status']);
+                        if ($session['status'] === 'completed') {
+                            $status_color = '#00a32a';
+                            $status_text = __('Completato', 'realestate-sync');
+                        } elseif ($session['status'] === 'failed') {
+                            $status_color = '#d63638';
+                            $status_text = __('Fallito', 'realestate-sync');
+                        } elseif ($session['status'] === 'running') {
+                            $status_color = '#f0ad4e';
+                            $status_text = __('In corso', 'realestate-sync');
+                        }
+
+                        // Type badge
+                        $type_text = $session['type'] === 'manual' ? __('Manuale', 'realestate-sync') : __('Automatico', 'realestate-sync');
+                        $type_icon = $session['type'] === 'manual' ? 'admin-users' : 'clock';
+                    ?>
+                    <tr>
+                        <td>
+                            <strong><?php echo esc_html(date('d/m/Y', $started)); ?></strong><br>
+                            <small style="color: #666;"><?php echo esc_html(date('H:i:s', $started)); ?></small>
+                        </td>
+                        <td>
+                            <span class="dashicons dashicons-<?php echo $type_icon; ?>" style="vertical-align: middle;"></span>
+                            <?php echo esc_html($type_text); ?>
+                            <?php if ($session['marked_as_test']) : ?>
+                                <br><span style="color: #f0ad4e; font-size: 12px;">
+                                    <span class="dashicons dashicons-flag" style="font-size: 12px;"></span> Test
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <span style="display: inline-block; padding: 4px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; color: white; background: <?php echo $status_color; ?>;">
+                                <?php echo esc_html($status_text); ?>
+                            </span>
+                        </td>
+                        <td>
+                            <?php if ($duration !== null) : ?>
+                                <?php
+                                $minutes = floor($duration / 60);
+                                $seconds = $duration % 60;
+                                echo sprintf('%d:%02d', $minutes, $seconds);
+                                ?>
+                            <?php else : ?>
+                                <span style="color: #999;">-</span>
+                            <?php endif; ?>
+                        </td>
+                        <td style="font-size: 13px;">
+                            <?php if ($session['status'] === 'completed') : ?>
+                                <span style="color: #00a32a;">✓ <?php echo esc_html($session['new_properties']); ?></span> nuove,
+                                <span style="color: #2271b1;">↻ <?php echo esc_html($session['updated_properties']); ?></span> aggiornate
+                                <?php if ($session['failed_properties'] > 0) : ?>
+                                    , <span style="color: #d63638;">✗ <?php echo esc_html($session['failed_properties']); ?></span> fallite
+                                <?php endif; ?>
+                            <?php elseif ($session['status'] === 'failed') : ?>
+                                <span style="color: #d63638;">
+                                    <?php echo esc_html(substr($session['error_log'], 0, 100)); ?>
+                                    <?php if (strlen($session['error_log']) > 100) echo '...'; ?>
+                                </span>
+                            <?php elseif ($session['status'] === 'running') : ?>
+                                <span style="color: #f0ad4e;">
+                                    <?php echo esc_html($session['processed_items']); ?>/<?php echo esc_html($session['total_items']); ?> processati
+                                </span>
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+        <?php endif; ?>
+
+        <!-- TODO: Add Monitor Ultimo Import widget -->
+        <!-- TODO: Add Log & Monitoraggio widget -->
+    </div>
+
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    TAB 2: IMPORT - Azioni Import (OLD dashboard content)
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
+    <div id="import" class="tab-content">
 
             <!--
             ╔═══════════════════════════════════════════════════════════════════╗
@@ -438,10 +566,10 @@ $import_stats = $tracking_manager->get_import_statistics();
 
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TAB 2: AUTOMAZIONE - Configurazione Import Automatici
+    TAB 3: SETTING - Configurazioni
     ═══════════════════════════════════════════════════════════════════════════
     -->
-    <div id="automazione" class="tab-content">
+    <div id="setting" class="tab-content">
         <?php
         // Get current schedule settings
         $schedule_enabled = get_option('realestate_sync_schedule_enabled', false);
