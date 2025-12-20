@@ -92,6 +92,11 @@ class RealEstate_Sync_Admin {
 
         // 🛠️ UX PHASE 2: Developer Mode Toggle
         add_action('wp_ajax_realestate_sync_toggle_developer_mode', array($this, 'handle_toggle_developer_mode'));
+
+        // 🧹 UX PHASE 2: Cleanup Duplicate Properties
+        add_action('wp_ajax_realestate_sync_scan_duplicates', array($this, 'handle_scan_duplicates'));
+        add_action('wp_ajax_realestate_sync_delete_duplicate_post', array($this, 'handle_delete_duplicate_post'));
+        add_action('wp_ajax_realestate_sync_delete_all_duplicates', array($this, 'handle_delete_all_duplicates'));
     }
     
     /**
@@ -3690,6 +3695,244 @@ class RealEstate_Sync_Admin {
         wp_send_json_success(array(
             'enabled' => $enabled,
             'message' => $enabled ? 'Modalità sviluppatore attivata' : 'Modalità utente standard attivata'
+        ));
+    }
+
+    /**
+     * 🧹 UX PHASE 2: Scan for duplicate properties
+     * Finds posts with same property_import_id
+     */
+    public function handle_scan_duplicates() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        global $wpdb;
+
+        // Find all property_import_id values that appear more than once
+        $duplicates_query = "
+            SELECT pm.meta_value as import_id, COUNT(*) as count
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = 'property_import_id'
+            AND p.post_type = 'estate_property'
+            AND p.post_status != 'trash'
+            AND pm.meta_value != ''
+            GROUP BY pm.meta_value
+            HAVING count > 1
+            ORDER BY count DESC, pm.meta_value ASC
+        ";
+
+        $duplicate_groups = $wpdb->get_results($duplicates_query, ARRAY_A);
+
+        if (empty($duplicate_groups)) {
+            wp_send_json_success(array(
+                'duplicate_groups' => array(),
+                'total_duplicates' => 0,
+                'group_count' => 0
+            ));
+            return;
+        }
+
+        // For each duplicate import_id, get all posts
+        $results = array();
+        $total_duplicates = 0;
+
+        foreach ($duplicate_groups as $group) {
+            $import_id = $group['import_id'];
+
+            // Get all posts with this import_id
+            $posts_query = $wpdb->prepare("
+                SELECT p.ID, p.post_title, p.post_date
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE pm.meta_key = 'property_import_id'
+                AND pm.meta_value = %s
+                AND p.post_type = 'estate_property'
+                AND p.post_status != 'trash'
+                ORDER BY p.post_date DESC
+            ", $import_id);
+
+            $posts = $wpdb->get_results($posts_query, ARRAY_A);
+
+            $posts_data = array();
+            foreach ($posts as $post) {
+                $posts_data[] = array(
+                    'id' => intval($post['ID']),
+                    'title' => $post['post_title'],
+                    'date' => mysql2date('d/m/Y H:i', $post['post_date']),
+                    'permalink' => get_permalink($post['ID'])
+                );
+            }
+
+            $results[] = array(
+                'import_id' => $import_id,
+                'posts' => $posts_data
+            );
+
+            $total_duplicates += count($posts);
+        }
+
+        $this->logger->log("Duplicate scan: found {$total_duplicates} duplicates in " . count($results) . " groups", 'info');
+
+        wp_send_json_success(array(
+            'duplicate_groups' => $results,
+            'total_duplicates' => $total_duplicates,
+            'group_count' => count($results)
+        ));
+    }
+
+    /**
+     * 🧹 UX PHASE 2: Delete single duplicate post
+     * Permanently deletes a post (wp_delete_post with force=true triggers hooks)
+     */
+    public function handle_delete_duplicate_post() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $post_id = isset($_POST['post_id']) ? intval($_POST['post_id']) : 0;
+
+        if (!$post_id) {
+            wp_send_json_error('Invalid post ID');
+            return;
+        }
+
+        // Verify it's an estate_property
+        $post = get_post($post_id);
+        if (!$post || $post->post_type !== 'estate_property') {
+            wp_send_json_error('Post not found or wrong type');
+            return;
+        }
+
+        // Permanent deletion (force = true)
+        // This triggers before_delete_post hook which cleans up tracking and images
+        $deleted = wp_delete_post($post_id, true);
+
+        if (!$deleted) {
+            $this->logger->log("Failed to delete duplicate post #{$post_id}", 'error');
+            wp_send_json_error('Deletion failed');
+            return;
+        }
+
+        $this->logger->log("Deleted duplicate post #{$post_id}: {$post->post_title}", 'info');
+
+        wp_send_json_success(array(
+            'post_id' => $post_id,
+            'message' => "Post #{$post_id} cancellato"
+        ));
+    }
+
+    /**
+     * 🧹 UX PHASE 2: Delete all duplicates or old duplicates
+     * Mode: 'all' = delete all duplicates, 'old' = keep newest per import_id
+     */
+    public function handle_delete_all_duplicates() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $mode = isset($_POST['mode']) ? sanitize_text_field($_POST['mode']) : 'old';
+
+        if (!in_array($mode, array('all', 'old'))) {
+            wp_send_json_error('Invalid mode');
+            return;
+        }
+
+        global $wpdb;
+
+        // Find all duplicate import_id values
+        $duplicates_query = "
+            SELECT pm.meta_value as import_id, COUNT(*) as count
+            FROM {$wpdb->postmeta} pm
+            INNER JOIN {$wpdb->posts} p ON pm.post_id = p.ID
+            WHERE pm.meta_key = 'property_import_id'
+            AND p.post_type = 'estate_property'
+            AND p.post_status != 'trash'
+            AND pm.meta_value != ''
+            GROUP BY pm.meta_value
+            HAVING count > 1
+        ";
+
+        $duplicate_groups = $wpdb->get_results($duplicates_query, ARRAY_A);
+
+        if (empty($duplicate_groups)) {
+            wp_send_json_success(array(
+                'deleted' => 0,
+                'kept' => 0,
+                'errors' => 0,
+                'message' => 'Nessun duplicato trovato'
+            ));
+            return;
+        }
+
+        $deleted_count = 0;
+        $kept_count = 0;
+        $error_count = 0;
+
+        foreach ($duplicate_groups as $group) {
+            $import_id = $group['import_id'];
+
+            // Get all posts with this import_id (ordered by date DESC - newest first)
+            $posts_query = $wpdb->prepare("
+                SELECT p.ID, p.post_date
+                FROM {$wpdb->posts} p
+                INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+                WHERE pm.meta_key = 'property_import_id'
+                AND pm.meta_value = %s
+                AND p.post_type = 'estate_property'
+                AND p.post_status != 'trash'
+                ORDER BY p.post_date DESC
+            ", $import_id);
+
+            $posts = $wpdb->get_results($posts_query, ARRAY_A);
+
+            if (empty($posts)) {
+                continue;
+            }
+
+            // Determine which posts to delete
+            $posts_to_delete = array();
+
+            if ($mode === 'all') {
+                // Delete ALL duplicates
+                $posts_to_delete = $posts;
+            } else {
+                // Delete all except newest (skip first one)
+                $posts_to_delete = array_slice($posts, 1);
+                $kept_count++;
+            }
+
+            // Delete posts
+            foreach ($posts_to_delete as $post) {
+                $post_id = intval($post['ID']);
+                $deleted = wp_delete_post($post_id, true); // Permanent deletion
+
+                if ($deleted) {
+                    $deleted_count++;
+                } else {
+                    $error_count++;
+                    $this->logger->log("Failed to delete duplicate post #{$post_id}", 'error');
+                }
+            }
+        }
+
+        $this->logger->log("Bulk duplicate cleanup ({$mode}): {$deleted_count} deleted, {$kept_count} kept, {$error_count} errors", 'info');
+
+        wp_send_json_success(array(
+            'deleted' => $deleted_count,
+            'kept' => $kept_count,
+            'errors' => $error_count,
+            'message' => "Cleanup completato: {$deleted_count} post cancellati"
         ));
     }
 }

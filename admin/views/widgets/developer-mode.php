@@ -20,30 +20,35 @@ $developer_mode = filter_var($developer_mode, FILTER_VALIDATE_BOOLEAN);
 ║ SALVA: user_meta (persistente per utente)                        ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
-<div class="rs-card">
-    <h3>
-        <span class="dashicons dashicons-admin-tools"></span>
-        <?php _e('Modalità Visualizzazione', 'realestate-sync'); ?>
-    </h3>
+<div class="card shadow-sm rounded-3 border-1 p-0">
+    <div class="card-header bg-secondary bg-opacity-10 border-0 py-3">
+        <h5 class="card-title mb-0 d-flex align-items-center">
+            <span class="dashicons dashicons-admin-tools me-2"></span>
+            <?php _e('Modalità Visualizzazione', 'realestate-sync'); ?>
+        </h5>
+    </div>
 
-    <label>
-        <input type="checkbox" id="developer-mode-toggle" <?php checked($developer_mode); ?>
->
-        <div>
-            <strong>
-                <span class="dashicons dashicons-admin-generic"></span>
-                <?php _e('Modalità Sviluppatore', 'realestate-sync'); ?>
-            </strong>
-            <span>
-                <?php _e('Mostra strumenti tecnici avanzati per debug e gestione sistema', 'realestate-sync'); ?>
-            </span>
+    <div class="card-body">
+        <div class="form-check form-switch mb-3">
+            <input type="checkbox" class="form-check-input" role="switch" id="developer-mode-toggle" <?php checked($developer_mode); ?>>
+            <label class="form-check-label" for="developer-mode-toggle">
+                <strong>
+                    <span class="dashicons dashicons-admin-generic"></span>
+                    <?php _e('Modalità Sviluppatore', 'realestate-sync'); ?>
+                </strong>
+                <div class="text-muted small mt-1">
+                    <?php _e('Mostra strumenti tecnici avanzati per debug e gestione sistema', 'realestate-sync'); ?>
+                </div>
+            </label>
         </div>
-    </label>
 
-    <div id="developer-mode-status">
-        <span class="dashicons dashicons-info"></span>
-        <span id="developer-mode-message">
-            <?php echo $developer_mode ? __('Modalità Sviluppatore attiva - Strumenti tecnici visibili', 'realestate-sync') : __('Modalità Utente Standard - Solo strumenti essenziali', 'realestate-sync'); ?>
-        </span>
+        <div id="developer-mode-status" class="alert alert-<?php echo $developer_mode ? 'success' : 'secondary'; ?> mb-0">
+            <div class="d-flex align-items-start">
+                <span class="dashicons dashicons-info me-2 mt-1"></span>
+                <span id="developer-mode-message">
+                    <?php echo $developer_mode ? __('Modalità Sviluppatore attiva - Strumenti tecnici visibili', 'realestate-sync') : __('Modalità Utente Standard - Solo strumenti essenziali', 'realestate-sync'); ?>
+                </span>
+            </div>
+        </div>
     </div>
 </div>

@@ -1,7 +1,7 @@
 <?php
 /**
  * Dashboard Footer Scripts
- * Minimal inline JavaScript for tab initialization
+ * Bootstrap tab enhancements (URL hash handling)
  * Main scripts are loaded from admin/assets/admin.js
  */
 
@@ -10,25 +10,13 @@ if (!defined('ABSPATH')) exit;
 
 <script>
 /**
- * Tab Navigation
- * Handle tab switching without page reload
+ * Bootstrap Tab Navigation Enhancements
+ * URL hash handling and programmatic tab switching
  */
 jQuery(document).ready(function($) {
-    // Tab click handler
-    $('.nav-tab').on('click', function(e) {
-        e.preventDefault();
-
-        var tabId = $(this).data('tab');
-
-        // Update nav tabs
-        $('.nav-tab').removeClass('nav-tab-active');
-        $(this).addClass('nav-tab-active');
-
-        // Update tab content
-        $('.tab-content').removeClass('rs-tab-active');
-        $('#' + tabId).addClass('rs-tab-active');
-
-        // Update URL hash without scrolling
+    // Update URL hash when tab is shown (Bootstrap event)
+    $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+        var tabId = $(e.target).attr('data-bs-target').substring(1);
         if (history.pushState) {
             history.pushState(null, null, '#' + tabId);
         } else {
@@ -37,16 +25,24 @@ jQuery(document).ready(function($) {
     });
 
     // Load tab from URL hash on page load
-    var hash = window.location.hash.substring(1);
-    if (hash && $('#' + hash).length) {
-        $('.nav-tab[data-tab="' + hash + '"]').trigger('click');
+    var hash = window.location.hash;
+    if (hash) {
+        var triggerEl = document.querySelector('button[data-bs-target="' + hash + '"]');
+        if (triggerEl) {
+            var tab = new bootstrap.Tab(triggerEl);
+            tab.show();
+        }
     }
 
     // Handle nav-tab-trigger links (e.g., "Configura automazione →")
     $(document).on('click', '.nav-tab-trigger', function(e) {
         e.preventDefault();
         var targetTab = $(this).data('tab');
-        $('.nav-tab[data-tab="' + targetTab + '"]').trigger('click');
+        var triggerEl = document.querySelector('button[data-bs-target="#' + targetTab + '"]');
+        if (triggerEl) {
+            var tab = new bootstrap.Tab(triggerEl);
+            tab.show();
+        }
     });
 });
 </script>

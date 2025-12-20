@@ -685,11 +685,95 @@ jQuery(document).ready(function($) {
 
     $('#refresh-import-status').on('click', refreshImportStatus);
 
+    // ========================================================================
+    // QUEUE MANAGEMENT - Dedicated refresh function for queue-management.php widget
+    // (Uses queue- prefixed IDs to avoid conflicts with monitor-import.php)
+    // ========================================================================
+    function refreshQueueImportStatus() {
+        // Show loading indicator
+        var $btn = $('#queue-refresh-import-status');
+        var originalText = $btn.html();
+        $btn.prop('disabled', true).html('<span class="dashicons dashicons-update spin"></span> Caricamento...');
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_get_queue_stats',
+                nonce: realestateSync.nonce
+            },
+            success: function(response) {
+                console.log('Queue stats response (queue-management):', response);
+
+                if (response.success) {
+                    const data = response.data;
+
+                    if (!data.has_session) {
+                        $('#queue-import-session-id').text('Nessuna sessione');
+                        $('#queue-import-start-time').text('-');
+                        $('#queue-import-process-status').html('<span style="color: #666;">Nessun import</span>');
+                        $('#queue-import-total-items').text('0');
+                        $('#queue-import-completed-items').text('0');
+                        $('#queue-import-remaining-items').text('0');
+                        $('#queue-import-progress-fill').css('width', '0%');
+                        $('#queue-import-progress-text').text('0%');
+                        $('#pending-items-alert').addClass('d-none');
+                        return;
+                    }
+
+                    // Update table
+                    currentSessionId = data.session_id;
+                    $('#queue-import-session-id').text(data.session_id);
+                    $('#queue-import-start-time').text(data.start_time);
+
+                    // Status badge
+                    if (data.is_active) {
+                        $('#queue-import-process-status').html('<span style="padding: 4px 8px; background: #10b981; color: white; border-radius: 4px; font-weight: 500;">🟢 ATTIVO</span>');
+                    } else {
+                        $('#queue-import-process-status').html('<span style="padding: 4px 8px; background: #dc3545; color: white; border-radius: 4px; font-weight: 500;">🔴 CHIUSO</span>');
+                    }
+
+                    $('#queue-import-total-items').text(data.total);
+                    $('#queue-import-completed-items').text(data.completed);
+                    $('#queue-import-remaining-items').text(data.remaining);
+                    $('#queue-import-progress-fill').css('width', data.progress_percent + '%');
+                    $('#queue-import-progress-text').text(data.progress_percent + '%');
+
+                    // Show alert if closed and has remaining items
+                    if (!data.is_active && data.remaining > 0) {
+                        const msg = 'Il processo è CHIUSO ma ci sono <strong>' + data.remaining + ' elementi in sospeso</strong> (' +
+                            data.pending + ' pending, ' + data.processing + ' processing, ' + data.failed + ' failed). ' +
+                            'Questi elementi NON verranno più processati automaticamente.';
+                        $('#pending-items-message').html(msg);
+                        $('#pending-items-alert').removeClass('d-none');
+                    } else {
+                        $('#pending-items-alert').addClass('d-none');
+                        $('#pending-items-list').addClass('d-none');
+                    }
+                } else {
+                    console.error('Queue stats error:', response.data);
+                    alert('Errore: ' + (response.data || 'Risposta non valida dal server'));
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', status, error, xhr);
+                alert('Errore di connessione: ' + error + '\n\nControlla la console browser (F12) per dettagli.');
+                $('#queue-import-process-status').html('<span style="color: #dc3545;">❌ Errore caricamento</span>');
+            },
+            complete: function() {
+                // Restore button
+                $btn.prop('disabled', false).html(originalText);
+            }
+        });
+    }
+
+    $('#queue-refresh-import-status').on('click', refreshQueueImportStatus);
+
     $('#show-pending-details').on('click', function() {
         const $list = $('#pending-items-list');
 
-        if (!$list.hasClass('rs-hidden')) {
-            $list.addClass('rs-hidden');
+        if (!$list.hasClass('d-none')) {
+            $list.addClass('d-none');
             $(this).html('<span class="dashicons dashicons-visibility"></span> Vedi Dettaglio');
             return;
         }
@@ -776,7 +860,7 @@ jQuery(document).ready(function($) {
                         $list.html(html);
                     }
 
-                    $list.removeClass('rs-hidden');
+                    $list.removeClass('d-none');
                 }
             },
             complete: function() {
@@ -809,8 +893,8 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success) {
                     alert(response.data.message);
-                    refreshImportStatus();
-                    $('#pending-items-list').addClass('rs-hidden');
+                    refreshQueueImportStatus();
+                    $('#pending-items-list').addClass('d-none');
                 } else {
                     alert('Errore: ' + response.data);
                 }
@@ -845,8 +929,8 @@ jQuery(document).ready(function($) {
             success: function(response) {
                 if (response.success) {
                     alert(response.data.message);
-                    refreshImportStatus();
-                    $('#pending-items-list').addClass('rs-hidden');
+                    refreshQueueImportStatus();
+                    $('#pending-items-list').addClass('d-none');
                 } else {
                     alert('Errore: ' + response.data);
                 }
@@ -882,7 +966,7 @@ jQuery(document).ready(function($) {
                     $row.fadeOut(300, function() {
                         $(this).remove();
                     });
-                    refreshImportStatus();
+                    refreshQueueImportStatus();
                 } else {
                     alert('Errore: ' + (response.data || 'Operazione fallita'));
                     $btn.prop('disabled', false);
@@ -920,7 +1004,7 @@ jQuery(document).ready(function($) {
                     $row.fadeOut(300, function() {
                         $(this).remove();
                     });
-                    refreshImportStatus();
+                    refreshQueueImportStatus();
                 } else {
                     alert('Errore: ' + (response.data || 'Operazione fallita'));
                     $btn.prop('disabled', false);
@@ -958,7 +1042,7 @@ jQuery(document).ready(function($) {
                     $row.fadeOut(300, function() {
                         $(this).remove();
                     });
-                    refreshImportStatus();
+                    refreshQueueImportStatus();
                 } else {
                     alert('Errore: ' + (response.data || 'Operazione fallita'));
                     $btn.prop('disabled', false);
@@ -990,7 +1074,7 @@ jQuery(document).ready(function($) {
                 if (response.success) {
                     alert(response.data.message);
                     currentSessionId = null;
-                    refreshImportStatus();
+                    refreshQueueImportStatus();
                 } else {
                     alert('Errore: ' + response.data);
                 }
@@ -1129,7 +1213,7 @@ jQuery(document).ready(function($) {
                     orphanPostsData = null;
 
                     // Refresh import status
-                    setTimeout(refreshImportStatus, 1000);
+                    setTimeout(refreshQueueImportStatus, 1000);
 
                 } else {
                     alert('Errore: ' + (response.data || 'Errore sconosciuto'));
@@ -1144,9 +1228,9 @@ jQuery(document).ready(function($) {
         });
     });
 
-    // Auto-refresh status when entering Tools tab
-    $('.nav-tab[data-tab="tools"]').on('click', function() {
-        setTimeout(refreshImportStatus, 300);
+    // Auto-refresh status when entering Tools tab (Bootstrap tabs)
+    $('button[data-bs-target="#tools"]').on('shown.bs.tab', function() {
+        setTimeout(refreshQueueImportStatus, 300);
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -1238,22 +1322,285 @@ jQuery(document).ready(function($) {
     };
 
     // ═══════════════════════════════════════════════════════════════════════════
+    // CLEANUP DUPLICATE PROPERTIES (by property_import_id)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    let duplicatesData = null; // Cache dei duplicati trovati
+
+    /**
+     * Scan for duplicate properties
+     */
+    $('#scan-duplicates').on('click', function() {
+        const $button = $(this);
+        const $results = $('#duplicates-results');
+        const $summary = $('#duplicates-summary');
+        const $list = $('#duplicates-list');
+        const $actionResult = $('#duplicates-action-result');
+
+        $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Scansione...');
+        $results.addClass('d-none');
+        $actionResult.addClass('d-none');
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_scan_duplicates',
+                nonce: realestateSync.nonce
+            },
+            success: function(response) {
+                if (response.success) {
+                    duplicatesData = response.data;
+                    const duplicateGroups = duplicatesData.duplicate_groups;
+                    const totalDuplicates = duplicatesData.total_duplicates;
+                    const groupCount = duplicatesData.group_count;
+
+                    if (totalDuplicates === 0) {
+                        $summary.removeClass('alert-warning').addClass('alert-success');
+                        $summary.html('<strong>✅ Nessun duplicato trovato!</strong><br>Tutti i post hanno <code>property_import_id</code> univoco.');
+                        $results.removeClass('d-none');
+                    } else {
+                        $summary.removeClass('alert-success').addClass('alert-warning');
+                        $summary.html('<strong>⚠️ Trovati ' + totalDuplicates + ' post duplicati in ' + groupCount + ' gruppi</strong><br>' +
+                            'Ogni gruppo ha lo stesso <code>property_import_id</code>.');
+
+                        // Build duplicates list
+                        let html = '';
+
+                        duplicateGroups.forEach(function(group) {
+                            const importId = group.import_id || 'N/A';
+                            const posts = group.posts;
+
+                            html += '<div class="card mb-3 border-warning">';
+                            html += '<div class="card-header bg-warning bg-opacity-10">';
+                            html += '<strong>Import ID: <code>' + importId + '</code></strong> ';
+                            html += '<span class="badge bg-warning">' + posts.length + ' duplicati</span>';
+                            html += '</div>';
+                            html += '<div class="card-body p-0">';
+                            html += '<table class="table table-sm table-hover mb-0">';
+                            html += '<thead class="table-light">';
+                            html += '<tr>';
+                            html += '<th>Post ID</th>';
+                            html += '<th>Titolo</th>';
+                            html += '<th>Data</th>';
+                            html += '<th>Azioni</th>';
+                            html += '</tr>';
+                            html += '</thead>';
+                            html += '<tbody>';
+
+                            posts.forEach(function(post) {
+                                html += '<tr data-post-id="' + post.id + '">';
+                                html += '<td><strong>#' + post.id + '</strong></td>';
+                                html += '<td>' + post.title + '</td>';
+                                html += '<td>' + post.date + '</td>';
+                                html += '<td>';
+                                if (post.permalink) {
+                                    html += '<a href="' + post.permalink + '" target="_blank" class="btn btn-sm btn-info me-1" title="Vedi Frontend">';
+                                    html += '<span class="dashicons dashicons-visibility"></span>';
+                                    html += '</a>';
+                                }
+                                html += '<button class="btn btn-sm btn-danger delete-single-duplicate" data-post-id="' + post.id + '" title="Cancella Post">';
+                                html += '<span class="dashicons dashicons-trash"></span>';
+                                html += '</button>';
+                                html += '</td>';
+                                html += '</tr>';
+                            });
+
+                            html += '</tbody>';
+                            html += '</table>';
+                            html += '</div>';
+                            html += '</div>';
+                        });
+
+                        $list.html(html);
+                        $results.removeClass('d-none');
+                    }
+                } else {
+                    alert('Errore: ' + (response.data || 'Errore sconosciuto'));
+                }
+            },
+            error: function() {
+                alert('Errore di connessione');
+            },
+            complete: function() {
+                $button.prop('disabled', false).html('<span class="dashicons dashicons-search"></span> Cerca Duplicati');
+            }
+        });
+    });
+
+    /**
+     * Delete single duplicate post
+     */
+    $(document).on('click', '.delete-single-duplicate', function() {
+        const postId = $(this).data('post-id');
+        const $row = $('tr[data-post-id="' + postId + '"]');
+        const $button = $(this);
+
+        if (!confirm('⚠️ ATTENZIONE!\n\nCancellare PERMANENTEMENTE il post #' + postId + '?\n\nQuesta azione:\n- Cancella il post dal database\n- Cancella tracking e immagini (hook WP)\n- È IRREVERSIBILE')) {
+            return;
+        }
+
+        $button.prop('disabled', true);
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_delete_duplicate_post',
+                nonce: realestateSync.nonce,
+                post_id: postId
+            },
+            success: function(response) {
+                if (response.success) {
+                    $row.fadeOut(300, function() {
+                        $(this).remove();
+                    });
+                    rsToast.success('Post #' + postId + ' cancellato con successo');
+                } else {
+                    alert('Errore: ' + (response.data || 'Cancellazione fallita'));
+                    $button.prop('disabled', false);
+                }
+            },
+            error: function() {
+                alert('Errore di connessione');
+                $button.prop('disabled', false);
+            }
+        });
+    });
+
+    /**
+     * Delete all duplicates
+     */
+    $('#delete-all-duplicates').on('click', function() {
+        if (!duplicatesData || duplicatesData.total_duplicates === 0) {
+            alert('Nessun duplicato da cancellare');
+            return;
+        }
+
+        const count = duplicatesData.total_duplicates;
+
+        if (!confirm('⚠️ ATTENZIONE!\n\nCancellare PERMANENTEMENTE TUTTI i ' + count + ' post duplicati?\n\nQuesta azione:\n- Cancella TUTTI i duplicati trovati\n- Cancella tracking e immagini (hook WP)\n- È IRREVERSIBILE\n\nSei ASSOLUTAMENTE sicuro?')) {
+            return;
+        }
+
+        const $button = $(this);
+        const $actionResult = $('#duplicates-action-result');
+
+        $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Cancellazione...');
+        $actionResult.addClass('d-none');
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_delete_all_duplicates',
+                nonce: realestateSync.nonce,
+                mode: 'all'
+            },
+            success: function(response) {
+                if (response.success) {
+                    const result = response.data;
+
+                    let html = '<div class="alert alert-success">';
+                    html += '<strong>✅ Cleanup completato!</strong><br>';
+                    html += 'Post cancellati: <strong>' + result.deleted + '</strong><br>';
+                    if (result.errors > 0) {
+                        html += 'Errori: <strong>' + result.errors + '</strong>';
+                    }
+                    html += '</div>';
+
+                    $actionResult.html(html).removeClass('d-none');
+                    $('#duplicates-results').addClass('d-none');
+                    duplicatesData = null;
+                } else {
+                    alert('Errore: ' + (response.data || 'Errore sconosciuto'));
+                }
+            },
+            error: function() {
+                alert('Errore di connessione');
+            },
+            complete: function() {
+                $button.prop('disabled', false).html('<span class="dashicons dashicons-trash"></span> Cancella Tutti i Duplicati');
+            }
+        });
+    });
+
+    /**
+     * Delete old duplicates (keep newest)
+     */
+    $('#delete-old-duplicates').on('click', function() {
+        if (!duplicatesData || duplicatesData.total_duplicates === 0) {
+            alert('Nessun duplicato da cancellare');
+            return;
+        }
+
+        if (!confirm('⚠️ ATTENZIONE!\n\nCancellare i duplicati VECCHI mantenendo il più recente per ogni property_import_id?\n\nQuesta azione:\n- Mantiene il post più recente per ogni import_id\n- Cancella tutti gli altri duplicati\n- Cancella tracking e immagini (hook WP)\n- È IRREVERSIBILE\n\nContinuare?')) {
+            return;
+        }
+
+        const $button = $(this);
+        const $actionResult = $('#duplicates-action-result');
+
+        $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Cancellazione...');
+        $actionResult.addClass('d-none');
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: {
+                action: 'realestate_sync_delete_all_duplicates',
+                nonce: realestateSync.nonce,
+                mode: 'old'
+            },
+            success: function(response) {
+                if (response.success) {
+                    const result = response.data;
+
+                    let html = '<div class="alert alert-success">';
+                    html += '<strong>✅ Cleanup completato!</strong><br>';
+                    html += 'Post vecchi cancellati: <strong>' + result.deleted + '</strong><br>';
+                    html += 'Post recenti mantenuti: <strong>' + result.kept + '</strong><br>';
+                    if (result.errors > 0) {
+                        html += 'Errori: <strong>' + result.errors + '</strong>';
+                    }
+                    html += '</div>';
+
+                    $actionResult.html(html).removeClass('d-none');
+                    $('#duplicates-results').addClass('d-none');
+                    duplicatesData = null;
+                } else {
+                    alert('Errore: ' + (response.data || 'Errore sconosciuto'));
+                }
+            },
+            error: function() {
+                alert('Errore di connessione');
+            },
+            complete: function() {
+                $button.prop('disabled', false).html('<span class="dashicons dashicons-clock"></span> Cancella Vecchi (Mantieni Più Recente)');
+            }
+        });
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
     // DEVELOPER MODE TOGGLE
     // ═══════════════════════════════════════════════════════════════════════════
     $('#developer-mode-toggle').on('change', function() {
         const isEnabled = $(this).is(':checked');
         const $message = $('#developer-mode-message');
-        const $developerSections = $('.rs-developer-only');
+        const $statusAlert = $('#developer-mode-status');
+        const $developerSections = $('[data-developer-section]');
 
         // Toggle visibility of developer sections
         if (isEnabled) {
-            $developerSections.removeClass('rs-hidden').slideDown(300);
+            $developerSections.removeClass('d-none').slideDown(300);
             $message.text('Modalità Sviluppatore attiva - Strumenti tecnici visibili');
+            $statusAlert.removeClass('alert-secondary').addClass('alert-success');
         } else {
             $developerSections.slideUp(300, function() {
-                $(this).addClass('rs-hidden');
+                $(this).addClass('d-none');
             });
             $message.text('Modalità Utente Standard - Solo strumenti essenziali');
+            $statusAlert.removeClass('alert-success').addClass('alert-secondary');
         }
 
         // Save preference to user meta via AJAX

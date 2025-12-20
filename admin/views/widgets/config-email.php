@@ -26,88 +26,83 @@ $email_cc = get_option('realestate_sync_email_cc', '');
 ║  - wp_options: realestate_sync_email_cc (comma-separated)         ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
-<div class="rs-card">
-    <h3>
-        <span class="dashicons dashicons-email"></span>
-        <?php _e('Configurazione Email', 'realestate-sync'); ?>
-    </h3>
-
-    <p>
-        <?php _e('Ricevi notifiche email al termine di ogni import automatico.', 'realestate-sync'); ?>
-    </p>
-
-    <!-- Enable Email Notifications -->
-    <div>
-        <label>
-            <input type="checkbox" id="email-enabled" <?php checked($email_enabled); ?>
->
-            <strong>
-                <span class="dashicons dashicons-email"></span>
-                <?php _e('Abilita Notifiche Email', 'realestate-sync'); ?>
-            </strong>
-        </label>
-        <small>
-            <?php _e('Invia email al termine di ogni import automatico (successo o errore)', 'realestate-sync'); ?>
-        </small>
+<div class="card shadow-sm rounded-3 border-1 p-0">
+    <div class="card-header bg-primary bg-opacity-10 border-0 py-3">
+        <h5 class="card-title mb-0 d-flex align-items-center">
+            <span class="dashicons dashicons-email me-2"></span>
+            <?php _e('Configurazione Email', 'realestate-sync'); ?>
+        </h5>
     </div>
 
-    <!-- Email Configuration -->
-    <div id="email-config">
+    <div class="card-body">
+        <p class="text-muted mb-4">
+            <?php _e('Ricevi notifiche email al termine di ogni import automatico.', 'realestate-sync'); ?>
+        </p>
 
-        <!-- Attach Report Option -->
-        <div>
-            <label>
-                <input type="checkbox" id="email-attach-report" <?php checked($email_attach_report); ?>
->
+        <!-- Enable Email Notifications -->
+        <div class="form-check form-switch mb-4">
+            <input type="checkbox" class="form-check-input" role="switch" id="email-enabled" <?php checked($email_enabled); ?>>
+            <label class="form-check-label" for="email-enabled">
                 <strong>
-                    <span class="dashicons dashicons-media-spreadsheet"></span>
-                    <?php _e('Allega Report Dettagliato', 'realestate-sync'); ?>
+                    <span class="dashicons dashicons-email"></span>
+                    <?php _e('Abilita Notifiche Email', 'realestate-sync'); ?>
                 </strong>
+                <div class="form-text">
+                    <?php _e('Invia email al termine di ogni import automatico (successo o errore)', 'realestate-sync'); ?>
+                </div>
             </label>
-            <small>
-                <?php _e('Allega file di log con dettagli completi dell\'import', 'realestate-sync'); ?>
-            </small>
         </div>
 
-        <!-- TO Email Field -->
-        <div>
-            <label>
-                <span class="dashicons dashicons-email"></span>
-                <?php _e('Destinatario Principale (TO):', 'realestate-sync'); ?>
-            </label>
-            <input type="email" id="email-to" value="<?php echo esc_attr($email_to); ?>"
-                   placeholder="admin@example.com"
->
-            <small>
-                <?php _e('Email primaria che riceverà le notifiche', 'realestate-sync'); ?>
-            </small>
-        </div>
+        <!-- Email Configuration -->
+        <div id="email-config">
 
-        <!-- CC Email Field -->
-        <div>
-            <label>
-                <span class="dashicons dashicons-groups"></span>
-                <?php _e('Copia Conoscenza (CC):', 'realestate-sync'); ?>
-                <span>
-                    (<?php _e('opzionale', 'realestate-sync'); ?>)
-                </span>
-            </label>
-            <input type="text" id="email-cc" value="<?php echo esc_attr($email_cc); ?>"
-                   placeholder="manager@example.com, developer@example.com"
->
-            <small>
-                <?php _e('Email aggiuntive separate da virgola (es: email1@example.com, email2@example.com)', 'realestate-sync'); ?>
-            </small>
-        </div>
+            <!-- Attach Report Option -->
+            <div class="form-check mb-3">
+                <input type="checkbox" class="form-check-input" id="email-attach-report" <?php checked($email_attach_report); ?>>
+                <label class="form-check-label" for="email-attach-report">
+                    <strong>
+                        <span class="dashicons dashicons-media-spreadsheet"></span>
+                        <?php _e('Allega Report Dettagliato', 'realestate-sync'); ?>
+                    </strong>
+                    <div class="form-text">
+                        <?php _e('Allega file di log con dettagli completi dell\'import', 'realestate-sync'); ?>
+                    </div>
+                </label>
+            </div>
 
-        <!-- Save Button -->
-        <div>
-            <button type="button" class="rs-button-primary" id="save-email-config">
-                <span class="dashicons dashicons-saved"></span> <?php _e('Salva Configurazione Email', 'realestate-sync'); ?>
+            <!-- TO Email Field -->
+            <div class="mb-3">
+                <label for="email-to" class="form-label fw-semibold">
+                    <span class="dashicons dashicons-email"></span>
+                    <?php _e('Destinatario Principale (TO):', 'realestate-sync'); ?>
+                </label>
+                <input type="email" class="form-control" id="email-to" value="<?php echo esc_attr($email_to); ?>" placeholder="admin@example.com">
+                <div class="form-text">
+                    <?php _e('Email primaria che riceverà le notifiche', 'realestate-sync'); ?>
+                </div>
+            </div>
+
+            <!-- CC Email Field -->
+            <div class="mb-4">
+                <label for="email-cc" class="form-label fw-semibold">
+                    <span class="dashicons dashicons-groups"></span>
+                    <?php _e('Copia Conoscenza (CC):', 'realestate-sync'); ?>
+                    <span class="text-muted">(<?php _e('opzionale', 'realestate-sync'); ?>)</span>
+                </label>
+                <input type="text" class="form-control" id="email-cc" value="<?php echo esc_attr($email_cc); ?>" placeholder="manager@example.com, developer@example.com">
+                <div class="form-text">
+                    <?php _e('Email aggiuntive separate da virgola (es: email1@example.com, email2@example.com)', 'realestate-sync'); ?>
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <button type="button" class="btn btn-primary w-100" id="save-email-config">
+                <span class="dashicons dashicons-saved"></span>
+                <?php _e('Salva Configurazione Email', 'realestate-sync'); ?>
             </button>
-        </div>
 
-        <!-- Status Message -->
-        <div id="email-config-status"></div>
+            <!-- Status Message -->
+            <div id="email-config-status" class="mt-3"></div>
+        </div>
     </div>
 </div>

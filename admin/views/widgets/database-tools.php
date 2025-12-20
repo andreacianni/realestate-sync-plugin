@@ -29,12 +29,22 @@ if (!defined('ABSPATH')) exit;
 ║ CRITICO: No (solo per pulizia test, non dati produzione)          ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
-<div class="rs-testing-section">
-    <h4><span class="dashicons dashicons-admin-tools"></span> <?php _e('Database Tools', 'realestate-sync'); ?></h4>
+<div class="card shadow-sm rounded-3 border-1 p-0">
+    <div class="card-header bg-warning bg-opacity-10 border-0 py-3">
+        <h5 class="card-title mb-0 d-flex align-items-center">
+            <span class="dashicons dashicons-admin-tools me-2"></span>
+            <?php _e('Database Tools', 'realestate-sync'); ?>
+        </h5>
+    </div>
 
-    <div class="rs-button-group">
-        <button type="button" class="rs-button-warning" id="cleanup-test-data">
-            <span class="dashicons dashicons-trash"></span> Cleanup Test Data
-        </button>
+    <div class="card-body">
+        <p class="text-muted mb-3">Rimuovi dati di test marcati con <code>_test_import=1</code></p>
+
+        <div class="d-grid">
+            <button type="button" class="btn btn-warning btn-lg" id="cleanup-test-data">
+                <span class="dashicons dashicons-trash"></span>
+                Cleanup Test Data
+            </button>
+        </div>
     </div>
 </div>

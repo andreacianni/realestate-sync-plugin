@@ -31,88 +31,80 @@ if (!defined('ABSPATH')) exit;
 ║ CRITICO: Sì (credenziali errate = import falliti)                 ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
-<div class="rs-card">
-    <h3><span class="dashicons dashicons-admin-generic"></span> <?php _e('Configurazione Credenziali Download XML', 'realestate-sync'); ?></h3>
-
-    <!-- Credential Source Toggle -->
-    <div>
-        <label>
-            <span class="dashicons dashicons-admin-generic"></span> Sorgente Credenziali:
-        </label>
-        <?php
-        $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
-        ?>
-        <label>
-            <input type="radio" name="credential_source" value="hardcoded"
-                   <?php checked($credential_source, 'hardcoded'); ?>
-                   id="rs-cred-source-hardcoded">
-            <strong>Usa credenziali hardcoded</strong> (sistema attuale)
-        </label>
-        <label>
-            <input type="radio" name="credential_source" value="database"
-                   <?php checked($credential_source, 'database'); ?>
-                   id="rs-cred-source-database">
-            <strong>Usa credenziali database</strong> (nuovo sistema)
-        </label>
+<div class="card shadow-sm rounded-3 border-1 p-0">
+    <div class="card-header bg-danger bg-opacity-10 border-0 py-3">
+        <h5 class="card-title mb-0 d-flex align-items-center">
+            <span class="dashicons dashicons-admin-generic me-2"></span>
+            <?php _e('Configurazione Credenziali Download XML', 'realestate-sync'); ?>
+        </h5>
     </div>
 
-    <form id="rs-xml-credentials-form" method="post">
-        <?php wp_nonce_field('realestate_sync_xml_nonce', 'xml_nonce'); ?>
-
-        <table class="rs-form-table">
-            <tr>
-                <th>XML URL:</th>
-                <td>
-                    <input type="text" id="xml_url" name="xml_url" class="rs-input"
-                           value="<?php echo esc_attr(get_option('realestate_sync_xml_url', '')); ?>"
-                           placeholder="https://www.gestionaleimmobiliare.it/export/xml/..."
-                           readonly>
-                </td>
-            </tr>
-            <tr>
-                <th>XML Username:</th>
-                <td>
-                    <input type="text" id="xml_user" name="xml_user" class="rs-input"
-                           value="<?php echo esc_attr(get_option('realestate_sync_xml_user', '')); ?>"
-                           placeholder="username"
-                           readonly>
-                </td>
-            </tr>
-            <tr>
-                <th>XML Password:</th>
-                <td>
-                    <input type="text" id="xml_pass" name="xml_pass" class="rs-input"
-                           value="<?php echo esc_attr(get_option('realestate_sync_xml_pass', '')); ?>"
-                           placeholder="password"
-                           readonly>
-                    <br><small>Password visibile in chiaro per facilitare verifica</small>
-                </td>
-            </tr>
-        </table>
-
-        <div>
-            <!-- Edit Mode Buttons -->
-            <button type="button" class="rs-button-secondary" id="rs-xml-edit-btn">
-                <span class="dashicons dashicons-edit"></span> Modifica Credenziali
-            </button>
-
-            <!-- Save/Cancel Buttons (hidden by default) -->
-            <div id="rs-xml-save-cancel-btns">
-                <button type="submit" class="rs-button-primary">
-                    <span class="dashicons dashicons-yes"></span> Salva Credenziali
-                </button>
-                <button type="button" class="rs-button-secondary" id="rs-xml-cancel-btn">
-                    <span class="dashicons dashicons-no"></span> Annulla
-                </button>
+    <div class="card-body">
+        <!-- Credential Source Toggle -->
+        <div class="mb-4">
+            <label class="form-label fw-semibold">
+                <span class="dashicons dashicons-admin-generic"></span> Sorgente Credenziali:
+            </label>
+            <?php
+            $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
+            ?>
+            <div class="form-check">
+                <input type="radio" class="form-check-input" name="credential_source" value="hardcoded" <?php checked($credential_source, 'hardcoded'); ?> id="rs-cred-source-hardcoded">
+                <label class="form-check-label" for="rs-cred-source-hardcoded">
+                    <strong>Usa credenziali hardcoded</strong> <span class="text-muted">(sistema attuale)</span>
+                </label>
+            </div>
+            <div class="form-check">
+                <input type="radio" class="form-check-input" name="credential_source" value="database" <?php checked($credential_source, 'database'); ?> id="rs-cred-source-database">
+                <label class="form-check-label" for="rs-cred-source-database">
+                    <strong>Usa credenziali database</strong> <span class="text-muted">(nuovo sistema)</span>
+                </label>
             </div>
         </div>
-    </form>
 
-    <!-- Test Connection Button -->
-    <div>
-        <button type="button" class="rs-button-secondary" id="rs-test-connection">
-            <span class="dashicons dashicons-networking"></span> Test Connessione XML
-        </button>
-        <div id="rs-test-connection-result"></div>
+        <form id="rs-xml-credentials-form" method="post">
+            <?php wp_nonce_field('realestate_sync_xml_nonce', 'xml_nonce'); ?>
+
+            <div class="mb-3">
+                <label for="xml_url" class="form-label fw-semibold">XML URL:</label>
+                <input type="text" id="xml_url" name="xml_url" class="form-control" value="<?php echo esc_attr(get_option('realestate_sync_xml_url', '')); ?>" placeholder="https://www.gestionaleimmobiliare.it/export/xml/..." readonly>
+            </div>
+
+            <div class="mb-3">
+                <label for="xml_user" class="form-label fw-semibold">XML Username:</label>
+                <input type="text" id="xml_user" name="xml_user" class="form-control" value="<?php echo esc_attr(get_option('realestate_sync_xml_user', '')); ?>" placeholder="username" readonly>
+            </div>
+
+            <div class="mb-4">
+                <label for="xml_pass" class="form-label fw-semibold">XML Password:</label>
+                <input type="text" id="xml_pass" name="xml_pass" class="form-control" value="<?php echo esc_attr(get_option('realestate_sync_xml_pass', '')); ?>" placeholder="password" readonly>
+                <div class="form-text">Password visibile in chiaro per facilitare verifica</div>
+            </div>
+
+            <div class="d-grid gap-2 mb-3">
+                <!-- Edit Mode Buttons -->
+                <button type="button" class="btn btn-outline-secondary" id="rs-xml-edit-btn">
+                    <span class="dashicons dashicons-edit"></span> Modifica Credenziali
+                </button>
+
+                <!-- Save/Cancel Buttons (hidden by default) -->
+                <div id="rs-xml-save-cancel-btns" class="d-grid gap-2">
+                    <button type="submit" class="btn btn-danger">
+                        <span class="dashicons dashicons-yes"></span> Salva Credenziali
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" id="rs-xml-cancel-btn">
+                        <span class="dashicons dashicons-no"></span> Annulla
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Test Connection Button -->
+        <div class="d-grid">
+            <button type="button" class="btn btn-outline-primary" id="rs-test-connection">
+                <span class="dashicons dashicons-networking"></span> Test Connessione XML
+            </button>
+            <div id="rs-test-connection-result" class="mt-2"></div>
+        </div>
     </div>
 </div>

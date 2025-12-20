@@ -22,44 +22,45 @@ $schedule_enabled = get_option('realestate_sync_schedule_enabled', false);
 ║ READ-ONLY: Solo visualizzazione, configurazione in Tab Setting   ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
-<div class="rs-card">
-    <h3>
-        <span class="dashicons dashicons-clock"></span>
-        <?php _e('Prossimo Import Automatico', 'realestate-sync'); ?>
-    </h3>
+<div class="card shadow-sm rounded-3 border-1 p-0">
+    <div class="card-header bg-info bg-opacity-10 border-0 py-3">
+        <h5 class="card-title mb-0 d-flex align-items-center">
+            <span class="dashicons dashicons-clock me-2"></span>
+            <?php _e('Prossimo Import Automatico', 'realestate-sync'); ?>
+        </h5>
+    </div>
 
-    <div>
+    <div class="card-body">
         <?php if ($schedule_enabled && $next_run_timestamp) : ?>
             <!-- Scheduled -->
-            <div>
-                <div>
+            <div class="text-center py-3">
+                <div class="text-muted mb-2">
                     <?php _e('Programmato tra', 'realestate-sync'); ?>
                 </div>
-                <div>
+                <div class="display-6 fw-bold text-success mb-2">
                     <?php
                     $time_until = human_time_diff(current_time('timestamp'), $next_run_timestamp);
                     echo esc_html($time_until);
                     ?>
                 </div>
-                <div>
+                <div class="text-muted">
+                    <span class="dashicons dashicons-calendar"></span>
                     <?php echo esc_html(date('d/m/Y H:i', $next_run_timestamp)); ?>
                 </div>
             </div>
         <?php else : ?>
             <!-- Not Scheduled -->
-            <div>
-                <span class="dashicons dashicons-warning"></span>
+            <div class="alert alert-warning d-flex align-items-start" role="alert">
+                <span class="dashicons dashicons-warning me-2 mt-1"></span>
                 <div>
-                    <?php _e('Nessun Import Programmato', 'realestate-sync'); ?>
+                    <strong><?php _e('Nessun Import Programmato', 'realestate-sync'); ?></strong>
+                    <p class="mb-0"><?php _e('Gli import automatici sono disabilitati', 'realestate-sync'); ?></p>
                 </div>
-                <div>
-                    <?php _e('Gli import automatici sono disabilitati', 'realestate-sync'); ?>
-                </div>
-                <a href="#setting" class="rs-button-primary nav-tab-trigger" data-tab="setting">
-                    <span class="dashicons dashicons-admin-settings"></span>
-                    <?php _e('Configura Import Automatico', 'realestate-sync'); ?>
-                </a>
             </div>
+            <a href="#setting" class="btn btn-primary w-100 nav-tab-trigger" data-tab="setting">
+                <span class="dashicons dashicons-admin-settings"></span>
+                <?php _e('Configura Import Automatico', 'realestate-sync'); ?>
+            </a>
         <?php endif; ?>
     </div>
 </div>

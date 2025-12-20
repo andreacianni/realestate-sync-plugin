@@ -1,86 +1,96 @@
 /**
  * Bootstrap 5 Scoping CSS
- * Prevents Bootstrap from affecting WordPress admin styles
- *
- * Strategy: Use :where() for low specificity, only apply within .bootstrap-scope wrapper
+ * Minimal scoping - Bootstrap is only loaded on our admin page
+ * so conflicts with other WP Admin pages are not possible
  */
 
-/*
- * Prevent Bootstrap from affecting global WP admin elements
- * Reset Bootstrap's global styles outside our scope
- */
-body:not(.bootstrap-scope) .btn,
-body:not(.bootstrap-scope) .card,
-body:not(.bootstrap-scope) .container,
-body:not(.bootstrap-scope) .row,
-body:not(.bootstrap-scope) .col {
-    all: revert;
-}
-
-/*
- * Scope all Bootstrap styles to .bootstrap-scope wrapper
- * This ensures Bootstrap only affects our plugin dashboard
+/**
+ * Create an isolation context for our plugin
+ * This prevents our styles from leaking out
  */
 .bootstrap-scope {
-    /* Allow Bootstrap to work normally inside this wrapper */
     isolation: isolate;
 }
 
-/*
- * Fix potential conflicts with WordPress admin
+/**
+ * Fix WordPress .wrap margin that conflicts with Bootstrap grid
  */
-
-/* Ensure WP buttons outside our scope aren't affected */
-body:not(.bootstrap-scope) .button,
-body:not(.bootstrap-scope) input[type="button"],
-body:not(.bootstrap-scope) input[type="submit"] {
-    all: revert;
-}
-
-/* Ensure Bootstrap buttons work inside our scope */
-.bootstrap-scope .btn {
-    /* Bootstrap btn styles will apply */
-}
-
-/* Fix WordPress .wrap padding conflict */
 .bootstrap-scope.wrap {
-    /* Allow Bootstrap container to override WP .wrap */
     margin: 10px 20px 0 2px;
 }
 
-/* Fix WordPress nav-tab conflict with Bootstrap nav */
-.bootstrap-scope .nav-tab-wrapper {
-    /* Keep WordPress tab styling outside Bootstrap nav */
-}
-
-/* Prevent Bootstrap from breaking WordPress notices */
+/**
+ * Ensure WordPress admin notices still look correct inside our scope
+ */
 .bootstrap-scope .notice,
 .bootstrap-scope .updated,
+.bootstrap-scope .error,
+.bootstrap-scope .update-nag {
+    padding: 12px;
+    margin: 5px 0 15px;
+    background: #fff;
+    border-left: 4px solid #00a0d2;
+}
+
+.bootstrap-scope .notice.notice-error,
 .bootstrap-scope .error {
-    /* Preserve WP notice styles */
+    border-left-color: #dc3232;
 }
 
-/* Fix form field conflicts */
-.bootstrap-scope input:not(.form-control),
-.bootstrap-scope select:not(.form-select),
-.bootstrap-scope textarea:not(.form-control) {
-    /* Keep WordPress form styles for non-Bootstrap fields */
+.bootstrap-scope .notice.notice-warning {
+    border-left-color: #ffb900;
 }
 
-/*
- * Optional: Force Bootstrap grid to work correctly
+.bootstrap-scope .notice.notice-success,
+.bootstrap-scope .updated {
+    border-left-color: #46b450;
+}
+
+.bootstrap-scope .notice.notice-info {
+    border-left-color: #00a0d2;
+}
+
+/**
+ * Fix Dashicons alignment in Bootstrap buttons
  */
-.bootstrap-scope .container,
-.bootstrap-scope .container-fluid {
-    width: 100%;
-    padding-right: 15px;
-    padding-left: 15px;
-    margin-right: auto;
-    margin-left: auto;
+.bootstrap-scope .btn .dashicons {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    line-height: 1;
+    vertical-align: middle;
+    margin-right: 4px;
 }
 
-/*
- * Utility: Debug mode
+/**
+ * Fix WordPress button conflicts (if any WP buttons appear in our scope)
+ */
+.bootstrap-scope .wp-core-ui .button,
+.bootstrap-scope .wp-core-ui .button-primary,
+.bootstrap-scope .wp-core-ui .button-secondary {
+    /* Preserve WordPress button styles for WP's own buttons */
+    background: #0073aa;
+    border-color: #0073aa;
+    color: #fff;
+    text-decoration: none;
+    padding: 0 10px;
+    line-height: 2;
+    height: 28px;
+    display: inline-block;
+    min-height: 28px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+
+.bootstrap-scope .card {
+    margin-top: revert;
+    max-width: revert;
+    background-color: revert;
+    box-sizing: revert;
+}
+
+/**
+ * Optional: Debug mode
  * Uncomment to see Bootstrap scope boundary
  */
 /*

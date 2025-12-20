@@ -19,34 +19,40 @@ if (!defined('ABSPATH')) exit;
 ║ FREQUENZA: Occasionale (backup automazione)                       ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
-<div class="rs-card">
-    <h3><span class="dashicons dashicons-download"></span> <?php _e('Import Immediato', 'realestate-sync'); ?></h3>
-
-    <div class="rs-info-box">
-        <strong>Import Immediato</strong><br>
-        Scarica e importa immediatamente i dati XML da GestionaleImmobiliare.it
+<div class="card shadow-sm rounded-3 border-1 p-0">
+    <div class="card-header bg-success bg-opacity-10 border-0 py-3">
+        <h5 class="card-title mb-0 d-flex align-items-center">
+            <span class="dashicons dashicons-download me-2"></span>
+            <?php _e('Import Immediato', 'realestate-sync'); ?>
+        </h5>
     </div>
 
-    <div>
-        <label>
-            <input type="checkbox" id="mark-as-test-manual-import" checked>
-            <span>
+    <div class="card-body">
+        <div class="alert alert-info mb-3" role="alert">
+            <strong>Import Immediato</strong><br>
+            Scarica e importa immediatamente i dati XML da GestionaleImmobiliare.it
+        </div>
+
+        <div class="form-check mb-3">
+            <input type="checkbox" class="form-check-input" id="mark-as-test-manual-import" checked>
+            <label class="form-check-label" for="mark-as-test-manual-import">
                 <span class="dashicons dashicons-flag"></span>
-                Marca come Test Import
-            </span>
-        </label>
-        <small>
-            Le proprietà, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
-        </small>
-    </div>
+                <strong>Marca come Test Import</strong>
+            </label>
+            <div class="form-text">
+                Le proprietà, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
+            </div>
+        </div>
 
-    <button type="button" class="rs-button-primary" id="start-manual-import">
-        <span class="dashicons dashicons-download"></span> <?php _e('Scarica e Importa Ora', 'realestate-sync'); ?>
-    </button>
+        <button type="button" class="btn btn-success btn-lg w-100" id="start-manual-import">
+            <span class="dashicons dashicons-download"></span>
+            <?php _e('Scarica e Importa Ora', 'realestate-sync'); ?>
+        </button>
 
-    <!-- Manual Import Log Output -->
-    <div id="manual-import-log-output" class="rs-hidden">
-        <h5>Log Processo:</h5>
-        <pre id="manual-import-log-content">Avvio processo...</pre>
+        <!-- Manual Import Log Output -->
+        <div id="manual-import-log-output" class="d-none mt-3">
+            <h6 class="text-muted">Log Processo:</h6>
+            <pre class="p-3 bg-light rounded-2 border" id="manual-import-log-content">Avvio processo...</pre>
+        </div>
     </div>
 </div>
