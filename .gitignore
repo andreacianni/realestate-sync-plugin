@@ -65,6 +65,7 @@ create-agency-table.php
 create-agency-tracking-table.sql
 
 # Exception: Allow widget files in admin/views/widgets/
+!admin/views/widgets/*
 !admin/views/widgets/cleanup-properties.php
 !admin/views/widgets/queue-management.php
 
