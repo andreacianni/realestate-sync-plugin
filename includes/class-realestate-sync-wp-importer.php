@@ -96,6 +96,13 @@ class RealEstate_Sync_WP_Importer {
         $this->logger = $logger ?: RealEstate_Sync_Logger::get_instance();
         $this->property_mapper = $property_mapper;
 
+        // "freno al legacy importer"
+        if (!defined('REALESTATE_SYNC_ENABLE_LEGACY_IMPORTER') || !REALESTATE_SYNC_ENABLE_LEGACY_IMPORTER) {
+            $this->logger->log('Legacy importer blocked (REALESTATE_SYNC_ENABLE_LEGACY_IMPORTER=false)', 'debug');
+            return;
+        }
+
+
         // Log deprecation warning in debug mode
         if (defined('WP_DEBUG') && WP_DEBUG) {
             error_log('[DEPRECATION] RealEstate_Sync_WP_Importer is deprecated since version 2.0.0. Use RealEstate_Sync_WP_Importer_API instead. This class will be removed in version 3.0.0.');

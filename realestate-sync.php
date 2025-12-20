@@ -37,6 +37,11 @@ define('REALESTATE_SYNC_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('REALESTATE_SYNC_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('REALESTATE_SYNC_PLUGIN_BASENAME', plugin_basename(__FILE__));
 
+// "freno al legacy importer"
+if (!defined('REALESTATE_SYNC_ENABLE_LEGACY_IMPORTER')) {
+    define('REALESTATE_SYNC_ENABLE_LEGACY_IMPORTER', false);
+};
+
 /**
  * Main RealEstate Sync Plugin Class
  * 
