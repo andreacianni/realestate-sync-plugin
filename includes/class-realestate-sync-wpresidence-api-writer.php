@@ -54,6 +54,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 
 	/**
 	 * API request timeout in seconds
+	 * Kept at 120s for image-heavy properties (up to 100 images)
 	 *
 	 * @var int
 	 */
@@ -61,10 +62,11 @@ class RealEstate_Sync_WPResidence_API_Writer {
 
 	/**
 	 * Maximum retry attempts for API requests
+	 * DIAGNOSTIC: Reduced to 2 for faster failure detection
 	 *
 	 * @var int
 	 */
-	private $max_retries = 3;
+	private $max_retries = 2;
 
 	/**
 	 * Constructor
