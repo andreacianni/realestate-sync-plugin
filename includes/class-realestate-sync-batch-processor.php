@@ -24,14 +24,16 @@ class RealEstate_Sync_Batch_Processor {
 
     /**
      * Items per batch
-     * Reduced to 5 to prevent timeout with image-heavy properties
+     * DIAGNOSTIC: Reduced to 2 to isolate timing issues
      */
-    const ITEMS_PER_BATCH = 5;
+    const ITEMS_PER_BATCH = 2;
 
     /**
      * Batch timeout (seconds)
+     * DIAGNOSTIC: Increased to 600s (matches PHP max_execution_time)
+     * to determine if timeouts are in batch or API layer
      */
-    const BATCH_TIMEOUT = 50;
+    const BATCH_TIMEOUT = 600;
 
     /**
      * Queue Manager instance
