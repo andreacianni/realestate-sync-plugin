@@ -10,8 +10,8 @@ jQuery(document).ready(function($) {
         },
         
         bindEvents: function() {
-            // Manual import button
-            $('#rs-manual-import').on('click', this.handleManualImport.bind(this));
+            // Manual import button (feng-shui: updated ID)
+            $('#start-manual-import').on('click', this.handleManualImport.bind(this));
             
             // Test connection button
             $('#rs-test-connection').on('click', this.handleTestConnection.bind(this));
@@ -25,38 +25,52 @@ jQuery(document).ready(function($) {
         
         handleManualImport: function(e) {
             e.preventDefault();
-            
-            if (!confirm(realestateSync.strings.confirm_import)) {
+
+            if (!confirm('Avviare import manuale?\n\nScaricherà e processerà il file XML dal gestionale.')) {
                 return;
             }
-            
+
             const $button = $(e.target);
-            const $progress = $('#rs-import-progress');
-            const $status = $('#rs-import-status');
-            
-            // Disable button and show progress
-            $button.prop('disabled', true).html('<span class="rs-spinner"></span>' + realestateSync.strings.importing);
-            $progress.removeClass('rs-hidden');
-            $status.empty();
-            
+            const $logOutput = $('#manual-import-log-output');
+            const $logContent = $('#manual-import-log-content');
+            const markAsTest = $('#mark-as-test-manual-import').is(':checked');
+
+            // Show log and disable button
+            $logOutput.removeClass('d-none');
+            $logContent.text('Avvio import manuale...');
+            $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Importando...');
+
             // Start import
             $.ajax({
                 url: realestateSync.ajax_url,
                 type: 'POST',
                 data: {
                     action: 'realestate_sync_manual_import',
-                    nonce: realestateSync.nonce
+                    nonce: realestateSync.nonce,
+                    mark_as_test: markAsTest ? '1' : '0'
                 },
-                success: this.handleImportSuccess.bind(this),
-                error: this.handleImportError.bind(this),
+                success: function(response) {
+                    if (response.success) {
+                        const data = response.data;
+                        $logContent.text('✓ Import completato!\n\n' +
+                            'Proprietà processate: ' + (data.properties_processed || 0) + '\n' +
+                            'Agenzie processate: ' + (data.agencies_processed || 0) + '\n' +
+                            'Durata: ' + (data.duration || 'N/A'));
+
+                        rsToast.success('Import manuale completato con successo');
+                    } else {
+                        $logContent.text('✗ Errore: ' + (response.data || 'Errore sconosciuto'));
+                        rsToast.error(response.data || 'Errore durante l\'import');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    $logContent.text('✗ Errore di comunicazione: ' + error);
+                    rsToast.error('Errore di connessione al server');
+                },
                 complete: function() {
-                    $button.prop('disabled', false).text('Avvia Import Manuale');
-                    $progress.addClass('rs-hidden');
+                    $button.prop('disabled', false).html('<span class="dashicons dashicons-download"></span> Scarica e Importa Ora');
                 }
             });
-            
-            // Start progress polling
-            this.startProgressPolling();
         },
         
         handleImportSuccess: function(response) {
@@ -247,6 +261,78 @@ jQuery(document).ready(function($) {
 
     // Initialize
     RealEstateSyncAdmin.init();
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // XML FILE UPLOAD IMPORT (import-xml.php widget)
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Enable process button when file is selected
+     */
+    $('#test-xml-file').on('change', function() {
+        const hasFile = $(this)[0].files.length > 0;
+        $('#process-test-file').prop('disabled', !hasFile);
+    });
+
+    /**
+     * Handle XML file upload and processing
+     */
+    $('#process-test-file').on('click', function() {
+        const $button = $(this);
+        const $logOutput = $('#test-log-output');
+        const $logContent = $('#test-log-content');
+        const fileInput = document.getElementById('test-xml-file');
+        const markAsTest = $('#mark-as-test-import').is(':checked');
+
+        if (!fileInput.files.length) {
+            alert('Seleziona un file XML prima di procedere');
+            return;
+        }
+
+        const file = fileInput.files[0];
+        const formData = new FormData();
+        formData.append('xml_file', file);
+        formData.append('action', 'realestate_sync_process_test_file');
+        formData.append('nonce', realestateSync.nonce);
+        formData.append('mark_as_test', markAsTest ? '1' : '0');
+
+        // Show log output
+        $logOutput.removeClass('d-none');
+        $logContent.text('Caricamento file...');
+
+        // Disable button
+        $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Processando...');
+
+        $.ajax({
+            url: realestateSync.ajax_url,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $logContent.text('✓ Import completato con successo!\n\n' +
+                        'Proprietà processate: ' + (response.data.properties_processed || 0) + '\n' +
+                        'Agenzie processate: ' + (response.data.agencies_processed || 0));
+
+                    // Reset file input
+                    fileInput.value = '';
+
+                    rsToast.success('File XML processato con successo');
+                } else {
+                    $logContent.text('✗ Errore: ' + (response.data || 'Errore sconosciuto'));
+                    rsToast.error(response.data || 'Errore durante il processing');
+                }
+            },
+            error: function(xhr, status, error) {
+                $logContent.text('✗ Errore di comunicazione: ' + error);
+                rsToast.error('Errore di connessione al server');
+            },
+            complete: function() {
+                $button.prop('disabled', false).html('<span class="dashicons dashicons-admin-generic"></span> Processa File XML');
+            }
+        });
+    });
 
     // ✅ VERIFICATION FUNCTIONS - Global object for dashboard onclick handlers
     window.realestateSync = window.realestateSync || {};
