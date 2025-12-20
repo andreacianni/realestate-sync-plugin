@@ -8,6 +8,7 @@ STATUS_*.md
 *_GUIDE.md
 NEXT_FIX_*.md
 .claude/settings.local.json
+.codex/*
 
 # Temporary trash folder for obsolete files
 TRASH/
