@@ -339,7 +339,15 @@ class RealEstate_Sync_Batch_Processor {
 
         // Check if complete
         $is_complete = $this->queue_manager->is_session_complete($this->session_id);
-        $stats = $this->queue_manager->get_session_stats($this->session_id);
+        $stats = array_merge([
+            'pending' => 0,
+            'processing' => 0,
+            'done' => 0,
+            'error' => 0,
+            'total' => 0,
+            'completed' => 0,
+            'failed' => 0,
+        ], (array) $this->queue_manager->get_session_stats($this->session_id));
 
         error_log("[BATCH-PROCESSOR] <<< Batch complete: processed={$processed}, errors={$errors}, remaining=" . $stats['pending']);
 
@@ -533,7 +541,15 @@ class RealEstate_Sync_Batch_Processor {
      * @return array Summary data
      */
     public function get_final_summary() {
-        $stats = $this->queue_manager->get_session_stats($this->session_id);
+        $stats = array_merge([
+            'pending' => 0,
+            'processing' => 0,
+            'done' => 0,
+            'error' => 0,
+            'total' => 0,
+            'completed' => 0,
+            'failed' => 0,
+        ], (array) $this->queue_manager->get_session_stats($this->session_id));
         $retry_successes = $this->queue_manager->get_retry_successes($this->session_id);
         $failed_items = $this->queue_manager->get_items_by_status($this->session_id, 'error');
 

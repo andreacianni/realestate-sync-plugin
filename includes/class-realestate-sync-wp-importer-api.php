@@ -144,9 +144,34 @@ class RealEstate_Sync_WP_Importer_API {
 
 		$this->logger->log("Processing property via API: {$import_id}", 'INFO');
 
+		// Item-level lock per import_id (re-entrant per session)
+		$lock_key = 'realestate_sync_import_lock_' . $import_id;
+		$lock_owner = get_transient($lock_key);
+		$lock_acquired = false;
+
+		if ($lock_owner && $lock_owner !== $this->session_id) {
+			$this->logger->log("Import lock hit for {$import_id}, owned by {$lock_owner} - skipping create/update", 'WARNING', array(
+				'import_id' => $import_id,
+				'session_id' => $this->session_id,
+			));
+			return array(
+				'success' => false,
+				'error' => 'import_id locked',
+			);
+		}
+
+		if (!$lock_owner) {
+			set_transient($lock_key, $this->session_id, 15 * MINUTE_IN_SECONDS);
+			$lock_acquired = true;
+		} else {
+			// Re-entrant for same session
+			$lock_acquired = true;
+		}
+
 		try {
 			// 1. Check for existing property (duplicate detection)
-			$existing_post_id = $this->find_existing_property($import_id);
+			$existing_post_id = $this->find_existing_property_strict($import_id);
+			$converted_from_create = false;
 
 			if ($existing_post_id) {
 				$this->logger->log("Existing property found (ID: {$existing_post_id}) - will UPDATE", 'INFO');
@@ -214,6 +239,13 @@ class RealEstate_Sync_WP_Importer_API {
 
 				$result = $this->api_writer->create_property($api_body);
 
+				// Recover from CREATE timeout/network failure by verifying existence
+				$recovered = $this->attempt_recover_create_failure($import_id, $api_body, $result);
+				if ($recovered) {
+					$converted_from_create = true;
+					$result = $recovered;
+				}
+
 				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'API CREATE result', array(
 					'import_id' => $import_id,
 					'success' => $result['success'],
@@ -222,7 +254,11 @@ class RealEstate_Sync_WP_Importer_API {
 				));
 
 				if ($result['success']) {
-					$this->stats['imported_properties']++;
+					if ($converted_from_create) {
+						$this->stats['updated_properties']++;
+					} else {
+						$this->stats['imported_properties']++;
+					}
 				}
 			}
 
@@ -256,25 +292,121 @@ class RealEstate_Sync_WP_Importer_API {
 				'success' => false,
 				'error'   => $e->getMessage(),
 			);
+		} finally {
+			if ($lock_acquired) {
+				delete_transient($lock_key);
+			}
 		}
 	}
 
 	/**
-	 * Find existing property by import ID
+	 * Find existing property by import ID (strict: deterministic order, exclude trash/auto-draft)
 	 *
 	 * @param string $import_id Import identifier from source data
 	 * @return int|null Post ID if found, null otherwise
 	 */
-	private function find_existing_property($import_id) {
-		$posts = get_posts(array(
-			'post_type'      => 'estate_property',
-			'meta_key'       => 'property_import_id',
-			'meta_value'     => $import_id,
-			'posts_per_page' => 1,
-			'fields'         => 'ids',
-		));
+	private function find_existing_property_strict($import_id) {
+		if (!$import_id) {
+			return null;
+		}
 
-		return !empty($posts) ? $posts[0] : null;
+		global $wpdb;
+		$sql = $wpdb->prepare("
+			SELECT p.ID
+			FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+			WHERE pm.meta_key = 'property_import_id'
+			  AND pm.meta_value = %s
+			  AND p.post_type = 'estate_property'
+			  AND p.post_status NOT IN ('trash','auto-draft','inherit')
+			ORDER BY p.ID ASC
+			LIMIT 1
+		", $import_id);
+
+		$post_id = $wpdb->get_var($sql);
+
+		return $post_id ? intval($post_id) : null;
+	}
+
+	/**
+	 * Attempt to recover from CREATE failure (timeout/network) by checking if the property exists
+	 * and switching to UPDATE when found.
+	 *
+	 * @param string $import_id Import identifier
+	 * @param array  $api_body  Prepared API payload
+	 * @param array  $create_result Result array from create_property()
+	 * @return array|null Recovered result array or null if no recovery performed
+	 */
+	private function attempt_recover_create_failure($import_id, $api_body, $create_result) {
+		$error_msg = $create_result['error'] ?? 'Unknown error';
+		$http_code = $create_result['http_code'] ?? null;
+
+		if (!$this->is_retryable_create_error($error_msg, $http_code)) {
+			return null;
+		}
+
+		$existing_post_id = $this->find_existing_property_strict($import_id);
+
+		$this->logger->log(
+			"Verify-exists after CREATE failure for {$import_id}: found_post_id=" . ($existing_post_id ?: 'none'),
+			'WARNING',
+			array(
+				'error' => $error_msg,
+				'http_code' => $http_code,
+				'session_id' => $this->session_id,
+				'import_id' => $import_id,
+			)
+		);
+
+		if ($existing_post_id) {
+			$this->tracker->log_event('WARNING', 'WP_IMPORTER_API', 'CREATE failure -> switching to UPDATE', array(
+				'import_id' => $import_id,
+				'wp_post_id' => $existing_post_id,
+				'error' => $error_msg,
+				'session_id' => $this->session_id,
+			));
+
+			$update_result = $this->api_writer->update_property($existing_post_id, $api_body);
+
+			if ($update_result['success']) {
+				$update_result['action'] = 'updated';
+			}
+
+			return $update_result;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Determine if a CREATE error is retryable/timeout-like
+	 *
+	 * @param string $error_msg Error message
+	 * @param int|null $http_code HTTP status code if available
+	 * @return bool
+	 */
+	private function is_retryable_create_error($error_msg, $http_code) {
+		$patterns = array('timeout', 'timed out', 'cURL error 28', 'connection reset', 'Operation timed out', 'Resolving timed out');
+		foreach ($patterns as $pattern) {
+			if (stripos($error_msg, $pattern) !== false) {
+				return true;
+			}
+		}
+
+		if ($http_code === null) {
+			return true; // network/HTTP 0
+		}
+
+		if (in_array($http_code, array(408, 429), true)) {
+			return true;
+		}
+
+		if ($http_code >= 500) {
+			return true;
+		}
+
+		// Do not retry hard 4xx (400/401/403/404 etc.)
+		return false;
 	}
 
 	/**

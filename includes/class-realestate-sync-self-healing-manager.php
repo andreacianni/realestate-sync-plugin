@@ -46,8 +46,8 @@ class RealEstate_Sync_Self_Healing_Manager {
 
         $this->logger->log("🩹 [SELF-HEALING] Resolving action for property {$property_id}", 'debug');
 
-        // STEP 1: Cerca post esistente by import_id
-        $existing_post_id = $this->find_post_by_import_id($property_id);
+        // STEP 1: Cerca post esistente by import_id (strict lookup, deterministico)
+        $existing_post_id = $this->find_post_by_import_id_strict($property_id);
 
         if (!$existing_post_id) {
             // ✅ Post NON esiste → INSERT (compatibility with legacy code)
@@ -121,15 +121,15 @@ class RealEstate_Sync_Self_Healing_Manager {
      * @param string $property_id Import ID
      * @return int|null wp_post_id se trovato
      */
-    private function find_post_by_import_id($property_id) {
+    private function find_post_by_import_id_strict($property_id) {
         $sql = $this->wpdb->prepare("
             SELECT p.ID
             FROM {$this->wpdb->posts} p
             JOIN {$this->wpdb->postmeta} pm ON p.ID = pm.post_id
             WHERE pm.meta_key = 'property_import_id'
-            AND pm.meta_value = %s
-            AND p.post_type = 'estate_property'
-            AND p.post_status != 'trash'
+              AND pm.meta_value = %s
+              AND p.post_type = 'estate_property'
+              AND p.post_status NOT IN ('trash','auto-draft','inherit')
             ORDER BY p.ID ASC
             LIMIT 1
         ", $property_id);
