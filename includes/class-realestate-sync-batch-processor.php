@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * Batch Processor Class
  *
@@ -29,6 +29,11 @@ class RealEstate_Sync_Batch_Processor {
     const ITEMS_PER_BATCH = 2;
 
     /**
+     * Threshold (seconds) after which a processing job is considered stale
+     */
+    const STALE_PROCESSING_THRESHOLD = 900; // 15 minutes
+
+    /**
      * Batch timeout (seconds)
      * DIAGNOSTIC: Increased to 600s (matches PHP max_execution_time)
      * to determine if timeouts are in batch or API layer
@@ -51,7 +56,7 @@ class RealEstate_Sync_Batch_Processor {
     private $tracker;
 
     /**
-     * ✅ IMPORT ENGINE - Reuses all PROTECTED methods
+     * âœ… IMPORT ENGINE - Reuses all PROTECTED methods
      * Delegates PROPERTY processing to Import_Engine
      * which already has working logic for:
      * - convert_xml_to_v3_format()
@@ -64,11 +69,11 @@ class RealEstate_Sync_Batch_Processor {
     private $import_engine;
 
     /**
-     * ⚠️ PROTECTED CLASS INSTANCES - Used for agencies and queue scanning
+     * âš ï¸ PROTECTED CLASS INSTANCES - Used for agencies and queue scanning
      */
     private $agency_parser;      // Protected: extracts agencies from XML (for queue scan)
     private $agency_manager;     // Protected: imports agencies (agencies processed directly, not via Import_Engine)
-    private $xml_parser;         // ✅ GOLDEN: parses properties using same logic as streaming import
+    private $xml_parser;         // âœ… GOLDEN: parses properties using same logic as streaming import
 
     /**
      * Session ID
@@ -106,10 +111,10 @@ class RealEstate_Sync_Batch_Processor {
         // Initialize debug tracker
         $this->tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 
-        // ✅ Create API importer explicitly (GOLDEN approach)
+        // âœ… Create API importer explicitly (GOLDEN approach)
         $wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
 
-        // ✅ Initialize Import_Engine with API importer (dependency injection)
+        // âœ… Initialize Import_Engine with API importer (dependency injection)
         // This ensures batch uses GOLDEN API methods instead of legacy importer
         $this->import_engine = new RealEstate_Sync_Import_Engine(null, $wp_importer, $this->logger);
 
@@ -118,13 +123,13 @@ class RealEstate_Sync_Batch_Processor {
         $settings['mark_as_test'] = $mark_as_test;
         $this->import_engine->configure($settings);
 
-        error_log("[BATCH-PROCESSOR] ✅ Import_Engine initialized (mark_as_test=" . ($mark_as_test ? 'YES' : 'NO') . ")");
+        error_log("[BATCH-PROCESSOR] âœ… Import_Engine initialized (mark_as_test=" . ($mark_as_test ? 'YES' : 'NO') . ")");
 
         // Initialize Agency classes (agencies processed directly via Agency_Manager)
         $this->agency_parser = new RealEstate_Sync_Agency_Parser();
         $this->agency_manager = new RealEstate_Sync_Agency_Manager();
 
-        // ✅ Initialize GOLDEN XML_Parser for property parsing
+        // âœ… Initialize GOLDEN XML_Parser for property parsing
         $this->xml_parser = new RealEstate_Sync_XML_Parser();
     }
 
@@ -179,7 +184,7 @@ class RealEstate_Sync_Batch_Processor {
                     continue;
                 }
 
-                // ✅ CRITICAL: Property ID is inside <info> node
+                // âœ… CRITICAL: Property ID is inside <info> node
                 $comune_istat = (string)($annuncio->info->comune_istat ?? '');
 
                 if (empty($comune_istat)) {
@@ -195,11 +200,11 @@ class RealEstate_Sync_Batch_Processor {
                     continue;
                 }
 
-                // ✅ CRITICAL: Extract property ID from <info> section
+                // âœ… CRITICAL: Extract property ID from <info> section
                 $property_id = (string)$annuncio->info->id;
 
                 if (empty($property_id)) {
-                    error_log("[BATCH-PROCESSOR] ⚠️  Property with empty ID! Comune: {$comune_istat}");
+                    error_log("[BATCH-PROCESSOR] âš ï¸  Property with empty ID! Comune: {$comune_istat}");
                     continue;
                 }
 
@@ -235,7 +240,7 @@ class RealEstate_Sync_Batch_Processor {
             );
 
         } catch (Exception $e) {
-            error_log("[BATCH-PROCESSOR] ❌ Scan failed: " . $e->getMessage());
+            error_log("[BATCH-PROCESSOR] âŒ Scan failed: " . $e->getMessage());
             throw $e;
         }
     }
@@ -246,7 +251,9 @@ class RealEstate_Sync_Batch_Processor {
      * @return array Batch results
      */
     public function process_next_batch() {
-        // 🔄 Resume trace if not already active (background continuation)
+        // Recover stale processing items before starting a new batch
+        $this->recover_stale_processing_items();
+        // ðŸ”„ Resume trace if not already active (background continuation)
         if (!$this->tracker->is_active()) {
             $trace_id = get_option('realestate_sync_current_trace_id');
             $trace_start_time = get_option('realestate_sync_current_trace_start_time');
@@ -255,9 +262,9 @@ class RealEstate_Sync_Batch_Processor {
             if ($trace_id) {
                 $resumed = $this->tracker->resume_trace($trace_id, $trace_start_time, $trace_context);
                 if ($resumed) {
-                    error_log("[BATCH-PROCESSOR] ✅ Trace resumed: {$trace_id}");
+                    error_log("[BATCH-PROCESSOR] âœ… Trace resumed: {$trace_id}");
                 } else {
-                    error_log("[BATCH-PROCESSOR] ⚠️  Failed to resume trace: {$trace_id}");
+                    error_log("[BATCH-PROCESSOR] âš ï¸  Failed to resume trace: {$trace_id}");
                 }
             }
         }
@@ -267,8 +274,8 @@ class RealEstate_Sync_Batch_Processor {
         $start_time = time();
         $processed = 0;
         $errors = 0;
-        $agencies_processed = 0;   // ✅ Track agencies separately
-        $properties_processed = 0; // ✅ Track properties separately
+        $agencies_processed = 0;   // âœ… Track agencies separately
+        $properties_processed = 0; // âœ… Track properties separately
 
         // Get next batch of pending items
         $items = $this->queue_manager->get_next_batch($this->session_id, self::ITEMS_PER_BATCH);
@@ -291,52 +298,87 @@ class RealEstate_Sync_Batch_Processor {
         foreach ($items as $item) {
             // Check timeout
             if ((time() - $start_time) > self::BATCH_TIMEOUT) {
-                error_log("[BATCH-PROCESSOR] ⏱️  Timeout reached, stopping batch");
+                error_log("[BATCH-PROCESSOR] ƒ?ñ‹÷?  Timeout reached, stopping batch");
                 break;
             }
 
             // Mark as processing
             $this->queue_manager->mark_processing($item->id);
 
+            $item_start_time = microtime(true);
+            $result = array();
+            $had_exception = false;
+            $property_failed = false;
             error_log("[BATCH-PROCESSOR]    >>> Processing {$item->item_type} ID={$item->item_id}");
 
             try {
                 // Process based on type
                 if ($item->item_type === 'agency') {
                     $result = $this->process_agency($item);
-                    $agencies_processed++; // ✅ Count agencies
+                    $agencies_processed++; // ƒo. Count agencies
 
-                    // 🔧 FIX PRIORITÀ 3: Update wp_post_id IMMEDIATELY after agency creation
+                    // ÐY"õ FIX PRIORITÇ? 3: Update wp_post_id IMMEDIATELY after agency creation
                     if (!empty($result['wp_post_id'])) {
                         $this->queue_manager->update_wp_post_id($item->id, $result['wp_post_id']);
-                        error_log("[BATCH-PROCESSOR]    ✅ wp_post_id updated: {$result['wp_post_id']}");
+                        error_log("[BATCH-PROCESSOR]    ƒo. wp_post_id updated: {$result['wp_post_id']}");
                     }
+
+                    // Agencies considered success unless exception thrown
+                    $this->queue_manager->mark_done($item->id);
+                    $processed++;
+                    error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
                 } else {
                     $result = $this->process_property($item);
-                    $properties_processed++; // ✅ Count properties
+                    $properties_processed++; // ƒo. Count properties
 
-                    // 🔧 FIX PRIORITÀ 3: Update wp_post_id IMMEDIATELY after property creation
+                    // ÐY"õ FIX PRIORITÇ? 3: Update wp_post_id IMMEDIATELY after property creation
                     if (!empty($result['post_id'])) {
                         $this->queue_manager->update_wp_post_id($item->id, $result['post_id']);
-                        error_log("[BATCH-PROCESSOR]    ✅ wp_post_id updated: {$result['post_id']}");
+                        error_log("[BATCH-PROCESSOR]    ƒo. wp_post_id updated: {$result['post_id']}");
+                    }
+
+                    // Treat missing/failed post_id as failure
+                    if (empty($result['success']) || empty($result['post_id'])) {
+                        $error_msg = $result['error'] ?? 'Property processing returned no wp_post_id';
+                        $this->queue_manager->mark_error($item->id, $error_msg);
+                        $property_failed = true;
+                        $errors++;
+                        error_log("[BATCH-PROCESSOR]    ƒ?O ERROR: {$item->item_type} {$item->item_id} - {$error_msg}");
+                    } else {
+                        $this->queue_manager->mark_done($item->id);
+                        $processed++;
+                        error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
                     }
                 }
-
-                // Mark as done
-                $this->queue_manager->mark_done($item->id);
-                $processed++;
-
-                error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
 
             } catch (Exception $e) {
                 // Mark as error
                 $this->queue_manager->mark_error($item->id, $e->getMessage());
                 $errors++;
+                $had_exception = true;
+                if ($item->item_type === 'property') {
+                    $property_failed = true;
+                }
 
-                error_log("[BATCH-PROCESSOR]    ❌ ERROR: {$item->item_type} {$item->item_id} - " . $e->getMessage());
+                error_log("[BATCH-PROCESSOR]    Ÿ?O ERROR: {$item->item_type} {$item->item_id} - " . $e->getMessage());
             }
-        }
 
+            // Override success for properties without wp_post_id/success flag
+            if (!$had_exception && !$property_failed && $item->item_type === 'property' && (empty($result['success']) || empty($result['post_id']))) {
+                $error_msg = $result['error'] ?? 'Property processing returned no wp_post_id';
+                $this->queue_manager->mark_error($item->id, $error_msg);
+                if ($processed > 0) {
+                    $processed--;
+                }
+                $errors++;
+                error_log("[BATCH-PROCESSOR]    ERROR: {$item->item_type} {$item->item_id} - {$error_msg}");
+            }
+
+            $duration_ms = round((microtime(true) - $item_start_time) * 1000, 1);
+            $wp_post_id = $result['post_id'] ?? ($result['wp_post_id'] ?? null);
+            $outcome = ($item->item_type === 'property' && (empty($result['success']) || empty($result['post_id']))) ? 'error' : 'success';
+            error_log("[BATCH-PROCESSOR]    >>> Item finished ({$item->item_type} {$item->item_id}) duration_ms={$duration_ms} outcome={$outcome} wp_post_id=" . ($wp_post_id ?? 'null'));
+        }
         // Check if complete
         $is_complete = $this->queue_manager->is_session_complete($this->session_id);
         $stats = array_merge([
@@ -351,7 +393,7 @@ class RealEstate_Sync_Batch_Processor {
 
         error_log("[BATCH-PROCESSOR] <<< Batch complete: processed={$processed}, errors={$errors}, remaining=" . $stats['pending']);
 
-        // 🏁 End trace if ALL batches complete
+        // ðŸ End trace if ALL batches complete
         if ($is_complete && $this->tracker->is_active()) {
             $this->tracker->end_trace('completed', array(
                 'session_id' => $this->session_id,
@@ -366,7 +408,7 @@ class RealEstate_Sync_Batch_Processor {
             delete_option('realestate_sync_current_trace_start_time');
             delete_option('realestate_sync_current_trace_context');
 
-            error_log("[BATCH-PROCESSOR] ✅ All batches complete - trace ended and session log closed");
+            error_log("[BATCH-PROCESSOR] âœ… All batches complete - trace ended and session log closed");
         }
 
         return array(
@@ -374,8 +416,8 @@ class RealEstate_Sync_Batch_Processor {
             'complete' => $is_complete,
             'processed' => $processed,
             'errors' => $errors,
-            'agencies_processed' => $agencies_processed,     // ✅ Return agency count
-            'properties_processed' => $properties_processed, // ✅ Return property count
+            'agencies_processed' => $agencies_processed,     // âœ… Return agency count
+            'properties_processed' => $properties_processed, // âœ… Return property count
             'stats' => $stats
         );
     }
@@ -383,7 +425,7 @@ class RealEstate_Sync_Batch_Processor {
     /**
      * Process single agency
      *
-     * ⚠️ USES PROTECTED METHODS - DO NOT MODIFY
+     * âš ï¸ USES PROTECTED METHODS - DO NOT MODIFY
      *
      * @param object $queue_item Queue item
      * @return array Result
@@ -392,13 +434,13 @@ class RealEstate_Sync_Batch_Processor {
     private function process_agency($queue_item) {
         $agency_id = $queue_item->item_id;
 
-        // 🔍 LOG: Start agency processing
+        // ðŸ” LOG: Start agency processing
         $this->tracker->log_event('INFO', 'BATCH_PROCESSOR', 'Processing agency', array(
             'agency_id' => $agency_id,
             'session_id' => $this->session_id
         ));
 
-        // ✅ OPTIMIZATION: Read pre-parsed data from database (no XML re-loading!)
+        // âœ… OPTIMIZATION: Read pre-parsed data from database (no XML re-loading!)
         $this->tracker->log_event('DEBUG', 'BATCH_PROCESSOR', 'Reading pre-parsed data from database', array(
             'session_id' => $this->session_id
         ));
@@ -444,7 +486,7 @@ class RealEstate_Sync_Batch_Processor {
         $progress = get_option('realestate_sync_background_import_progress', array());
         $mark_as_test = isset($progress['mark_as_test']) ? $progress['mark_as_test'] : false;
 
-        // ✅ PROTECTED METHOD: Import agency using Agency_Manager
+        // âœ… PROTECTED METHOD: Import agency using Agency_Manager
         error_log("[BATCH-PROCESSOR]       >>> Calling Agency_Manager::import_agencies()");
         $this->tracker->log_event('INFO', 'BATCH_PROCESSOR', 'Calling Agency_Manager', array(
             'agency_id' => $agency_id,
@@ -466,8 +508,8 @@ class RealEstate_Sync_Batch_Processor {
     /**
      * Process single property
      *
-     * ✅ DELEGATES TO IMPORT_ENGINE - Uses exact same processing logic
-     * ✅ USES GOLDEN XML_Parser - Same parsing logic as streaming import
+     * âœ… DELEGATES TO IMPORT_ENGINE - Uses exact same processing logic
+     * âœ… USES GOLDEN XML_Parser - Same parsing logic as streaming import
      *
      * @param object $queue_item Queue item
      * @return array Result
@@ -478,7 +520,7 @@ class RealEstate_Sync_Batch_Processor {
 
         error_log("[BATCH-PROCESSOR]       >>> Looking for property {$property_id} in batch data");
 
-        // ✅ OPTIMIZATION: Read pre-parsed data from database (no XML re-loading!)
+        // âœ… OPTIMIZATION: Read pre-parsed data from database (no XML re-loading!)
         $this->tracker->log_event('DEBUG', 'BATCH_PROCESSOR', 'Reading pre-parsed property data from database', array(
             'property_id' => $property_id,
             'session_id' => $this->session_id
@@ -506,7 +548,7 @@ class RealEstate_Sync_Batch_Processor {
 
         error_log("[BATCH-PROCESSOR]       <<< Property found in batch data (ID: " . ($property_data['id'] ?? 'unknown') . ")");
 
-        // ✅ DELEGATE TO IMPORT_ENGINE
+        // âœ… DELEGATE TO IMPORT_ENGINE
         // This calls the EXACT same workflow as Import_Engine::execute_chunked_import()
         // - convert_xml_to_v3_format()
         // - map_properties() (plural)
@@ -559,4 +601,27 @@ class RealEstate_Sync_Batch_Processor {
             'failed_items' => count($failed_items)
         );
     }
+
+    /**
+     * Recover stale items stuck in processing for too long
+     */
+    private function recover_stale_processing_items() {
+        $processing_items = $this->queue_manager->get_items_by_status($this->session_id, 'processing');
+        if (empty($processing_items)) {
+            return;
+        }
+
+        $now = time();
+        foreach ($processing_items as $processing_item) {
+            $updated_at_ts = isset($processing_item->updated_at) ? strtotime($processing_item->updated_at) : 0;
+            if ($updated_at_ts > 0 && ($now - $updated_at_ts) >= self::STALE_PROCESSING_THRESHOLD) {
+                $message = "Auto-reset stale processing item after " . self::STALE_PROCESSING_THRESHOLD . "s";
+                // Record as error (increments retry_count) then requeue for retry
+                $this->queue_manager->mark_error($processing_item->id, $message);
+                $this->queue_manager->update_item_status($processing_item->id, 'pending');
+                error_log("[BATCH-PROCESSOR] ƒo. Stale item reset to pending: ID={$processing_item->id}, item_id={$processing_item->item_id}");
+            }
+        }
+    }
 }
+

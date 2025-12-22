@@ -107,49 +107,94 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			return false;
 		}
 
-		// Call JWT authentication endpoint
-		$response = wp_remote_post($this->jwt_auth_url, array(
-			'body'    => json_encode(array(
-				'username' => $username,
-				'password' => $password,
-			)),
-			'headers' => array(
-				'Content-Type' => 'application/json',
-			),
-			'timeout' => 30,
-		));
+		$max_auth_attempts = 2; // initial + one retry for transient failures
 
-		// Handle request errors
-		if (is_wp_error($response)) {
-			$this->logger->log('JWT token request failed: ' . $response->get_error_message(), 'ERROR');
-			return false;
+		for ($attempt = 1; $attempt <= $max_auth_attempts; $attempt++) {
+			$response = wp_remote_post($this->jwt_auth_url, array(
+				'body'    => json_encode(array(
+					'username' => $username,
+					'password' => $password,
+				)),
+				'headers' => array(
+					'Content-Type' => 'application/json',
+				),
+				'timeout' => 30,
+			));
+
+			// Handle request errors
+			if (is_wp_error($response)) {
+				$this->logger->log('JWT token request failed: ' . $response->get_error_message(), 'ERROR', array(
+					'endpoint' => $this->jwt_auth_url,
+					'error_data' => $response->get_error_data(),
+					'attempt' => $attempt
+				));
+
+				if ($attempt < $max_auth_attempts && $this->should_retry_auth($response->get_error_message(), null, null)) {
+					usleep(300000); // 300ms
+					continue;
+				}
+				return false;
+			}
+
+			$status_code = wp_remote_retrieve_response_code($response);
+			$headers = wp_remote_retrieve_headers($response);
+			$raw_body = wp_remote_retrieve_body($response);
+			$body_len = strlen($raw_body);
+			$body_preview = substr($raw_body, 0, 400);
+
+			$this->logger->log('JWT auth response received', 'DEBUG', array(
+				'endpoint' => $this->jwt_auth_url,
+				'http_code' => $status_code,
+				'content_type' => $headers['content-type'] ?? null,
+				'server' => $headers['server'] ?? null,
+				'body_length' => $body_len,
+				'body_preview' => $body_preview,
+				'attempt' => $attempt
+			));
+
+			$body = json_decode($raw_body, true);
+
+			// Check response status
+			if ($status_code !== 200) {
+				$error_msg = isset($body['message']) ? $body['message'] : 'Unknown error';
+				$this->logger->log("JWT authentication failed (HTTP $status_code): $error_msg", 'ERROR', array(
+					'attempt' => $attempt
+				));
+
+				if ($attempt < $max_auth_attempts && $this->should_retry_auth($error_msg, $status_code, $body_len)) {
+					usleep(300000); // 300ms
+					continue;
+				}
+				return false;
+			}
+
+			// Extract token from response
+			// JWT plugin returns token in $body['data']['token'], not $body['token']
+			if (!isset($body['data']['token'])) {
+				$this->logger->log('JWT token not found in authentication response', 'ERROR', array(
+					'http_code' => $status_code,
+					'body_length' => $body_len,
+					'body_preview' => $body_preview,
+					'attempt' => $attempt
+				));
+
+				if ($attempt < $max_auth_attempts && $this->should_retry_auth('missing_token', $status_code, $body_len)) {
+					usleep(300000); // 300ms
+					continue;
+				}
+				return false;
+			}
+
+			// Store token and expiration (9 minutes from now for safety)
+			$this->jwt_token = $body['data']['token'];
+			$this->jwt_expiration = time() + (9 * 60);
+
+			$this->logger->log('JWT token generated successfully (expires in 9 minutes)', 'INFO');
+
+			return $this->jwt_token;
 		}
 
-		$status_code = wp_remote_retrieve_response_code($response);
-		$body = json_decode(wp_remote_retrieve_body($response), true);
-
-		// Check response status
-		if ($status_code !== 200) {
-			$error_msg = isset($body['message']) ? $body['message'] : 'Unknown error';
-			$this->logger->log("JWT authentication failed (HTTP $status_code): $error_msg", 'ERROR');
-			return false;
-		}
-
-		// Extract token from response
-		// JWT plugin returns token in $body['data']['token'], not $body['token']
-		if (!isset($body['data']['token'])) {
-			$this->logger->log('JWT token not found in authentication response', 'ERROR');
-			$this->logger->log('Response body: ' . print_r($body, true), 'DEBUG');
-			return false;
-		}
-
-		// Store token and expiration (9 minutes from now for safety)
-		$this->jwt_token = $body['data']['token'];
-		$this->jwt_expiration = time() + (9 * 60);
-
-		$this->logger->log('JWT token generated successfully (expires in 9 minutes)', 'INFO');
-
-		return $this->jwt_token;
+		return false;
 	}
 
 	/**
@@ -534,6 +579,32 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			if (strpos($error_lower, $pattern) !== false) {
 				return true;
 			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Retry auth only for timeout/5xx/empty-body cases
+	 */
+	private function should_retry_auth($error_msg, $http_code = null, $body_len = null) {
+		$msg = strtolower((string) $error_msg);
+
+		if (strpos($msg, 'timeout') !== false || strpos($msg, 'timed out') !== false) {
+			return true;
+		}
+
+		if ($http_code !== null) {
+			if ($http_code === 0) {
+				return true;
+			}
+			if ($http_code >= 500) {
+				return true;
+			}
+		}
+
+		if ($body_len !== null && $body_len === 0) {
+			return true;
 		}
 
 		return false;
