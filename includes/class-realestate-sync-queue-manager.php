@@ -329,4 +329,19 @@ class RealEstate_Sync_Queue_Manager {
             $session_id
         ));
     }
+
+    /**
+     * Fetch single queue item by ID
+     *
+     * @param int $id Queue item ID
+     * @return object|null Queue item or null if not found
+     */
+    public function get_item($id) {
+        global $wpdb;
+
+        return $wpdb->get_row($wpdb->prepare(
+            "SELECT * FROM {$this->table_name} WHERE id = %d",
+            $id
+        ));
+    }
 }

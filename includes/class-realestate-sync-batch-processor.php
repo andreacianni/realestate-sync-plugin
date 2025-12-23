@@ -296,6 +296,7 @@ class RealEstate_Sync_Batch_Processor {
 
         // Process each item
         foreach ($items as $item) {
+            $this->log_queue_fetch($item);
             // Check timeout
             if ((time() - $start_time) > self::BATCH_TIMEOUT) {
                 error_log("[BATCH-PROCESSOR] ƒ?ñ‹÷?  Timeout reached, stopping batch");
@@ -303,7 +304,15 @@ class RealEstate_Sync_Batch_Processor {
             }
 
             // Mark as processing
+            $status_before = $item->status ?? 'pending';
+            $retry_before = (int) ($item->retry_count ?? 0);
             $this->queue_manager->mark_processing($item->id);
+            $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $status_before, $retry_before, 'processing');
+            $updated_state = $this->queue_manager->get_item($item->id);
+            if ($updated_state) {
+                $item->status = $updated_state->status;
+                $item->retry_count = $updated_state->retry_count;
+            }
 
             $item_start_time = microtime(true);
             $result = array();
@@ -324,7 +333,10 @@ class RealEstate_Sync_Batch_Processor {
                     }
 
                     // Agencies considered success unless exception thrown
+                    $done_status_before = $item->status ?? 'processing';
+                    $done_retry_before = (int) ($item->retry_count ?? 0);
                     $this->queue_manager->mark_done($item->id);
+                    $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $done_status_before, $done_retry_before, 'done');
                     $processed++;
                     error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
                 } else {
@@ -340,12 +352,18 @@ class RealEstate_Sync_Batch_Processor {
                     // Treat missing/failed post_id as failure
                     if (empty($result['success']) || empty($result['post_id'])) {
                         $error_msg = $result['error'] ?? 'Property processing returned no wp_post_id';
+                        $error_status_before = $item->status ?? 'processing';
+                        $error_retry_before = (int) ($item->retry_count ?? 0);
                         $this->queue_manager->mark_error($item->id, $error_msg);
+                        $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $error_status_before, $error_retry_before, 'error', $error_msg);
                         $property_failed = true;
                         $errors++;
                         error_log("[BATCH-PROCESSOR]    ƒ?O ERROR: {$item->item_type} {$item->item_id} - {$error_msg}");
                     } else {
+                        $done_status_before = $item->status ?? 'processing';
+                        $done_retry_before = (int) ($item->retry_count ?? 0);
                         $this->queue_manager->mark_done($item->id);
+                        $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $done_status_before, $done_retry_before, 'done');
                         $processed++;
                         error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
                     }
@@ -353,7 +371,10 @@ class RealEstate_Sync_Batch_Processor {
 
             } catch (Exception $e) {
                 // Mark as error
+                $error_status_before = $item->status ?? 'processing';
+                $error_retry_before = (int) ($item->retry_count ?? 0);
                 $this->queue_manager->mark_error($item->id, $e->getMessage());
+                $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $error_status_before, $error_retry_before, 'error', $e->getMessage());
                 $errors++;
                 $had_exception = true;
                 if ($item->item_type === 'property') {
@@ -366,7 +387,10 @@ class RealEstate_Sync_Batch_Processor {
             // Override success for properties without wp_post_id/success flag
             if (!$had_exception && !$property_failed && $item->item_type === 'property' && (empty($result['success']) || empty($result['post_id']))) {
                 $error_msg = $result['error'] ?? 'Property processing returned no wp_post_id';
+                $error_status_before = $item->status ?? 'processing';
+                $error_retry_before = (int) ($item->retry_count ?? 0);
                 $this->queue_manager->mark_error($item->id, $error_msg);
+                $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $error_status_before, $error_retry_before, 'error', $error_msg);
                 if ($processed > 0) {
                     $processed--;
                 }
@@ -603,6 +627,66 @@ class RealEstate_Sync_Batch_Processor {
     }
 
     /**
+     * Log queue fetch event for a single item
+     *
+     * @param object $item Queue item
+     */
+    private function log_queue_fetch($item) {
+        $this->logger->log(
+            "Queue fetch: id={$item->id} item_id={$item->item_id} status=" . ($item->status ?? 'unknown') . " retry=" . (int) ($item->retry_count ?? 0),
+            'DEBUG',
+            array(
+                'session_id' => $this->session_id,
+                'item_type' => $item->item_type ?? null
+            )
+        );
+    }
+
+    /**
+     * Log a queue status transition with retry counts and optional error message
+     *
+     * @param int         $queue_item_id Queue item ID
+     * @param string      $item_id       Domain item id
+     * @param string|null $item_type     Item type
+     * @param string      $status_before Previous status
+     * @param int         $retry_before  Retry count before update
+     * @param string|null $status_after_hint Expected status after update (optional)
+     * @param string|null $error_message Error message (optional)
+     */
+    private function log_queue_status_change($queue_item_id, $item_id, $item_type, $status_before, $retry_before, $status_after_hint = null, $error_message = null) {
+        $after = $this->queue_manager->get_item($queue_item_id);
+        $status_after = $status_after_hint !== null ? $status_after_hint : ($after->status ?? 'unknown');
+        $retry_after = $after && isset($after->retry_count) ? (int) $after->retry_count : null;
+
+        $this->logger->log(
+            "Queue status change: id={$queue_item_id} item_id={$item_id} {$status_before} -> {$status_after} retry {$retry_before} -> " . ($retry_after !== null ? $retry_after : 'null'),
+            'DEBUG',
+            array_filter(array(
+                'session_id' => $this->session_id,
+                'item_type' => $item_type,
+                'error_message' => $error_message ? $this->truncate_error_message($error_message) : null
+            ), function ($value) {
+                return $value !== null && $value !== '';
+            })
+        );
+    }
+
+    /**
+     * Truncate error message to avoid log bloat
+     *
+     * @param string $message Error message
+     * @param int    $limit   Max length
+     * @return string
+     */
+    private function truncate_error_message($message, $limit = 200) {
+        $message = (string) $message;
+        if (strlen($message) <= $limit) {
+            return $message;
+        }
+        return substr($message, 0, $limit) . '...';
+    }
+
+    /**
      * Recover stale items stuck in processing for too long
      */
     private function recover_stale_processing_items() {
@@ -617,8 +701,12 @@ class RealEstate_Sync_Batch_Processor {
             if ($updated_at_ts > 0 && ($now - $updated_at_ts) >= self::STALE_PROCESSING_THRESHOLD) {
                 $message = "Auto-reset stale processing item after " . self::STALE_PROCESSING_THRESHOLD . "s";
                 // Record as error (increments retry_count) then requeue for retry
+                $stale_status_before = $processing_item->status ?? 'processing';
+                $stale_retry_before = (int) ($processing_item->retry_count ?? 0);
                 $this->queue_manager->mark_error($processing_item->id, $message);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', $stale_status_before, $stale_retry_before, 'error', $message);
                 $this->queue_manager->update_item_status($processing_item->id, 'pending');
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', 'error', $stale_retry_before + 1, 'pending');
                 error_log("[BATCH-PROCESSOR] ƒo. Stale item reset to pending: ID={$processing_item->id}, item_id={$processing_item->item_id}");
             }
         }
