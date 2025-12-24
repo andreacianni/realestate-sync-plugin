@@ -152,7 +152,29 @@ class RealEstate_Sync_WPResidence_API_Writer {
 				'attempt' => $attempt
 			));
 
+			// Tolerant decode: strip control/gzip bytes before JSON if present
 			$body = json_decode($raw_body, true);
+			if (!is_array($body)) {
+				$body_start = strpos($raw_body, '{');
+				if ($body_start !== false) {
+					$sanitized_body = preg_replace('/^[\x00-\x1F\x7F-\x9F]+/', '', substr($raw_body, $body_start));
+					$body = json_decode($sanitized_body, true);
+				}
+			}
+
+			if (!is_array($body)) {
+				$this->logger->log('JWT auth response parse failed: ' . json_last_error_msg(), 'ERROR', array(
+					'http_code' => $status_code,
+					'body_length' => $body_len,
+					'attempt' => $attempt
+				));
+
+				if ($attempt < $max_auth_attempts && $this->should_retry_auth('parse_error', $status_code, $body_len)) {
+					usleep(300000); // 300ms
+					continue;
+				}
+				return false;
+			}
 
 			// Check response status
 			if ($status_code !== 200) {
