@@ -533,8 +533,59 @@ class RealEstate_Sync_WPResidence_API_Writer {
 
 		// Parse response
 		$http_code = wp_remote_retrieve_response_code($response);
-		$response_body = wp_remote_retrieve_body($response);
-		$parsed_body = json_decode($response_body, true);
+		$headers = wp_remote_retrieve_headers($response);
+		$content_type = is_array($headers) ? ($headers['content-type'] ?? null) : ($headers->offsetGet('content-type') ?? null);
+		$content_encoding = is_array($headers) ? ($headers['content-encoding'] ?? null) : ($headers->offsetGet('content-encoding') ?? null);
+		$raw_body = wp_remote_retrieve_body($response);
+		$body_for_decode = $raw_body;
+
+		// Handle gzip-encoded responses that arrive undecoded
+		if ($content_encoding && stripos($content_encoding, 'gzip') !== false) {
+			$gz_decoded = function_exists('gzdecode') ? @gzdecode($raw_body) : false;
+			if ($gz_decoded !== false && $gz_decoded !== null) {
+				$body_for_decode = $gz_decoded;
+			} else {
+				$this->logger->log('DEBUG gzip decode failed, using raw body', 'DEBUG', array(
+					'content_encoding' => $content_encoding,
+					'body_length_raw' => strlen($raw_body),
+				));
+			}
+		}
+
+		$parsed_body = json_decode($body_for_decode, true);
+		$json_error = json_last_error_msg();
+
+		// Fallback: strip any leading non-JSON bytes (e.g., stray gzip/control chars)
+		if (!is_array($parsed_body)) {
+			$brace_pos = strpos($body_for_decode, '{');
+			$bracket_pos = strpos($body_for_decode, '[');
+			$start_pos_candidates = array_filter(array($brace_pos, $bracket_pos), function ($pos) {
+				return $pos !== false;
+			});
+			$start_pos = !empty($start_pos_candidates) ? min($start_pos_candidates) : false;
+
+			if ($start_pos !== false && $start_pos > 0) {
+				$clean_body = substr($body_for_decode, $start_pos);
+				$parsed_body = json_decode($clean_body, true);
+				$clean_error = json_last_error_msg();
+
+				$this->logger->log('DEBUG cleaned API body before decode', 'DEBUG', array(
+					'content_encoding' => $content_encoding,
+					'body_length_raw' => strlen($raw_body),
+					'body_length_cleaned' => strlen($clean_body),
+					'json_last_error_before' => $json_error,
+					'json_last_error_after' => $clean_error,
+				));
+
+				$json_error = $clean_error;
+			} else {
+				$this->logger->log('DEBUG json decode failed without recoverable prefix', 'DEBUG', array(
+					'content_encoding' => $content_encoding,
+					'body_length_raw' => strlen($raw_body),
+					'json_last_error' => $json_error,
+				));
+			}
+		}
 
 		$this->logger->log("API Response: HTTP $http_code", 'DEBUG');
 
