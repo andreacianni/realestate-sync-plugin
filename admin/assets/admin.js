@@ -108,14 +108,14 @@ jQuery(document).ready(function($) {
             e.preventDefault();
             
             const $button = $(e.target);
-            const $status = $('#rs-connection-status');
+            const $status = $('#rs-test-connection-result');
             
             const data = {
                 action: 'realestate_sync_test_connection',
                 nonce: realestateSync.nonce,
                 url: $('#xml_url').val(),
-                username: $('#username').val(),
-                password: $('#password').val()
+                username: $('#xml_user').val(),
+                password: $('#xml_pass').val()
             };
             
             $button.prop('disabled', true).html('<span class="rs-spinner"></span>Test in corso...');

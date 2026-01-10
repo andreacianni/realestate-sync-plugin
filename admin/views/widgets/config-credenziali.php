@@ -40,26 +40,9 @@ if (!defined('ABSPATH')) exit;
     </div>
 
     <div class="card-body">
-        <!-- Credential Source Toggle -->
-        <div class="mb-4">
-            <label class="form-label fw-semibold">
-                <span class="dashicons dashicons-admin-generic"></span> Sorgente Credenziali:
-            </label>
-            <?php
-            $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
-            ?>
-            <div class="form-check">
-                <input type="radio" class="form-check-input" name="credential_source" value="hardcoded" <?php checked($credential_source, 'hardcoded'); ?> id="rs-cred-source-hardcoded">
-                <label class="form-check-label" for="rs-cred-source-hardcoded">
-                    <strong>Usa credenziali hardcoded</strong> <span class="text-muted">(sistema attuale)</span>
-                </label>
-            </div>
-            <div class="form-check">
-                <input type="radio" class="form-check-input" name="credential_source" value="database" <?php checked($credential_source, 'database'); ?> id="rs-cred-source-database">
-                <label class="form-check-label" for="rs-cred-source-database">
-                    <strong>Usa credenziali database</strong> <span class="text-muted">(nuovo sistema)</span>
-                </label>
-            </div>
+        <div class="alert alert-info mb-4">
+            <span class="dashicons dashicons-database"></span>
+            Le credenziali sono salvate e lette dal database di WordPress.
         </div>
 
         <form id="rs-xml-credentials-form" method="post">
