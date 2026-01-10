@@ -71,7 +71,7 @@ if (!defined('ABSPATH')) exit;
             <div class="d-grid mt-3">
                 <button type="button" class="btn btn-outline-primary" id="refresh-import-status">
                     <span class="dashicons dashicons-update"></span>
-                    <?php _e('Aggiorna Stato', 'realestate-sync'); ?>
+                    <?php _e('Visualizza Stato', 'realestate-sync'); ?>
                 </button>
             </div>
         </div>
