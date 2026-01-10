@@ -5,6 +5,11 @@
  * User: Admin + Tecnico
  */
 
+// NOTE: Dev/debug-only widget; currently buggy.
+// Must be fixed before any production use.
+
+
+
 if (!defined('ABSPATH')) exit;
 ?>
 
@@ -76,3 +81,4 @@ if (!defined('ABSPATH')) exit;
         </div>
     </div>
 </div>
+

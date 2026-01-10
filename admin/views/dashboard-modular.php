@@ -35,9 +35,10 @@ if (!defined('ABSPATH')) {
         <!-- TAB 2: IMPORT - Operational (Manual Operations) -->
         <div id="import" class="tab-pane fade" role="tabpanel" aria-labelledby="import-tab">
             <div class="row g-3">
+                <div class="col-md-6"><?php include __DIR__ . '/widgets/import-prossimo.php'; ?></div>
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/import-immediato.php'; ?></div>
-                <div class="col-md-6"><?php include __DIR__ . '/widgets/import-xml.php'; ?></div>
-                <div class="col-md-12"><?php include __DIR__ . '/widgets/import-prossimo.php'; ?></div>
+                <!-- Import XML widget disabled (dev/debug only; currently buggy) -->
+                
             </div>
         </div>
 
@@ -80,3 +81,4 @@ if (!defined('ABSPATH')) {
 </div><!-- .wrap -->
 
 <?php include __DIR__ . '/partials/footer-scripts.php'; ?>
+
