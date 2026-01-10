@@ -28,19 +28,20 @@ if (!defined('ABSPATH')) exit;
     </div>
 
     <div class="card-body">
-        <div class="alert alert-info mb-3" role="alert">
-            <strong>Import Immediato</strong><br>
+        <div class="mb-3" role="alert">
             Scarica e importa immediatamente i dati XML da GestionaleImmobiliare.it
         </div>
 
-        <div class="form-check mb-3">
-            <input type="checkbox" class="form-check-input" id="mark-as-test-manual-import" checked>
-            <label class="form-check-label" for="mark-as-test-manual-import">
-                <span class="dashicons dashicons-flag"></span>
-                <strong>Marca come Test Import</strong>
-            </label>
-            <div class="form-text">
-                Le proprietà, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
+        <div class="alert alert-warning mb-3 small">
+            <div class="form-check d-flex align-items-start">
+                <input type="checkbox" class="form-check-input mt-1" id="mark-as-test-manual-import">
+                <label class="form-check-label ms-2" for="mark-as-test-manual-import">
+                    <span class="dashicons dashicons-flag"></span>
+                    <strong>Marca come Test Import</strong>
+                </label>
+            </div>
+            <div class="form-text ms-4">
+                Le proprieta, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
             </div>
         </div>
 
@@ -56,3 +57,4 @@ if (!defined('ABSPATH')) exit;
         </div>
     </div>
 </div>
+
