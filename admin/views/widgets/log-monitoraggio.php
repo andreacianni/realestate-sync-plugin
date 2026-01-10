@@ -5,6 +5,9 @@
  * User: Admin + Tecnico
  */
 
+// Widget da rivedere dopo l'implementazione del sistema email
+// e il refactor del sistema di logging.
+
 if (!defined('ABSPATH')) exit;
 ?>
 

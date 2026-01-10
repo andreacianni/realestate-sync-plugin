@@ -5,6 +5,8 @@
  * User: Admin + Tecnico
  */
 
+// non carica nulla, da rivedere se serve effettivo utilizzo
+
 if (!defined('ABSPATH')) exit;
 
 // Check if import_sessions table exists

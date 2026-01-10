@@ -5,6 +5,9 @@
  * User: Admin Non Tecnico
  */
 
+// Widget attualmente inutilizzato.
+// Tenuto per riferimento o sviluppo futuro.
+
 if (!defined('ABSPATH')) exit;
 
 // Get next scheduled import
