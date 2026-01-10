@@ -45,9 +45,9 @@ if (!defined('ABSPATH')) {
         <!-- TAB 3: SETTING - Configurations -->
         <div id="setting" class="tab-pane fade" role="tabpanel" aria-labelledby="setting-tab">
             <div class="row g-3">
-                <div class="col-md-12"><?php include __DIR__ . '/widgets/config-automatico.php'; ?></div>
-                <div class="col-md-6"><?php include __DIR__ . '/widgets/config-credenziali.php'; ?></div>
+                <div class="col-md-6"><?php include __DIR__ . '/widgets/config-automatico.php'; ?></div>
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/config-email.php'; ?></div>
+                <div class="col-md-6"><?php include __DIR__ . '/widgets/config-credenziali.php'; ?></div>
             </div>
         </div>
 

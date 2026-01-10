@@ -63,21 +63,6 @@ $server_timezone = wp_timezone_string();
     </div>
 
     <div class="card-body">
-        <!-- Server Time Info -->
-        <div class="alert alert-info d-flex align-items-start mb-4" role="alert">
-            <span class="dashicons dashicons-info me-2 mt-1"></span>
-            <div>
-                <strong>Orario Server:</strong>
-                <div class="mt-1">
-                    <strong><?php echo esc_html($server_time); ?></strong>
-                    <span class="text-muted">(Timezone: <?php echo esc_html($server_timezone); ?>)</span>
-                </div>
-                <div class="form-text">
-                    Tutti gli orari configurati fanno riferimento a questo fuso orario.
-                </div>
-            </div>
-        </div>
-
         <!-- Enable/Disable Toggle -->
         <div class="form-check form-switch mb-4">
             <input type="checkbox" class="form-check-input" role="switch" id="schedule-enabled" <?php checked($schedule_enabled); ?>>
@@ -92,79 +77,80 @@ $server_timezone = wp_timezone_string();
             </label>
         </div>
 
+        <!-- Server Time Info -->
+        <div class="alert alert-info d-flex align-items-start mb-4" role="alert">
+            <span class="dashicons dashicons-info me-2 mt-1"></span>
+            <div>
+                <div class="mt-1">
+                    <strong>Orario Server: <?php echo esc_html($server_time); ?></strong>
+                    <span class="text-muted small">(Timezone: <?php echo esc_html($server_timezone); ?>)</span>
+                </div>
+                <div class="form-text small">
+                    Tutti gli orari configurati fanno riferimento a questo fuso orario.
+                </div>
+            </div>
+        </div>
+
         <!-- Schedule Configuration (visible only when enabled) -->
         <div id="schedule-config">
 
             <!-- Time Selection -->
-            <div class="mb-3">
-                <label for="schedule-time" class="form-label fw-semibold">
+            <div class="mb-3 row">
+                <label for="schedule-time" class="col-sm-4 col-form-label fw-semibold">
                     <span class="dashicons dashicons-clock"></span>
-                    Orario Esecuzione (formato 24h):
+                    Orario Esecuzione <span class="small">(formato 24h)</span>:
                 </label>
-                <input type="time" class="form-control" id="schedule-time" value="<?php echo esc_attr($schedule_time); ?>">
-                <div class="form-text">
-                    L'import verrà eseguito all'orario specificato secondo il fuso orario del server.
+                <div class="col-sm-8">
+                    <input type="time" class="form-control" id="schedule-time" value="<?php echo esc_attr($schedule_time); ?>">
                 </div>
             </div>
 
             <!-- Frequency Selection -->
-            <div class="mb-3">
-                <label for="schedule-frequency" class="form-label fw-semibold">
+            <div class="mb-3 row">
+                <label for="schedule-frequency" class="col-sm-4 col-form-label fw-semibold">
                     <span class="dashicons dashicons-calendar-alt"></span>
                     Frequenza:
                 </label>
-                <select class="form-select" id="schedule-frequency">
-                    <option value="daily" <?php selected($schedule_frequency, 'daily'); ?>>Ogni giorno</option>
-                    <option value="weekly" <?php selected($schedule_frequency, 'weekly'); ?>>Un giorno specifico della settimana</option>
-                    <option value="custom_days" <?php selected($schedule_frequency, 'custom_days'); ?>>Ogni X giorni</option>
-                    <option value="custom_months" <?php selected($schedule_frequency, 'custom_months'); ?>>Ogni X mesi</option>
-                </select>
+                <div class="col-sm-8">
+                    <select class="form-select" id="schedule-frequency">
+                        <option value="daily" <?php selected($schedule_frequency, 'daily'); ?>>Ogni giorno</option>
+                        <option value="weekly" <?php selected($schedule_frequency, 'weekly'); ?>>Un giorno specifico della settimana</option>
+                        <option value="custom_days" <?php selected($schedule_frequency, 'custom_days'); ?>>Ogni X giorni</option>
+                        <option value="custom_months" <?php selected($schedule_frequency, 'custom_months'); ?>>Ogni X mesi</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Weekly Configuration (visible only when frequency=weekly) -->
-            <div id="weekly-config" class="mb-3">
-                <label for="schedule-weekday" class="form-label fw-semibold">Giorno della settimana:</label>
-                <select class="form-select" id="schedule-weekday">
-                    <option value="0" <?php selected($schedule_weekday, 0); ?>>Domenica</option>
-                    <option value="1" <?php selected($schedule_weekday, 1); ?>>Lunedì</option>
-                    <option value="2" <?php selected($schedule_weekday, 2); ?>>Martedì</option>
-                    <option value="3" <?php selected($schedule_weekday, 3); ?>>Mercoledì</option>
-                    <option value="4" <?php selected($schedule_weekday, 4); ?>>Giovedì</option>
-                    <option value="5" <?php selected($schedule_weekday, 5); ?>>Venerdì</option>
-                    <option value="6" <?php selected($schedule_weekday, 6); ?>>Sabato</option>
-                </select>
+            <div id="weekly-config" class="mb-3 row small">
+                <label for="schedule-weekday" class="col-sm-4 col-form-label fw-semibold">Giorno della settimana:</label>
+                <div class="col-sm-8">
+                    <select class="form-select" id="schedule-weekday">
+                        <option value="0" <?php selected($schedule_weekday, 0); ?>>Domenica</option>
+                        <option value="1" <?php selected($schedule_weekday, 1); ?>>Lunedì</option>
+                        <option value="2" <?php selected($schedule_weekday, 2); ?>>Martedì</option>
+                        <option value="3" <?php selected($schedule_weekday, 3); ?>>Mercoledì</option>
+                        <option value="4" <?php selected($schedule_weekday, 4); ?>>Giovedì</option>
+                        <option value="5" <?php selected($schedule_weekday, 5); ?>>Venerdì</option>
+                        <option value="6" <?php selected($schedule_weekday, 6); ?>>Sabato</option>
+                    </select>
+                </div>
             </div>
 
             <!-- Custom Days Configuration (visible only when frequency=custom_days) -->
-            <div id="custom-days-config" class="mb-3">
-                <label for="schedule-custom-days" class="form-label fw-semibold">Numero di giorni:</label>
-                <input type="number" class="form-control" id="schedule-custom-days" value="<?php echo esc_attr($schedule_custom_days); ?>" min="1" max="365">
-                <div class="form-text">
-                    L'import verrà eseguito ogni N giorni (es. 7 = settimanale, 15 = ogni 2 settimane)
+            <div id="custom-days-config" class="mb-3 row small">
+                <label for="schedule-custom-days" class="col-sm-4 col-form-label fw-semibold">Numero di giorni:</label>
+                <div class="col-sm-8">
+                    <input type="number" class="form-control" id="schedule-custom-days" value="<?php echo esc_attr($schedule_custom_days); ?>" min="1" max="365">
                 </div>
             </div>
 
             <!-- Custom Months Configuration (visible only when frequency=custom_months) -->
-            <div id="custom-months-config" class="mb-3">
-                <label for="schedule-custom-months" class="form-label fw-semibold">Numero di mesi:</label>
-                <input type="number" class="form-control" id="schedule-custom-months" value="<?php echo esc_attr($schedule_custom_months); ?>" min="1" max="12">
-                <div class="form-text">
-                    L'import verrà eseguito ogni N mesi
+            <div id="custom-months-config" class="mb-3 row small">
+                <label for="schedule-custom-months" class="col-sm-4 col-form-label fw-semibold">Numero di mesi:</label>
+                <div class="col-sm-8">
+                    <input type="number" class="form-control" id="schedule-custom-months" value="<?php echo esc_attr($schedule_custom_months); ?>" min="1" max="12">
                 </div>
-            </div>
-
-            <!-- Mark as Test Option -->
-            <div class="form-check mb-4">
-                <input type="checkbox" class="form-check-input" id="schedule-mark-test" <?php checked($schedule_mark_test); ?>>
-                <label class="form-check-label" for="schedule-mark-test">
-                    <strong>
-                        <span class="dashicons dashicons-flag"></span>
-                        Marca import automatici come Test
-                    </strong>
-                    <div class="form-text">
-                        Le proprietà importate automaticamente verranno marcate con <code>_test_import=1</code>
-                    </div>
-                </label>
             </div>
 
             <!-- Preview Next Run -->
@@ -179,8 +165,24 @@ $server_timezone = wp_timezone_string();
                     }
                     ?>
                 </div>
-                <div class="form-text">
+                <div class="form-text small">
                     Aggiorna automaticamente dopo aver salvato la configurazione.
+                </div>
+            </div>
+
+                        <!-- Mark as Test Option -->
+            <div class="alert alert-warning mb-4">
+                <div class="form-check d-flex align-items-center">
+                    <input type="checkbox" class="form-check-input" id="schedule-mark-test" <?php checked($schedule_mark_test); ?>>
+                    <label class="form-check-label ms-2" for="schedule-mark-test">
+                        <strong>
+                            <span class="dashicons dashicons-flag"></span>
+                            Marca import automatici come Test
+                        </strong>
+                    </label>
+                </div>
+                <div class="form-text ms-4">
+                    Le proprieta importate automaticamente verranno marcate con <code>_test_import=1</code>
                 </div>
             </div>
 
