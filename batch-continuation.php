@@ -300,6 +300,15 @@ try {
             // Non blocca - verifica è opzionale
         }
 
+        // Build end-of-batch report (no email send in phase 1)
+        try {
+            require_once(dirname(__FILE__) . '/includes/class-realestate-sync-email-report.php');
+            $report = RealEstate_Sync_Email_Report::build_report($session_id, $progress);
+            RealEstate_Sync_Email_Report::save_snapshot($report);
+        } catch (Exception $e) {
+            error_log('[EMAIL-REPORT] ERROR: ' . $e->getMessage());
+        }
+
         echo "OK - All batches complete!\n";
     }
 
