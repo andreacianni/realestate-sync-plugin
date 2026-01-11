@@ -18,6 +18,9 @@ jQuery(document).ready(function($) {
             
             // Save settings button
             $('#rs-save-settings').on('click', this.handleSaveSettings.bind(this));
+
+            // Save email settings button
+            $('#save-email-config').on('click', this.handleSaveEmailSettings.bind(this));
             
             // Form validation
             $('.rs-input[required]').on('blur', this.validateField);
@@ -190,6 +193,46 @@ jQuery(document).ready(function($) {
                     $button.prop('disabled', false).text('Salva Impostazioni');
                     
                     // Hide status after 3 seconds
+                    setTimeout(function() {
+                        $status.fadeOut();
+                    }, 3000);
+                }
+            });
+        },
+
+        handleSaveEmailSettings: function(e) {
+            e.preventDefault();
+
+            const $button = $(e.target);
+            const $status = $('#email-config-status');
+
+            const data = {
+                action: 'realestate_sync_save_email_settings',
+                nonce: realestateSync.nonce,
+                email_enabled: $('#email-enabled').is(':checked') ? '1' : '0',
+                email_to: $('#email-to').val(),
+                email_cc: $('#email-cc').val()
+            };
+
+            $button.prop('disabled', true).html('<span class="rs-spinner"></span>Salvataggio...');
+            $status.empty();
+
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: data,
+                success: function(response) {
+                    if (response.success) {
+                        $status.html('<div class="rs-alert rs-alert-success">Configurazione email salvata</div>');
+                    } else {
+                        $status.html('<div class="rs-alert rs-alert-error">Errore nel salvataggio: ' + (response.data || 'Errore sconosciuto') + '</div>');
+                    }
+                },
+                error: function() {
+                    $status.html('<div class="rs-alert rs-alert-error">Errore durante il salvataggio</div>');
+                },
+                complete: function() {
+                    $button.prop('disabled', false).text('Salva Configurazione Email');
                     setTimeout(function() {
                         $status.fadeOut();
                     }, 3000);

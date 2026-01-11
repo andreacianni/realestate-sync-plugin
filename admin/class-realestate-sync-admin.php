@@ -37,6 +37,7 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_manual_import', array($this, 'handle_manual_import'));
         add_action('wp_ajax_realestate_sync_test_connection', array($this, 'handle_test_connection'));
         add_action('wp_ajax_realestate_sync_save_settings', array($this, 'handle_save_settings'));
+        add_action('wp_ajax_realestate_sync_save_email_settings', array($this, 'handle_save_email_settings'));
         add_action('wp_ajax_realestate_sync_save_credential_source', array($this, 'handle_save_credential_source'));
         add_action('wp_ajax_realestate_sync_save_xml_credentials', array($this, 'handle_save_xml_credentials'));
         add_action('wp_ajax_realestate_sync_ignore_verification', array($this, 'handle_ignore_verification'));
@@ -913,6 +914,44 @@ class RealEstate_Sync_Admin {
             $this->logger->log('Failed to save settings', 'error');
             wp_send_json_error('Errore nel salvataggio delle impostazioni');
         }
+    }
+
+    /**
+     * Handle save email settings AJAX
+     */
+    public function handle_save_email_settings() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        $enabled = !empty($_POST['email_enabled']) && $_POST['email_enabled'] === '1';
+        $email_to = sanitize_email($_POST['email_to'] ?? '');
+        $email_cc_raw = sanitize_text_field($_POST['email_cc'] ?? '');
+
+        if (!empty($_POST['email_to']) && empty($email_to)) {
+            wp_send_json_error('Email destinatario non valida');
+        }
+
+        $cc_list = array();
+        if (!empty($email_cc_raw)) {
+            $parts = preg_split('/[;,]+/', $email_cc_raw);
+            foreach ($parts as $part) {
+                $email = trim($part);
+                if ($email && is_email($email)) {
+                    $cc_list[] = $email;
+                }
+            }
+        }
+
+        $email_cc = implode(', ', array_values(array_unique($cc_list)));
+
+        update_option('realestate_sync_email_enabled', $enabled);
+        update_option('realestate_sync_email_to', $email_to);
+        update_option('realestate_sync_email_cc', $email_cc);
+
+        wp_send_json_success('Configurazione email salvata');
     }
 
     /**

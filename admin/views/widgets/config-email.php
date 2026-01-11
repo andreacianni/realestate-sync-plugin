@@ -44,7 +44,7 @@ $can_send_test = current_user_can('manage_options') && is_email($email_to_candid
 
         <!-- Enable Email Notifications -->
         <div class="form-check form-switch mb-4">
-            <input type="checkbox" class="form-check-input" role="switch" id="email-enabled" <?php checked($email_enabled); ?>>
+            <input type="checkbox" class="form-check-input" role="switch" id="email-enabled" name="realestate_sync_email_enabled" value="1" <?php checked($email_enabled); ?>>
             <label class="form-check-label" for="email-enabled">
                 <strong>
                     <span class="dashicons dashicons-email"></span>
@@ -61,7 +61,7 @@ $can_send_test = current_user_can('manage_options') && is_email($email_to_candid
 
             <!-- Attach Report Option -->
             <div class="form-check mb-3">
-                <input type="checkbox" class="form-check-input" id="email-attach-report" <?php checked($email_attach_report); ?> disabled>
+                <input type="checkbox" class="form-check-input" id="email-attach-report" name="realestate_sync_email_attach_report" value="1" <?php checked($email_attach_report); ?> disabled>
                 <label class="form-check-label" for="email-attach-report">
                     <strong>
                         <span class="dashicons dashicons-media-spreadsheet"></span>
@@ -79,7 +79,7 @@ $can_send_test = current_user_can('manage_options') && is_email($email_to_candid
                     <span class="dashicons dashicons-email"></span>
                     <?php _e('Destinatario Principale (TO):', 'realestate-sync'); ?>
                 </label>
-                <input type="email" class="form-control" id="email-to" value="<?php echo esc_attr($email_to); ?>" placeholder="admin@example.com">
+                <input type="email" class="form-control" id="email-to" name="realestate_sync_email_to" value="<?php echo esc_attr($email_to); ?>" placeholder="admin@example.com">
                 <div class="form-text">
                     <?php _e('Email primaria che riceverà le notifiche', 'realestate-sync'); ?>
                 </div>
@@ -92,7 +92,7 @@ $can_send_test = current_user_can('manage_options') && is_email($email_to_candid
                     <?php _e('Copia Conoscenza (CC):', 'realestate-sync'); ?>
                     <span class="text-muted">(<?php _e('opzionale', 'realestate-sync'); ?>)</span>
                 </label>
-                <input type="text" class="form-control" id="email-cc" value="<?php echo esc_attr($email_cc); ?>" placeholder="manager@example.com, developer@example.com">
+                <input type="text" class="form-control" id="email-cc" name="realestate_sync_email_cc" value="<?php echo esc_attr($email_cc); ?>" placeholder="manager@example.com, developer@example.com">
                 <div class="form-text">
                     <?php _e('Email aggiuntive separate da virgola (es: email1@example.com, email2@example.com)', 'realestate-sync'); ?>
                 </div>
