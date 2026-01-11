@@ -24,6 +24,15 @@ $import_stats = $tracking_manager->get_import_statistics();
         <?php printf(__('Pannello di controllo di RealEstate Sync (versione %s) - Import da GestionaleImmobiliare.it', 'realestate-sync'), REALESTATE_SYNC_VERSION); ?>
     </h1>
 
+    <?php
+    $test_notice = isset($_GET['rs_email_test']) ? sanitize_text_field($_GET['rs_email_test']) : '';
+    if ($test_notice === 'success') {
+        echo '<div class="notice notice-success is-dismissible"><p>' . esc_html__('Email di prova inviata', 'realestate-sync') . '</p></div>';
+    } elseif ($test_notice === 'error') {
+        echo '<div class="notice notice-error is-dismissible"><p>' . esc_html__('Invio fallito', 'realestate-sync') . '</p></div>';
+    }
+    ?>
+
     <div id="rs-alerts-container"></div>
 
     <!--

@@ -105,6 +105,7 @@ class RealEstate_Sync {
             add_action('admin_menu', [$this, 'add_admin_menu']);
             add_action('admin_enqueue_scripts', [$this, 'enqueue_admin_assets']);
             add_action('wp_dashboard_setup', [$this, 'add_dashboard_widget']);
+            add_action('admin_post_realestate_sync_send_test_email', [$this, 'handle_send_test_email']);
         }
         
         // AJAX hooks
@@ -652,6 +653,31 @@ class RealEstate_Sync {
         }
     }
     
+    /**
+     * Send test email via admin-post action
+     */
+    public function handle_send_test_email() {
+        if (!current_user_can('manage_options')) {
+            wp_die('Unauthorized');
+        }
+
+        check_admin_referer('realestate_sync_send_test_email');
+
+        $redirect = $_POST['redirect_to'] ?? wp_get_referer();
+        if (empty($redirect)) {
+            $redirect = admin_url('admin.php?page=realestate-sync');
+        }
+
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-email-report.php';
+
+        $sent = RealEstate_Sync_Email_Report::send_test_email();
+        $status = $sent ? 'success' : 'error';
+
+        $redirect = add_query_arg('rs_email_test', $status, $redirect);
+        wp_safe_redirect($redirect);
+        exit;
+    }
+
     /**
      * Run scheduled import
      */

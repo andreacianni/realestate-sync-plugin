@@ -10,8 +10,11 @@ if (!defined('ABSPATH')) exit;
 // Get current email settings
 $email_enabled = get_option('realestate_sync_email_enabled', false);
 $email_attach_report = get_option('realestate_sync_email_attach_report', false);
-$email_to = get_option('realestate_sync_email_to', get_option('admin_email'));
+$admin_email = get_option('admin_email');
+$email_to = get_option('realestate_sync_email_to', $admin_email);
 $email_cc = get_option('realestate_sync_email_cc', '');
+$email_to_candidate = is_email($email_to) ? $email_to : $admin_email;
+$can_send_test = current_user_can('manage_options') && is_email($email_to_candidate);
 ?>
 
 <!--
@@ -58,14 +61,14 @@ $email_cc = get_option('realestate_sync_email_cc', '');
 
             <!-- Attach Report Option -->
             <div class="form-check mb-3">
-                <input type="checkbox" class="form-check-input" id="email-attach-report" <?php checked($email_attach_report); ?>>
+                <input type="checkbox" class="form-check-input" id="email-attach-report" <?php checked($email_attach_report); ?> disabled>
                 <label class="form-check-label" for="email-attach-report">
                     <strong>
                         <span class="dashicons dashicons-media-spreadsheet"></span>
                         <?php _e('Allega Report Dettagliato', 'realestate-sync'); ?>
                     </strong>
                     <div class="form-text">
-                        <?php _e('Allega file di log con dettagli completi dell\'import', 'realestate-sync'); ?>
+                        <?php _e('Temporaneamente disabilitato: logging in revisione', 'realestate-sync'); ?>
                     </div>
                 </label>
             </div>
@@ -94,6 +97,17 @@ $email_cc = get_option('realestate_sync_email_cc', '');
                     <?php _e('Email aggiuntive separate da virgola (es: email1@example.com, email2@example.com)', 'realestate-sync'); ?>
                 </div>
             </div>
+
+            <!-- Send Test Email -->
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="mb-4">
+                <input type="hidden" name="action" value="realestate_sync_send_test_email">
+                <?php wp_nonce_field('realestate_sync_send_test_email'); ?>
+                <input type="hidden" name="redirect_to" value="<?php echo esc_url(add_query_arg(array(), $_SERVER['REQUEST_URI'])); ?>">
+                <button type="submit" class="btn btn-outline-secondary w-100" <?php disabled(!$can_send_test); ?>>
+                    <span class="dashicons dashicons-email"></span>
+                    <?php _e('Invia email di prova', 'realestate-sync'); ?>
+                </button>
+            </form>
 
             <!-- Save Button -->
             <button type="button" class="btn btn-primary w-100" id="save-email-config">

@@ -92,6 +92,104 @@ class RealEstate_Sync_Email_Report {
     }
 
     /**
+     * Send email for a completed session report (no attachments).
+     *
+     * @param array $report Report data.
+     * @return void
+     */
+    public static function send_email($report) {
+        $session_id = $report['session_id'] ?? '';
+        if (empty($session_id)) {
+            return;
+        }
+
+        $sent_key = 'realestate_sync_email_sent_' . $session_id;
+        if (get_transient($sent_key)) {
+            error_log('[EMAIL-REPORT] Email already sent for session ' . $session_id);
+            return;
+        }
+
+        $enabled = get_option('realestate_sync_email_enabled', false);
+        if (!$enabled) {
+            error_log('[EMAIL-REPORT] Email disabled (no send) for session ' . $session_id);
+            return;
+        }
+
+        $admin_email = get_option('admin_email');
+        $to = get_option('realestate_sync_email_to', $admin_email);
+        if (empty($to) || !is_email($to)) {
+            $to = $admin_email;
+        }
+
+        if (empty($to) || !is_email($to)) {
+            error_log('[EMAIL-REPORT] Email send failed for session ' . $session_id);
+            return;
+        }
+
+        $cc_raw = get_option('realestate_sync_email_cc', '');
+        $cc_list = self::parse_cc_list($cc_raw);
+
+        $subject = self::format_email_subject($report);
+        $body = self::format_email_body($report);
+
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8'
+        );
+
+        if (!empty($cc_list)) {
+            $headers[] = 'Cc: ' . implode(', ', $cc_list);
+        }
+
+        $sent = wp_mail($to, $subject, $body, $headers);
+        if ($sent) {
+            set_transient($sent_key, 1, 2 * DAY_IN_SECONDS);
+            error_log('[EMAIL-REPORT] Sent email to ' . $to . ' (cc=' . count($cc_list) . ') for session ' . $session_id);
+        } else {
+            error_log('[EMAIL-REPORT] Email send failed for session ' . $session_id);
+        }
+    }
+
+    /**
+     * Send a test email using the report formatter.
+     *
+     * @return bool True if sent successfully.
+     */
+    public static function send_test_email() {
+        $report = self::get_report_for_test();
+
+        $admin_email = get_option('admin_email');
+        $to = get_option('realestate_sync_email_to', $admin_email);
+        if (empty($to) || !is_email($to)) {
+            $to = $admin_email;
+        }
+
+        if (empty($to) || !is_email($to)) {
+            return false;
+        }
+
+        $cc_raw = get_option('realestate_sync_email_cc', '');
+        $cc_list = self::parse_cc_list($cc_raw);
+
+        $subject = '[TEST] ' . self::format_email_subject($report);
+        $body = self::format_email_body($report);
+
+        $headers = array(
+            'Content-Type: text/plain; charset=UTF-8'
+        );
+
+        if (!empty($cc_list)) {
+            $headers[] = 'Cc: ' . implode(', ', $cc_list);
+        }
+
+        $sent = wp_mail($to, $subject, $body, $headers);
+        if ($sent) {
+            error_log('[EMAIL-REPORT] Sent TEST email to ' . $to . ' (cc=' . count($cc_list) . ')');
+        }
+
+        return (bool) $sent;
+    }
+
+    /**
      * Format subject line for the report.
      *
      * @param array $report Report data.
@@ -244,6 +342,24 @@ class RealEstate_Sync_Email_Report {
         return $list;
     }
 
+    private static function parse_cc_list($cc_raw) {
+        if (empty($cc_raw)) {
+            return array();
+        }
+
+        $parts = preg_split('/[;,]+/', $cc_raw);
+        $cc_list = array();
+
+        foreach ($parts as $part) {
+            $email = trim($part);
+            if ($email && is_email($email)) {
+                $cc_list[] = $email;
+            }
+        }
+
+        return array_values(array_unique($cc_list));
+    }
+
     private static function build_snapshot($report) {
         return array(
             'session_id' => $report['session_id'],
@@ -269,6 +385,87 @@ class RealEstate_Sync_Email_Report {
             $sum += (int) ($queue_stats[$key] ?? 0);
         }
         return $sum;
+    }
+
+    private static function get_report_for_test() {
+        $snapshot = get_option('realestate_sync_email_snapshot');
+        if (empty($snapshot) || !is_array($snapshot)) {
+            return self::build_mock_report();
+        }
+
+        $queue_stats = $snapshot['queue_stats'] ?? array();
+        $issue_ids = $snapshot['verification']['issues']['property_ids'] ?? array();
+        $issues_properties = array();
+
+        foreach ($issue_ids as $property_id) {
+            $issues_properties[$property_id] = array(
+                'title' => '',
+                'issues' => array()
+            );
+        }
+
+        return array(
+            'session_id' => $snapshot['session_id'] ?? 'test',
+            'start_time' => $snapshot['start_time'] ?? null,
+            'end_time' => $snapshot['end_time'] ?? null,
+            'queue_stats' => $queue_stats,
+            'verification' => array(
+                'verified_total' => (int) ($queue_stats['done'] ?? 0),
+                'total_issues' => (int) ($snapshot['verification']['total_issues'] ?? count($issue_ids)),
+                'issues' => array(
+                    'property_ids' => array_values($issue_ids),
+                    'properties' => $issues_properties
+                )
+            ),
+            'issues_delta' => array(
+                'resolved_ids' => array(),
+                'persisting_ids' => array(),
+                'new_ids' => array()
+            ),
+            'business_counts' => array(
+                'reliable' => false,
+                'reason' => 'test email',
+                'properties_new' => null,
+                'properties_updated' => null,
+                'agencies_new' => null,
+                'agencies_updated' => null
+            )
+        );
+    }
+
+    private static function build_mock_report() {
+        return array(
+            'session_id' => 'test',
+            'start_time' => null,
+            'end_time' => null,
+            'queue_stats' => array(
+                'total' => 0,
+                'done' => 0,
+                'error' => 0,
+                'processing' => 0
+            ),
+            'verification' => array(
+                'verified_total' => 0,
+                'total_issues' => 0,
+                'issues' => array(
+                    'property_ids' => array(),
+                    'properties' => array()
+                )
+            ),
+            'issues_delta' => array(
+                'resolved_ids' => array(),
+                'persisting_ids' => array(),
+                'new_ids' => array()
+            ),
+            'business_counts' => array(
+                'reliable' => false,
+                'reason' => 'test email',
+                'properties_new' => null,
+                'properties_updated' => null,
+                'agencies_new' => null,
+                'agencies_updated' => null
+            )
+        );
     }
 
     private static function get_business_counts($progress) {

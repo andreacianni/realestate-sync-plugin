@@ -305,6 +305,7 @@ try {
             require_once(dirname(__FILE__) . '/includes/class-realestate-sync-email-report.php');
             $report = RealEstate_Sync_Email_Report::build_report($session_id, $progress);
             RealEstate_Sync_Email_Report::save_snapshot($report);
+            RealEstate_Sync_Email_Report::send_email($report);
         } catch (Exception $e) {
             error_log('[EMAIL-REPORT] ERROR: ' . $e->getMessage());
         }
