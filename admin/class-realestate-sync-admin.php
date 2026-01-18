@@ -2164,11 +2164,16 @@ class RealEstate_Sync_Admin {
         
         try {
             // Check file upload
-            if (!isset($_FILES['test_xml_file']) || $_FILES['test_xml_file']['error'] !== UPLOAD_ERR_OK) {
+            $uploaded_file = null;
+            if (isset($_FILES['test_xml_file'])) {
+                $uploaded_file = $_FILES['test_xml_file'];
+            } elseif (isset($_FILES['xml_file'])) {
+                $uploaded_file = $_FILES['xml_file'];
+            }
+
+            if (!$uploaded_file || $uploaded_file['error'] !== UPLOAD_ERR_OK) {
                 throw new Exception('Errore nell\'upload del file XML');
             }
-            
-            $uploaded_file = $_FILES['test_xml_file'];
             
             // Validate file type
             if (!in_array($uploaded_file['type'], array('text/xml', 'application/xml')) && 
@@ -2644,14 +2649,20 @@ class RealEstate_Sync_Admin {
         if (!current_user_can('manage_options')) {
             wp_die('Unauthorized');
         }
-        
+
         try {
             // Check file upload
-            if (!isset($_FILES['test_xml_file']) || $_FILES['test_xml_file']['error'] !== UPLOAD_ERR_OK) {
+            $uploaded_file = null;
+            if (isset($_FILES['test_xml_file'])) {
+                $uploaded_file = $_FILES['test_xml_file'];
+            } elseif (isset($_FILES['xml_file'])) {
+                $uploaded_file = $_FILES['xml_file'];
+            }
+
+            if (!$uploaded_file || $uploaded_file['error'] !== UPLOAD_ERR_OK) {
                 throw new Exception('Errore nell\'upload del file XML');
             }
-            
-            $uploaded_file = $_FILES['test_xml_file'];
+
             $file_size = round($uploaded_file['size'] / 1024); // KB
             
             $this->logger->log("TEST UPLOAD: File {$uploaded_file['name']} ({$file_size}KB) uploaded", 'info');

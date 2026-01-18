@@ -37,7 +37,7 @@ if (!defined('ABSPATH')) {
             <div class="row g-3">
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/import-prossimo.php'; ?></div>
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/import-immediato.php'; ?></div>
-                <!-- Import XML widget disabled (dev/debug only; currently buggy) -->
+                <div class="col-md-6"><?php include __DIR__ . '/widgets/import-xml.php'; ?></div>
                 
             </div>
         </div>

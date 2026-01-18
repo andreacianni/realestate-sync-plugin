@@ -87,3 +87,8 @@ feng-shui-analysis/
 .env
 docs/debug-import-duplicati.md
 docs/UX-schema.txt
+
+# Diff files per verifiche log
+diff-batch-continuation.ps.txt
+server-snapshot-*/*
+diff-realestate-sync.ps.txt
