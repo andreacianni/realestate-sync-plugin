@@ -252,6 +252,10 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			}
 		}
 
+		// Force prop_featured to 0 to keep properties visible in theme queries.
+		$api_body['prop_featured'] = '0';
+		$this->logger->log('Forcing prop_featured=0 in API payload', 'INFO');
+
 		// 3. Taxonomies (as arrays)
 		if (!empty($mapped_property['taxonomies']) && is_array($mapped_property['taxonomies'])) {
 			foreach ($mapped_property['taxonomies'] as $taxonomy => $terms) {
