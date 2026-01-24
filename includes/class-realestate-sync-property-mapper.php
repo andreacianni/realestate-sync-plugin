@@ -891,13 +891,23 @@ class RealEstate_Sync_Property_Mapper {
             $taxonomies['property_area'] = [$this->slugify($xml_property['zone'])];
         }
 
-        // County/State: Provincia o Regione → County/State (taxonomy con slug)
-        // Usiamo la regione per evitare duplicati quando provincia = comune
-        if (!empty($xml_property['region'])) {
-            $taxonomies['property_county_state'] = [$this->slugify($xml_property['region'])];
+        // County/State: Province (Trento/Bolzano) from ISTAT prefix or XML province
+        $comune_istat = $xml_property['comune_istat'] ?? '';
+        $county_state = '';
+        if (substr($comune_istat, 0, 3) === '022') {
+            $county_state = 'Trento';
+        } elseif (substr($comune_istat, 0, 3) === '021') {
+            $county_state = 'Bolzano';
         } elseif (!empty($xml_property['province'])) {
-            // Fallback a provincia se regione non disponibile
-            $taxonomies['property_county_state'] = [$this->slugify($xml_property['province'])];
+            $county_state = $xml_property['province'];
+        }
+
+        if (!empty($county_state)) {
+            $taxonomies['property_county_state'] = [$this->slugify($county_state)];
+            $this->logger->log('property_county_state set', 'debug', [
+                'comune_istat' => $comune_istat,
+                'county_state' => $county_state
+            ]);
         }
 
         return $taxonomies;
