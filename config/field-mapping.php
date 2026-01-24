@@ -17,7 +17,7 @@ return array(
         'property_city' => 'citta',
         'property_zip' => 'cap',
         'property_state' => 'provincia',
-        'property_country' => 'Italy', // Default
+        'property_country' => 'Italia', // Prova nuovo mapping - era Italy (inglese per API?)
         'property_id_gestionale' => 'id',
         'property_ref' => null, // Generated: RS-{id}
         'property_source' => 'GestionaleImmobiliare'
@@ -188,7 +188,7 @@ return array(
     
     // Default Values
     'default_values' => array(
-        'property_country' => 'Italy',
+        'property_country' => 'Italia', // Prova nuovo mapping - era Italy (inglese per API?)
         'property_source' => 'GestionaleImmobiliare',
         'property_currency' => 'EUR',
         'post_status' => 'publish',

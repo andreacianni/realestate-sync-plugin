@@ -490,7 +490,7 @@ class RealEstate_Sync_Property_Mapper {
         $meta['property_county'] = $xml_property['province'] ?? '';      // Provincia → County
         $meta['property_state'] = $xml_property['region'] ?? '';         // Regione → State
         $meta['property_zip'] = $xml_property['zip_code'] ?? '';         // CAP → ZIP
-        $meta['property_country'] = 'Italy';                             // Italia → Italy (inglese per API)
+        $meta['property_country'] = 'Italia';                            // Prova nuovo mapping - era Italy (inglese per API?)
 
         // Google Maps display settings
         $meta['google_camera_angle'] = '45';         // Angolazione camera
