@@ -30,15 +30,17 @@ class RealEstate_Sync_Batch_Orchestrator {
 	 *
 	 * @param string $xml_file      Absolute path to XML file
 	 * @param bool   $mark_as_test  Whether to mark items as test (default: false)
+	 * @param bool   $force_update  Whether to force updates (default: false)
 	 * @return array Processing results with session_id, counts, and status
 	 */
-	public static function process_xml_batch( $xml_file, $mark_as_test = false ) {
+	public static function process_xml_batch( $xml_file, $mark_as_test = false, $force_update = false ) {
 
 		// 🔍 Start debug trace
 		$tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 		$trace_id = $tracker->start_trace('BATCH_ORCHESTRATOR', array(
 			'xml_file' => basename($xml_file),
-			'mark_as_test' => $mark_as_test
+			'mark_as_test' => $mark_as_test,
+			'force_update' => $force_update
 		));
 
 		// Generate unique session ID for this import
@@ -48,7 +50,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'session_id' => $session_id,
 			'trace_id' => $trace_id,
 			'xml_file' => $xml_file,
-			'mark_as_test' => $mark_as_test
+			'mark_as_test' => $mark_as_test,
+			'force_update' => $force_update
 		));
 
 		// 💾 Save trace metadata for background continuation
@@ -57,7 +60,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 		update_option('realestate_sync_current_trace_context', array(
 			'session_id' => $session_id,
 			'xml_file' => basename($xml_file),
-			'mark_as_test' => $mark_as_test
+			'mark_as_test' => $mark_as_test,
+			'force_update' => $force_update
 		), false);
 
 		// ═════════════════════════════════════════════════════════

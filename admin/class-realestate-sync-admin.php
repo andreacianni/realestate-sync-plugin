@@ -796,6 +796,10 @@ class RealEstate_Sync_Admin {
 
             // Check if user wants to mark properties as test
             $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
+            $force_update_raw = $_POST['force_update'] ?? '';
+            $force_update = in_array(strtolower((string) $force_update_raw), array('1', 'true', 'on'), true);
+
+            $this->logger->log('Manual import: force_update received: ' . ($force_update ? 'yes' : 'no'), 'debug');
 
             if ($mark_as_test) {
                 $this->logger->log('🔖 Manual import: Test mode enabled - data will be marked with _test_import flag', 'info');
@@ -812,7 +816,7 @@ class RealEstate_Sync_Admin {
             // ✅ BATCH ORCHESTRATOR: Process using shared batch logic
             $this->logger->log('🎯 Button B: Calling Batch Orchestrator with downloaded XML', 'info');
 
-            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($xml_file, $mark_as_test);
+            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($xml_file, $mark_as_test, $force_update);
 
             if (!$result['success']) {
                 throw new Exception('Batch processing failed: ' . ($result['error'] ?? 'Unknown error'));
@@ -2697,11 +2701,15 @@ class RealEstate_Sync_Admin {
 
             // Check if user wants to mark properties as test
             $mark_as_test = isset($_POST['mark_as_test']) && $_POST['mark_as_test'] === '1';
+            $force_update_raw = $_POST['force_update'] ?? '';
+            $force_update = in_array(strtolower((string) $force_update_raw), array('1', 'true', 'on'), true);
+
+            $this->logger->log('XML import: force_update received: ' . ($force_update ? 'yes' : 'no'), 'debug');
 
             // ✅ BATCH ORCHESTRATOR: Process using shared batch logic
             $this->logger->log('🎯 Button A: Calling Batch Orchestrator with uploaded XML', 'info');
 
-            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($temp_file, $mark_as_test);
+            $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($temp_file, $mark_as_test, $force_update);
 
             // Cleanup temp file
             if (file_exists($temp_file)) {
