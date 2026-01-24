@@ -37,6 +37,7 @@ jQuery(document).ready(function($) {
             const $logOutput = $('#manual-import-log-output');
             const $logContent = $('#manual-import-log-content');
             const markAsTest = $('#mark-as-test-manual-import').is(':checked');
+            const forceUpdate = $('#force-update-manual-import').is(':checked');
 
             // Show log and disable button
             $logOutput.removeClass('d-none');
@@ -50,7 +51,8 @@ jQuery(document).ready(function($) {
                 data: {
                     action: 'realestate_sync_manual_import',
                     nonce: realestateSync.nonce,
-                    mark_as_test: markAsTest ? '1' : '0'
+                    mark_as_test: markAsTest ? '1' : '0',
+                    force_update: forceUpdate ? '1' : '0'
                 },
                 success: function(response) {
                     if (response.success) {
@@ -326,6 +328,7 @@ jQuery(document).ready(function($) {
         const $logContent = $('#test-log-content');
         const fileInput = document.getElementById('test-xml-file');
         const markAsTest = $('#mark-as-test-import').is(':checked');
+        const forceUpdate = $('#force-update-xml-import').is(':checked');
 
         if (!fileInput.files.length) {
             alert('Seleziona un file XML prima di procedere');
@@ -338,6 +341,7 @@ jQuery(document).ready(function($) {
         formData.append('action', 'realestate_sync_process_test_file');
         formData.append('nonce', realestateSync.nonce);
         formData.append('mark_as_test', markAsTest ? '1' : '0');
+        formData.append('force_update', forceUpdate ? '1' : '0');
 
         // Show log output
         $logOutput.removeClass('d-none');

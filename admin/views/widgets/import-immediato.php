@@ -34,6 +34,17 @@ if (!defined('ABSPATH')) exit;
 
         <div class="alert alert-warning mb-3 small">
             <div class="form-check d-flex align-items-start">
+                <input type="checkbox" class="form-check-input mt-1" id="force-update-manual-import">
+                <label class="form-check-label ms-2" for="force-update-manual-import">
+                    <span class="dashicons dashicons-update"></span>
+                    <strong>Forza aggiornamento (una tantum)</strong>
+                </label>
+            </div>
+            <div class="form-text ms-4">
+                Ignora il controllo modifiche e forza l’update di tutte le proprietà per questo import. Operazione più lenta; non influisce sugli import automatici.
+            </div>
+            <?php if (false) : ?>
+            <div class="form-check d-flex align-items-start">
                 <input type="checkbox" class="form-check-input mt-1" id="mark-as-test-manual-import">
                 <label class="form-check-label ms-2" for="mark-as-test-manual-import">
                     <span class="dashicons dashicons-flag"></span>
@@ -43,6 +54,7 @@ if (!defined('ABSPATH')) exit;
             <div class="form-text ms-4">
                 Le proprieta, agenzie e media verranno marcate con flag <code>_test_import=1</code> per facile rimozione
             </div>
+            <?php endif; ?>
         </div>
 
         <button type="button" class="btn btn-success btn-lg w-100" id="start-manual-import">

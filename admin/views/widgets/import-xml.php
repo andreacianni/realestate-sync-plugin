@@ -57,6 +57,20 @@ if (!defined('ABSPATH')) exit;
             <div class="form-text">Seleziona file XML (esempio: sample-con-agenzie.xml)</div>
         </div>
 
+        <div class="alert alert-warning mb-3 small">
+            <div class="form-check d-flex align-items-start">
+                <input type="checkbox" class="form-check-input mt-1" id="force-update-xml-import">
+                <label class="form-check-label ms-2" for="force-update-xml-import">
+                    <span class="dashicons dashicons-update"></span>
+                    <strong>Forza aggiornamento (una tantum)</strong>
+                </label>
+            </div>
+            <div class="form-text ms-4">
+                Ignora il controllo modifiche e forza l’update di tutte le proprietà per questo import. Operazione più lenta; non influisce sugli import automatici.
+            </div>
+        </div>
+
+        <?php if (false) : ?>
         <div class="form-check mb-3">
             <input type="checkbox" class="form-check-input" id="mark-as-test-import" checked>
             <label class="form-check-label" for="mark-as-test-import">
@@ -68,6 +82,7 @@ if (!defined('ABSPATH')) exit;
                 <span class="badge bg-secondary">✗ Disattivo</span> Import normale (produzione), le proprietà non saranno marcate come test
             </div>
         </div>
+        <?php endif; ?>
 
         <button type="button" class="btn btn-warning w-100" id="process-test-file" disabled>
             <span class="dashicons dashicons-admin-generic"></span>
