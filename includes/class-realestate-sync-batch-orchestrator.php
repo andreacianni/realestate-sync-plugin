@@ -340,6 +340,20 @@ class RealEstate_Sync_Batch_Orchestrator {
 				continue;
 			}
 
+			if ( $force_update ) {
+				$result = $queue_manager->add_property( $session_id, $property_id );
+				if ( $result ) {
+					$properties_queued++;
+				} else {
+					$properties_failed++;
+					$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add property to queue', array(
+						'property_id' => $property_id,
+						'wpdb_error' => $GLOBALS['wpdb']->last_error
+					));
+				}
+				continue;
+			}
+
 			// ✨ OPTIMIZATION: Calculate hash and check for changes BEFORE queueing
 			try {
 				$hash = $tracking_manager->calculate_property_hash( $property_data );
@@ -387,6 +401,13 @@ class RealEstate_Sync_Batch_Orchestrator {
 		}
 
 		// ✨ Log optimization statistics
+		if ( $force_update ) {
+			$tracker->log_event('INFO', 'ORCHESTRATOR', 'force_update enabled: bypass hash prefilter', array(
+				'properties_total' => count( $properties ),
+				'properties_queued' => $properties_queued
+			));
+		}
+
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Pre-filtering complete', array(
 			'total_properties' => count( $properties ),
 			'queued' => $properties_queued,
@@ -437,13 +458,14 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'session_id'    => $session_id,
 			'xml_file_path' => $xml_file,
 			'mark_as_test'  => $mark_as_test,
+			'force_update'  => $force_update,
 			'start_time'    => time(),
 			'status'        => 'processing',
 			'total_items'   => $total_queued,
 		) );
 
 		// Process first batch immediately (max 10 items)
-		$batch_processor   = new RealEstate_Sync_Batch_Processor( $session_id, $xml_file, $mark_as_test );
+		$batch_processor   = new RealEstate_Sync_Batch_Processor( $session_id, $xml_file, $mark_as_test, $force_update );
 		$first_batch_result = $batch_processor->process_next_batch();
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'First batch complete', array(
@@ -473,6 +495,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 				'session_id'    => $session_id,
 				'xml_file_path' => $xml_file,
 				'mark_as_test'  => $mark_as_test,
+				'force_update'  => $force_update,
 				'start_time'    => time(),
 				'status'        => 'completed',
 				'total_items'   => $total_queued,

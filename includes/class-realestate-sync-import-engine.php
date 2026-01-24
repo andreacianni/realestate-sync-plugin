@@ -569,6 +569,13 @@ class RealEstate_Sync_Import_Engine {
         }
 
         // Configure streaming parser
+
+        if (isset($config['force_update'])) {
+            $this->session_data['force_update'] = (bool) $config['force_update'];
+            if ($this->session_data['force_update']) {
+                $this->logger->log('Force update enabled via configure()', 'info');
+            }
+        }
         $this->streaming_parser->configure(array(
             'chunk_size' => $this->config['chunk_size'],
             'sleep_seconds' => $this->config['sleep_seconds'],
@@ -593,6 +600,7 @@ class RealEstate_Sync_Import_Engine {
             // Save options to session data
             $this->session_data['xml_file_path'] = $xml_file_path;
             $this->session_data['mark_as_test'] = isset($options['mark_as_test']) ? $options['mark_as_test'] : false;
+            $this->session_data['force_update'] = isset($options['force_update']) ? (bool) $options['force_update'] : false;
 
             if ($this->session_data['mark_as_test']) {
                 $this->logger->log("🔖 Test import mode enabled - properties will be marked with _test_import flag", 'info');
@@ -724,10 +732,31 @@ class RealEstate_Sync_Import_Engine {
             $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
             $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
 
-            $this->logger->log("✅ STEP 2a: Action determined", 'info', [
+            $this->logger->log("STEP 2a: Action determined", 'info', [
                 'action' => $change_status['action'],
                 'reason' => $change_status['reason']
             ]);
+
+            $force_update = !empty($this->session_data['force_update']);
+            if ($force_update && ($change_status['action'] ?? '') === 'skip') {
+                static $forced_skip_logged = 0;
+                static $forced_skip_suppressed = false;
+
+                if ($forced_skip_logged < 10) {
+                    $this->logger->log('Force update: bypassing skip for unchanged property', 'info', [
+                        'property_id' => $property_id,
+                        'reason' => $change_status['reason'] ?? null
+                    ]);
+                    $forced_skip_logged++;
+                } elseif (!$forced_skip_suppressed) {
+                    $this->logger->log('Force update: skip bypass logging suppressed after 10 properties', 'info');
+                    $forced_skip_suppressed = true;
+                }
+
+                $change_status['action'] = 'update';
+                $change_status['reason'] = 'force_update';
+                $change_status['has_changed'] = true;
+            }
 
             // Gestione azione SKIP
             if ($change_status['action'] === 'skip') {
@@ -798,6 +827,27 @@ class RealEstate_Sync_Import_Engine {
                 'action' => $change_status['action'],
                 'reason' => $change_status['reason']
             ]);
+
+            $force_update = !empty($this->session_data['force_update']);
+            if ($force_update && ($change_status['action'] ?? '') === 'skip') {
+                static $forced_skip_logged = 0;
+                static $forced_skip_suppressed = false;
+
+                if ($forced_skip_logged < 10) {
+                    $this->logger->log('Force update: bypassing skip for unchanged property', 'info', [
+                        'property_id' => $property_id,
+                        'reason' => $change_status['reason'] ?? null
+                    ]);
+                    $forced_skip_logged++;
+                } elseif (!$forced_skip_suppressed) {
+                    $this->logger->log('Force update: skip bypass logging suppressed after 10 properties', 'info');
+                    $forced_skip_suppressed = true;
+                }
+
+                $change_status['action'] = 'update';
+                $change_status['reason'] = 'force_update';
+                $change_status['has_changed'] = true;
+            }
 
             // 🔍 LOG: Change detection result (debug tracker)
             $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Self-healing resolution complete', array(

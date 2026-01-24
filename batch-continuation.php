@@ -230,6 +230,7 @@ if (($progress['session_id'] ?? '') !== $session_id) {
 
 $xml_file_path = $progress['xml_file_path'] ?? '';
 $mark_as_test = $progress['mark_as_test'] ?? false;
+$force_update = $progress['force_update'] ?? false;
 
 if (empty($xml_file_path)) {
     error_log('[BATCH-CONTINUATION] ❌ ERROR: XML file path not found in session progress');
@@ -250,6 +251,7 @@ if (empty($xml_file_path)) {
 
 error_log("[BATCH-CONTINUATION] >>> XML file (stored but not used): {$xml_file_path}");
 error_log("[BATCH-CONTINUATION] >>> Mark as test: " . ($mark_as_test ? 'YES' : 'NO'));
+error_log("[BATCH-CONTINUATION] >>> Force update: " . ($force_update ? 'YES' : 'NO'));
 error_log("[BATCH-CONTINUATION] >>> Batch processor will use pre-parsed data from database");
 
 // Load the batch processor
@@ -258,7 +260,7 @@ require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processo
 
 try {
     error_log('[BATCH-CONTINUATION] >>> Creating batch processor...');
-    $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test);
+    $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test, $force_update);
 
     error_log('[BATCH-CONTINUATION] >>> Processing next batch...');
     $result = $batch_processor->process_next_batch();

@@ -91,16 +91,23 @@ class RealEstate_Sync_Batch_Processor {
     private $mark_as_test;
 
     /**
+     * Force update flag
+     */
+    private $force_update;
+
+    /**
      * Constructor
      *
      * @param string $session_id    Session ID
      * @param string $xml_file_path Path to XML file
      * @param bool   $mark_as_test  Mark items as test (default: false)
+     * @param bool   $force_update  Force update bypass (default: false)
      */
-    public function __construct($session_id, $xml_file_path, $mark_as_test = false) {
+    public function __construct($session_id, $xml_file_path, $mark_as_test = false, $force_update = false) {
         $this->session_id = $session_id;
         $this->xml_file_path = $xml_file_path;
         $this->mark_as_test = $mark_as_test;
+        $this->force_update = $force_update;
 
         // Initialize queue manager
         $this->queue_manager = new RealEstate_Sync_Queue_Manager();
@@ -121,9 +128,10 @@ class RealEstate_Sync_Batch_Processor {
         // Configure Import_Engine with test flag
         $settings = get_option('realestate_sync_settings', array());
         $settings['mark_as_test'] = $mark_as_test;
+        $settings['force_update'] = $force_update;
         $this->import_engine->configure($settings);
 
-        error_log("[BATCH-PROCESSOR] âœ… Import_Engine initialized (mark_as_test=" . ($mark_as_test ? 'YES' : 'NO') . ")");
+        error_log("[BATCH-PROCESSOR] âœ… Import_Engine initialized (mark_as_test=" . ($mark_as_test ? 'YES' : 'NO') . "), force_update=" . ($force_update ? 'YES' : 'NO') . ")");
 
         // Initialize Agency classes (agencies processed directly via Agency_Manager)
         $this->agency_parser = new RealEstate_Sync_Agency_Parser();
@@ -712,4 +720,3 @@ class RealEstate_Sync_Batch_Processor {
         }
     }
 }
-
