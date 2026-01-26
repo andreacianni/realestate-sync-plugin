@@ -92,3 +92,6 @@ docs/UX-schema.txt
 diff-batch-continuation.ps.txt
 server-snapshot-*/*
 diff-realestate-sync.ps.txt
+docs/STEP0-impact-assessment-term-names.md
+docs/STEP0-slugify-humanize-necessity.md
+data/bonifica_C2__comuni_istat_slug.csv

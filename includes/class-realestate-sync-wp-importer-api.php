@@ -422,6 +422,13 @@ class RealEstate_Sync_WP_Importer_API {
 			return;
 		}
 
+		$source_data = $mapped_property['source_data'] ?? array();
+		$original_name_map = array(
+			// Use original names for display; slug remains the identifier.
+			'property_city' => $source_data['city'] ?? '',
+			'property_area' => $source_data['zone'] ?? '',
+		);
+
 		foreach ($mapped_property['taxonomies'] as $taxonomy => $terms) {
 			if (empty($terms) || !is_array($terms)) {
 				continue;
@@ -432,7 +439,8 @@ class RealEstate_Sync_WP_Importer_API {
 				$term = term_exists($term_slug, $taxonomy);
 
 				if (!$term) {
-					$term_name = $this->humanize_term_name($term_slug);
+					$original_name = $original_name_map[$taxonomy] ?? '';
+					$term_name = $original_name !== '' ? $original_name : $this->humanize_term_name($term_slug);
 					$result = wp_insert_term($term_name, $taxonomy, array(
 						'slug' => $term_slug,
 					));
