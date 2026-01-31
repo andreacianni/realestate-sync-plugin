@@ -2,7 +2,7 @@
 /**
  * Widget: Cleanup Duplicate Properties
  * Tab: Strumenti
- * User: Tecnico (Developer Mode)
+ * User: Tecnico
  */
 
 if (!defined('ABSPATH')) exit;

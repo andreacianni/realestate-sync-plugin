@@ -14,7 +14,7 @@ NAVIGAZIONE DASHBOARD - 4 TAB (Bootstrap nav-tabs)
 TAB 1 - DASHBOARD: Informational (storico, monitor, log)
 TAB 2 - IMPORT: Operazioni manuali (import immediato, XML, prossimo auto)
 TAB 3 - SETTING: Configurazioni (automatico, credenziali, email)
-TAB 4 - STRUMENTI: Tools tecnici (developer mode, queue, cleanup)
+TAB 4 - STRUMENTI: Tools tecnici (queue, cleanup)
 ═══════════════════════════════════════════════════════════════════════════
 -->
 <ul class="nav nav-tabs mb-4" role="tablist">

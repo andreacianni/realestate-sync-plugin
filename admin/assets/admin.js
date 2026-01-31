@@ -1713,46 +1713,4 @@ jQuery(document).ready(function($) {
             }
         });
     });
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // DEVELOPER MODE TOGGLE
-    // ═══════════════════════════════════════════════════════════════════════════
-    $('#developer-mode-toggle').on('change', function() {
-        const isEnabled = $(this).is(':checked');
-        const $message = $('#developer-mode-message');
-        const $statusAlert = $('#developer-mode-status');
-        const $developerSections = $('[data-developer-section]');
-
-        // Toggle visibility of developer sections
-        if (isEnabled) {
-            $developerSections.removeClass('d-none').slideDown(300);
-            $message.text('Modalità Sviluppatore attiva - Strumenti tecnici visibili');
-            $statusAlert.removeClass('alert-secondary').addClass('alert-success');
-        } else {
-            $developerSections.slideUp(300, function() {
-                $(this).addClass('d-none');
-            });
-            $message.text('Modalità Utente Standard - Solo strumenti essenziali');
-            $statusAlert.removeClass('alert-success').addClass('alert-secondary');
-        }
-
-        // Save preference to user meta via AJAX
-        $.ajax({
-            url: realestateSync.ajax_url,
-            type: 'POST',
-            data: {
-                action: 'realestate_sync_toggle_developer_mode',
-                nonce: realestateSync.nonce,
-                enabled: isEnabled ? 1 : 0
-            },
-            success: function(response) {
-                if (response.success) {
-                    console.log('Developer mode preference saved:', isEnabled);
-                }
-            },
-            error: function() {
-                console.error('Failed to save developer mode preference');
-            }
-        });
-    });
 });

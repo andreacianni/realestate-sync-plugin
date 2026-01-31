@@ -2,7 +2,7 @@
 /**
  * Widget: Gestione Queue Import
  * Tab: Strumenti
- * User: Tecnico (Developer Mode)
+ * User: Tecnico
  */
 
 if (!defined('ABSPATH')) exit;
@@ -28,7 +28,7 @@ if (!defined('ABSPATH')) exit;
 ║  - Modifica status da "processing" a "pending"                    ║
 ║  - DELETE FROM queue WHERE condition                              ║
 ║                                                                   ║
-║ VISIBILITÀ: Sempre (ma target = developer)                        ║
+║ VISIBILITÀ: Sempre                         ║
 ║ FREQUENZA USO: Durante debug import falliti                       ║
 ║ CRITICO: Sì (essenziale per sbloccare import incompleti)          ║
 ║                                                                   ║

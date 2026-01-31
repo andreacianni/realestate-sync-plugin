@@ -667,10 +667,6 @@ input[type="checkbox"]:checked {
     accent-color: #2271b1;
 }
 
-/* Progress indicator for developer mode sections */
-.rs-developer-only {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
 
 /* Skeleton loading animation */
 @keyframes rs-skeleton {
@@ -790,12 +786,6 @@ input[type="checkbox"]:checked {
     .widefat th,
     .widefat td {
         padding: 8px 6px;
-    }
-
-    /* Developer mode toggle mobile friendly */
-    #developer-mode-toggle {
-        width: 24px !important;
-        height: 24px !important;
     }
 
     /* Toast adjustments already in place above */
