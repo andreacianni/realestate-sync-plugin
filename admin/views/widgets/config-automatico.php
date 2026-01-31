@@ -153,23 +153,6 @@ $server_timezone = wp_timezone_string();
                 </div>
             </div>
 
-            <!-- Preview Next Run -->
-            <div class="alert alert-secondary mb-4">
-                <strong><span class="dashicons dashicons-calendar"></span> Prossima Esecuzione:</strong>
-                <div id="next-run-preview" class="mt-2 fs-5 fw-bold text-success">
-                    <?php
-                    if ($schedule_enabled && $next_run) {
-                        echo esc_html(date('Y-m-d H:i:s', $next_run));
-                    } else {
-                        echo 'Non programmato';
-                    }
-                    ?>
-                </div>
-                <div class="form-text small">
-                    Aggiorna automaticamente dopo aver salvato la configurazione.
-                </div>
-            </div>
-
                         <!-- Mark as Test Option -->
             <div class="alert alert-warning mb-4">
                 <div class="form-check d-flex align-items-center">

@@ -95,3 +95,5 @@ diff-realestate-sync.ps.txt
 docs/STEP0-impact-assessment-term-names.md
 docs/STEP0-slugify-humanize-necessity.md
 data/bonifica_C2__comuni_istat_slug.csv
+admin/views/widgets/import-prossimo.bk
+docs/DEV_MODE_WIDGET_VISIBILITY.md
