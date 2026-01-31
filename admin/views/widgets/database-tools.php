@@ -6,13 +6,18 @@
  */
 
 if (!defined('ABSPATH')) exit;
+
+require_once __DIR__ . '/../partials/allowed-admins.php';
+if (!rs_current_user_is_allowed_admin()) {
+    return;
+}
 ?>
 
 <!--
 ╔═══════════════════════════════════════════════════════════════════╗
 ║ WIDGET: DATABASE TOOLS (Cleanup Test Data)                        ║
 ╠═══════════════════════════════════════════════════════════════════╣
-║ UTENTE: Entrambi (Admin + Tecnico)                               ║
+║ UTENTE: Admin autorizzati                               ║
 ║ SCOPO: Rimuovi dati di test marcati con _test_import=1           ║
 ║                                                                   ║
 ║ AZIONI UTENTE:                                                    ║
@@ -24,7 +29,7 @@ if (!defined('ABSPATH')) exit;
 ║  - wp_realestate_sync_tracking: (delete via hook)                 ║
 ║  - Media library: (delete via hook)                               ║
 ║                                                                   ║
-║ VISIBILITÀ: Sempre                                                ║
+║ VISIBILITÀ: Solo admin autorizzati                                                ║
 ║ FREQUENZA USO: Dopo testing                                       ║
 ║ CRITICO: No (solo per pulizia test, non dati produzione)          ║
 ╚═══════════════════════════════════════════════════════════════════╝
