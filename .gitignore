@@ -97,3 +97,11 @@ docs/STEP0-slugify-humanize-necessity.md
 data/bonifica_C2__comuni_istat_slug.csv
 admin/views/widgets/import-prossimo.bk
 docs/DEV_MODE_WIDGET_VISIBILITY.md
+docs/allineamento Github.md
+.gitignore
+docs/deploy-scripts-list.txt
+docs/repo-branches.txt
+docs/staging-check.txt
+.gitignore
+docs/backup-vs-local-stat.txt
+docs/repo-check.txt
