@@ -105,3 +105,10 @@ docs/staging-check.txt
 .gitignore
 docs/backup-vs-local-stat.txt
 docs/repo-check.txt
+tmp/
+
+# Superseded planning/analysis docs for missing_from_feed
+docs/develop/*-analysis.md
+docs/develop/2026-04-18-delete-missing-properties-blueprint.md
+docs/develop/2026-04-20-delete-missing-properties-implementation-plan.md
+docs/supporto-oneshot/2026-04-18-docs-status.md
