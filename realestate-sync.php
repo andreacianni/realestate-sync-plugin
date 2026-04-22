@@ -90,8 +90,6 @@ class RealEstate_Sync {
      */
     private function init_hooks() {
         // 🚀 PROFESSIONAL ACTIVATION: wp_loaded approach (BREAKTHROUGH IMPLEMENTATION)
-        register_activation_hook(__FILE__, [__CLASS__, 'set_activation_flag']);
-        register_deactivation_hook(__FILE__, [__CLASS__, 'plugin_deactivate']);
         
         // 💎 ELEGANT wp_loaded ACTIVATION: Complete activation when WordPress is fully loaded
         add_action('wp_loaded', [$this, 'complete_activation']);
@@ -761,6 +759,11 @@ class RealEstate_Sync {
 function realestate_sync_init() {
     return RealEstate_Sync::get_instance();
 }
+
+// Register activation hooks at file load time so they are available during
+// WordPress plugin activation, before plugins_loaded-based bootstrap runs.
+register_activation_hook(__FILE__, ['RealEstate_Sync', 'set_activation_flag']);
+register_deactivation_hook(__FILE__, ['RealEstate_Sync', 'plugin_deactivate']);
 
 // Start the plugin
 add_action('plugins_loaded', 'realestate_sync_init', 0);
