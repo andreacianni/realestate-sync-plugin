@@ -190,6 +190,14 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'skipped_provinces' => $skipped_count
 		));
 
+		$feed_active_property_ids = array_values( array_unique( $properties ) );
+		$feed_deleted_property_ids = array_values( array_unique( $properties_deleted ) );
+
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Feed property IDs collected after province filter', array(
+			'feed_active_property_ids' => count( $feed_active_property_ids ),
+			'feed_deleted_property_ids' => count( $feed_deleted_property_ids ),
+		));
+
 		// ═════════════════════════════════════════════════════════
 		// STEP 1b: HANDLE DELETIONS (Before queue creation)
 		// ═════════════════════════════════════════════════════════
@@ -239,6 +247,30 @@ class RealEstate_Sync_Batch_Orchestrator {
 		}
 
 		// ═════════════════════════════════════════════════════════
+		$tracked_property_ids = self::get_tracked_property_ids_for_missing_from_feed();
+		$missing_from_feed_candidates = array_values( array_diff(
+			$tracked_property_ids,
+			$feed_active_property_ids,
+			$feed_deleted_property_ids
+		) );
+
+		$delete_queue_manager = new RealEstate_Sync_Delete_Queue_Manager();
+		$missing_from_feed_queue_stats = $delete_queue_manager->add_items(
+			$session_id,
+			$missing_from_feed_candidates,
+			'missing_from_feed'
+		);
+
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'missing_from_feed detection complete', array(
+			'feed_active_property_ids' => count( $feed_active_property_ids ),
+			'feed_deleted_property_ids' => count( $feed_deleted_property_ids ),
+			'tracked_property_ids' => count( $tracked_property_ids ),
+			'missing_from_feed_candidates' => count( $missing_from_feed_candidates ),
+			'missing_from_feed_inserted' => $missing_from_feed_queue_stats['inserted'],
+		));
+
+		error_log( '[BATCH-ORCHESTRATOR] missing_from_feed detection: active=' . count( $feed_active_property_ids ) . ', deleted=' . count( $feed_deleted_property_ids ) . ', candidates=' . count( $missing_from_feed_candidates ) . ', inserted=' . $missing_from_feed_queue_stats['inserted'] );
+
 		// STEP 2: CREATE QUEUE
 		// ═════════════════════════════════════════════════════════
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 2: Creating queue');
@@ -532,5 +564,25 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'remaining'              => $total_queued - $first_batch_result['processed'],
 			'deletion_stats'         => $deletion_stats, // ✨ v1.7.1: Deletion statistics
 		);
+	}
+	/**
+	 * Get tracked property IDs eligible for missing_from_feed detection.
+	 *
+	 * Uses the existing tracking table already used by the plugin.
+	 *
+	 * @return array
+	 */
+	private static function get_tracked_property_ids_for_missing_from_feed() {
+		global $wpdb;
+
+		$table_name = $wpdb->prefix . RealEstate_Sync_Tracking_Manager::TABLE_NAME;
+		$property_ids = $wpdb->get_col(
+			"SELECT property_id
+			FROM {$table_name}
+			WHERE wp_post_id IS NOT NULL
+			AND status <> 'deleted'"
+		);
+
+		return array_values( array_unique( array_map( 'strval', $property_ids ) ) );
 	}
 }
