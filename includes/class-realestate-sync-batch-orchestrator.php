@@ -61,7 +61,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'session_id' => $session_id,
 			'xml_file' => basename($xml_file),
 			'mark_as_test' => $mark_as_test,
-			'force_update' => $force_update
+			'force_update' => $force_update,
 		), false);
 
 		// ═════════════════════════════════════════════════════════
@@ -83,8 +83,10 @@ class RealEstate_Sync_Batch_Orchestrator {
 		// Get enabled provinces from settings
 		$settings          = get_option( 'realestate_sync_settings', array() );
 		$enabled_provinces = $settings['enabled_provinces'] ?? array( 'TN', 'BZ' );
+		$delete_runtime_config = self::get_delete_runtime_config( $settings );
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Enabled provinces', array('provinces' => $enabled_provinces));
+		$tracker->log_event('INFO', 'ORCHESTRATOR', 'Delete runtime guardrails resolved', $delete_runtime_config);
 
 		// Index agencies (with province filter applied by Agency_Parser)
 		$agency_parser = new RealEstate_Sync_Agency_Parser();
@@ -486,14 +488,14 @@ class RealEstate_Sync_Batch_Orchestrator {
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'STEP 3: Processing first batch (immediate)');
 
 		// Save import progress metadata
-		update_option( 'realestate_sync_background_import_progress', array(
-			'session_id'    => $session_id,
-			'xml_file_path' => $xml_file,
-			'mark_as_test'  => $mark_as_test,
-			'force_update'  => $force_update,
-			'start_time'    => time(),
-			'status'        => 'processing',
-			'total_items'   => $total_queued,
+		update_option( 'realestate_sync_background_import_progress', self::build_import_progress_payload(
+			$session_id,
+			$xml_file,
+			$mark_as_test,
+			$force_update,
+			$total_queued,
+			'processing',
+			$delete_runtime_config
 		) );
 
 		// Process first batch immediately (max 10 items)
@@ -523,14 +525,14 @@ class RealEstate_Sync_Batch_Orchestrator {
 			error_log( "[BATCH-ORCHESTRATOR] All items processed in first batch - COMPLETE!" );
 
 			// Update progress to completed
-			update_option( 'realestate_sync_background_import_progress', array(
-				'session_id'    => $session_id,
-				'xml_file_path' => $xml_file,
-				'mark_as_test'  => $mark_as_test,
-				'force_update'  => $force_update,
-				'start_time'    => time(),
-				'status'        => 'completed',
-				'total_items'   => $total_queued,
+			update_option( 'realestate_sync_background_import_progress', self::build_import_progress_payload(
+				$session_id,
+				$xml_file,
+				$mark_as_test,
+				$force_update,
+				$total_queued,
+				'completed',
+				$delete_runtime_config
 			) );
 		}
 
@@ -584,5 +586,66 @@ class RealEstate_Sync_Batch_Orchestrator {
 		);
 
 		return array_values( array_unique( array_map( 'strval', $property_ids ) ) );
+	}
+
+	/**
+	 * Resolve delete runtime guardrails from backend settings with safe defaults.
+	 *
+	 * In Step 3 these values are saved for future phases only.
+	 *
+	 * @param array $settings Plugin settings array.
+	 * @return array
+	 */
+	private static function get_delete_runtime_config( array $settings ) {
+		$allowed_modes = array( 'dry_run', 'soft', 'live' );
+		$mode = isset( $settings['missing_from_feed_delete_mode'] ) ? sanitize_key( $settings['missing_from_feed_delete_mode'] ) : 'dry_run';
+
+		if ( ! in_array( $mode, $allowed_modes, true ) ) {
+			$mode = 'dry_run';
+		}
+
+		$kill_switch = array_key_exists( 'missing_from_feed_delete_kill_switch', $settings )
+			? (bool) $settings['missing_from_feed_delete_kill_switch']
+			: true;
+
+		$cap = isset( $settings['missing_from_feed_delete_cap'] ) ? (int) $settings['missing_from_feed_delete_cap'] : 10;
+		$cap = max( 1, $cap );
+
+		return array(
+			'mode' => $mode,
+			'kill_switch' => $kill_switch,
+			'cap' => $cap,
+			'contract' => array(
+				'detection_enabled' => true,
+				'queue_enabled' => true,
+				'real_delete_enabled' => false,
+				'deletion_manager_invocation_enabled' => false,
+			),
+		);
+	}
+
+	/**
+	 * Build the import progress payload with delete runtime guardrails.
+	 *
+	 * @param string $session_id            Import session ID.
+	 * @param string $xml_file              XML file path.
+	 * @param bool   $mark_as_test          Test mode flag.
+	 * @param bool   $force_update          Force update flag.
+	 * @param int    $total_items           Total queued items.
+	 * @param string $status                Import status.
+	 * @param array  $delete_runtime_config Delete runtime config.
+	 * @return array
+	 */
+	private static function build_import_progress_payload( $session_id, $xml_file, $mark_as_test, $force_update, $total_items, $status, array $delete_runtime_config ) {
+		return array(
+			'session_id'     => $session_id,
+			'xml_file_path'  => $xml_file,
+			'mark_as_test'   => $mark_as_test,
+			'force_update'   => $force_update,
+			'start_time'     => time(),
+			'status'         => $status,
+			'total_items'    => $total_items,
+			'delete_runtime' => $delete_runtime_config,
+		);
 	}
 }
