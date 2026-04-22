@@ -143,6 +143,7 @@ class RealEstate_Sync {
 
         // Batch System classes
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-queue-manager.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-delete-queue-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-processor.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-orchestrator.php';
 
@@ -400,6 +401,9 @@ class RealEstate_Sync {
         require_once plugin_dir_path(__FILE__) . 'includes/class-realestate-sync-queue-manager.php';
         $queue_manager = new RealEstate_Sync_Queue_Manager();
         $queue_manager->create_table();
+
+        $delete_queue_manager = new RealEstate_Sync_Delete_Queue_Manager();
+        $delete_queue_manager->create_table();
 
         // ✅ AGENCY TRACKING: Create agency tracking table
         require_once plugin_dir_path(__FILE__) . 'includes/class-realestate-sync-tracking-manager.php';
