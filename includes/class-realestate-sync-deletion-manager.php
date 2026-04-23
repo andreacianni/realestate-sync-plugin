@@ -15,6 +15,10 @@
 
 class RealEstate_Sync_Deletion_Manager {
 
+	const SINGLE_DELETE_SUCCESS   = 'success';
+	const SINGLE_DELETE_NOT_FOUND = 'not_found';
+	const SINGLE_DELETE_ERROR     = 'error';
+
 	/**
 	 * Debug tracker instance
 	 *
@@ -60,27 +64,16 @@ class RealEstate_Sync_Deletion_Manager {
 		);
 
 		foreach ($deleted_property_ids as $property_id) {
-			try {
-				$result = $this->delete_property($property_id);
+			$result = $this->delete_single_property($property_id);
 
-				if ($result['success']) {
-					$stats['properties_deleted']++;
-					$stats['attachments_deleted'] += $result['attachments_deleted'];
-					$stats['disk_space_freed'] += $result['disk_space_freed'];
-				} elseif ($result['not_found']) {
-					$stats['properties_not_found']++;
-				} else {
-					$stats['errors']++;
-				}
-
-			} catch (Exception $e) {
-				error_log("[DELETION-MANAGER] ERROR: Property $property_id - " . $e->getMessage());
+			if ($result['outcome'] === self::SINGLE_DELETE_SUCCESS) {
+				$stats['properties_deleted']++;
+				$stats['attachments_deleted'] += $result['attachments_deleted'];
+				$stats['disk_space_freed'] += $result['disk_space_freed'];
+			} elseif ($result['outcome'] === self::SINGLE_DELETE_NOT_FOUND) {
+				$stats['properties_not_found']++;
+			} else {
 				$stats['errors']++;
-
-				$this->tracker->log_event('ERROR', 'DELETION_MANAGER', 'Property deletion failed', array(
-					'property_id' => $property_id,
-					'error' => $e->getMessage()
-				));
 			}
 		}
 
@@ -100,28 +93,53 @@ class RealEstate_Sync_Deletion_Manager {
 	}
 
 	/**
-	 * Delete single property with all attachments
+	 * Delete single property with an explicit outcome contract.
 	 *
 	 * @param string $property_id Property import ID
-	 * @return array Result with success flag and stats
+	 * @return array Result with explicit outcome and stats
 	 */
-	private function delete_property($property_id) {
+	public function delete_single_property($property_id) {
 		$result = array(
-			'success' => false,
-			'not_found' => false,
+			'outcome' => self::SINGLE_DELETE_ERROR,
+			'property_id' => $property_id,
 			'attachments_deleted' => 0,
-			'disk_space_freed' => 0
+			'disk_space_freed' => 0,
+			'wp_post_id' => null,
+			'error_message' => null
 		);
 
-		// Find WordPress post by property_import_id
+		try {
+			return $this->perform_property_deletion($property_id, $result);
+		} catch (Exception $e) {
+			$result['error_message'] = $e->getMessage();
+			error_log("[DELETION-MANAGER] ERROR: Property $property_id - " . $e->getMessage());
+
+			$this->tracker->log_event('ERROR', 'DELETION_MANAGER', 'Single property deletion failed', array(
+				'property_id' => $property_id,
+				'error' => $e->getMessage()
+			));
+
+			return $result;
+		}
+	}
+
+	/**
+	 * Execute the property deletion workflow.
+	 *
+	 * @param string $property_id Property import ID.
+	 * @param array  $result      Result payload.
+	 * @return array
+	 */
+	private function perform_property_deletion($property_id, array $result) {
 		$wp_post_id = $this->find_post_by_property_id($property_id, 'estate_property');
 
 		if (!$wp_post_id) {
 			error_log("[DELETION-MANAGER] Property $property_id not found in WP - skipping");
-			$result['not_found'] = true;
+			$result['outcome'] = self::SINGLE_DELETE_NOT_FOUND;
 			return $result;
 		}
 
+		$result['wp_post_id'] = $wp_post_id;
 		error_log("[DELETION-MANAGER] Deleting property $property_id (WP ID: $wp_post_id)");
 
 		// Get and delete all attachments (images)
@@ -153,7 +171,7 @@ class RealEstate_Sync_Deletion_Manager {
 
 		if ($deleted_post) {
 			error_log("[DELETION-MANAGER]   ✅ Deleted property post $wp_post_id");
-			$result['success'] = true;
+			$result['outcome'] = self::SINGLE_DELETE_SUCCESS;
 		} else {
 			error_log("[DELETION-MANAGER]   ❌ Failed to delete property post $wp_post_id");
 			return $result;

@@ -143,6 +143,7 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-queue-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-delete-queue-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-processor.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-delete-batch-processor.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-orchestrator.php';
 
         // Deletion System classes (v1.7.1+)

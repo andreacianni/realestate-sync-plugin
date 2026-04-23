@@ -234,6 +234,129 @@ class RealEstate_Sync_Delete_Queue_Manager {
     }
 
     /**
+     * Claim the next pending item for a session and mark it processing.
+     *
+     * @param string $session_id Session ID.
+     * @return object|null
+     */
+    public function claim_next_pending_item($session_id) {
+        global $wpdb;
+
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            $item = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$this->table_name}
+                 WHERE session_id = %s
+                 AND status = %s
+                 ORDER BY id ASC
+                 LIMIT 1",
+                $session_id,
+                'pending'
+            ));
+
+            if (!$item) {
+                return null;
+            }
+
+            $updated = $wpdb->update(
+                $this->table_name,
+                array(
+                    'status' => 'processing',
+                    'updated_at' => current_time('mysql', true),
+                ),
+                array(
+                    'id' => (int) $item->id,
+                    'status' => 'pending',
+                ),
+                array('%s', '%s'),
+                array('%d', '%s')
+            );
+
+            if ($updated === 1) {
+                return $this->get_item((int) $item->id);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Update queue item status.
+     *
+     * @param int         $id              Queue item ID.
+     * @param string      $status          New status.
+     * @param string|null $expected_status Optional current status guard.
+     * @param bool        $increment_attempts Whether to increment attempts.
+     * @return bool
+     */
+    public function update_item_status($id, $status, $expected_status = null, $increment_attempts = false) {
+        global $wpdb;
+
+        $data = array(
+            'status' => $status,
+            'updated_at' => current_time('mysql', true),
+        );
+        $format = array('%s', '%s');
+
+        if ($increment_attempts) {
+            $item = $this->get_item($id);
+            if (!$item) {
+                return false;
+            }
+
+            $data['attempts'] = ((int) $item->attempts) + 1;
+            $format[] = '%d';
+        }
+
+        $where = array('id' => (int) $id);
+        $where_format = array('%d');
+
+        if ($expected_status !== null) {
+            $where['status'] = $expected_status;
+            $where_format[] = '%s';
+        }
+
+        $updated = $wpdb->update(
+            $this->table_name,
+            $data,
+            $where,
+            $format,
+            $where_format
+        );
+
+        return $updated === 1;
+    }
+
+    /**
+     * Mark an item as done.
+     *
+     * @param int $id Queue item ID.
+     * @return bool
+     */
+    public function mark_done($id) {
+        return $this->update_item_status($id, 'done', 'processing');
+    }
+
+    /**
+     * Mark an item as skipped.
+     *
+     * @param int $id Queue item ID.
+     * @return bool
+     */
+    public function mark_skipped($id) {
+        return $this->update_item_status($id, 'skipped', 'processing');
+    }
+
+    /**
+     * Mark an item as error.
+     *
+     * @param int $id Queue item ID.
+     * @return bool
+     */
+    public function mark_error($id) {
+        return $this->update_item_status($id, 'error', 'processing', true);
+    }
+
+    /**
      * Get status counters for a session.
      *
      * @param string $session_id Session ID.
