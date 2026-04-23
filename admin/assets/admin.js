@@ -738,6 +738,62 @@ jQuery(document).ready(function($) {
     /**
      * Refresh import status
      */
+    function buildMonitorStatusBadge(label, variant) {
+        const colors = {
+            active: '#10b981',
+            closed: '#dc3545',
+            delete: '#f59e0b',
+            neutral: '#6b7280'
+        };
+        const color = colors[variant] || colors.neutral;
+
+        return '<span style="padding: 4px 8px; background: ' + color + '; color: white; border-radius: 4px; font-weight: 500;">' + label + '</span>';
+    }
+
+    function getMonitorProcessStatus(data) {
+        const deleteState = data.delete_state || {};
+
+        if (deleteState.status && deleteState.status !== 'idle') {
+            return buildMonitorStatusBadge(deleteState.status, 'delete');
+        }
+
+        if (data.session_phase) {
+            return buildMonitorStatusBadge(data.session_phase, data.is_active ? 'active' : 'closed');
+        }
+
+        return data.is_active
+            ? buildMonitorStatusBadge('ATTIVO', 'active')
+            : buildMonitorStatusBadge('CHIUSO', 'closed');
+    }
+
+    function resetDeleteMonitorFields(prefix) {
+        $(prefix + 'import-session-phase').text('-');
+        $(prefix + 'delete-state-status').text('-');
+        $(prefix + 'delete-runtime-mode').text('-');
+        $(prefix + 'delete-runtime-kill-switch').text('-');
+        $(prefix + 'delete-runtime-cap').text('-');
+        $(prefix + 'delete-state-counters').text('-');
+    }
+
+    function updateDeleteMonitorFields(prefix, data) {
+        const deleteState = data.delete_state || {};
+        const deleteRuntime = data.delete_runtime || {};
+        const killSwitch = deleteRuntime.kill_switch === true ? 'attivo' : (deleteRuntime.kill_switch === false ? 'non attivo' : '-');
+        const counters = 'pending ' + (deleteState.pending || 0) +
+            ' / processing ' + (deleteState.processing || 0) +
+            ' / done ' + (deleteState.done || 0) +
+            ' / error ' + (deleteState.error || 0) +
+            ' / skipped ' + (deleteState.skipped || 0) +
+            ' / total ' + (deleteState.total || 0);
+
+        $(prefix + 'import-session-phase').text(data.session_phase || '-');
+        $(prefix + 'delete-state-status').text(deleteState.status || '-');
+        $(prefix + 'delete-runtime-mode').text(deleteRuntime.mode || '-');
+        $(prefix + 'delete-runtime-kill-switch').text(killSwitch);
+        $(prefix + 'delete-runtime-cap').text(deleteRuntime.cap || '0');
+        $(prefix + 'delete-state-counters').text(counters);
+    }
+
     function refreshImportStatus() {
         // Show loading indicator
         var $btn = $('#refresh-import-status');
@@ -761,6 +817,7 @@ jQuery(document).ready(function($) {
                         $('#import-session-id').text('Nessuna sessione');
                         $('#import-start-time').text('-');
                         $('#import-process-status').html('<span style="color: #666;">Nessun import</span>');
+                        resetDeleteMonitorFields('#');
                         $('#import-total-items').text('0');
                         $('#import-completed-items').text('0');
                         $('#import-remaining-items').text('0');
@@ -775,13 +832,8 @@ jQuery(document).ready(function($) {
                     $('#import-session-id').text(data.session_id);
                     $('#import-start-time').text(data.start_time);
 
-                    // Status badge
-                    if (data.is_active) {
-                        $('#import-process-status').html('<span style="padding: 4px 8px; background: #10b981; color: white; border-radius: 4px; font-weight: 500;">🟢 ATTIVO</span>');
-                    } else {
-                        $('#import-process-status').html('<span style="padding: 4px 8px; background: #dc3545; color: white; border-radius: 4px; font-weight: 500;">🔴 CHIUSO</span>');
-                    }
-
+                    $('#import-process-status').html(getMonitorProcessStatus(data));
+                    updateDeleteMonitorFields('#', data);
                     $('#import-total-items').text(data.total);
                     $('#import-completed-items').text(data.completed);
                     $('#import-remaining-items').text(data.remaining);
@@ -859,13 +911,7 @@ jQuery(document).ready(function($) {
                     $('#queue-import-session-id').text(data.session_id);
                     $('#queue-import-start-time').text(data.start_time);
 
-                    // Status badge
-                    if (data.is_active) {
-                        $('#queue-import-process-status').html('<span style="padding: 4px 8px; background: #10b981; color: white; border-radius: 4px; font-weight: 500;">🟢 ATTIVO</span>');
-                    } else {
-                        $('#queue-import-process-status').html('<span style="padding: 4px 8px; background: #dc3545; color: white; border-radius: 4px; font-weight: 500;">🔴 CHIUSO</span>');
-                    }
-
+                    $('#queue-import-process-status').html(getMonitorProcessStatus(data));
                     $('#queue-import-total-items').text(data.total);
                     $('#queue-import-completed-items').text(data.completed);
                     $('#queue-import-remaining-items').text(data.remaining);

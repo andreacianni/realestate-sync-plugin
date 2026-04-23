@@ -1339,6 +1339,14 @@ class RealEstate_Sync_Admin {
 
         global $wpdb;
         $queue_table = $wpdb->prefix . 'realestate_import_queue';
+        $progress = get_option('realestate_sync_background_import_progress', array());
+        $progress_session_id = isset($progress['session_id']) ? (string) $progress['session_id'] : '';
+        $delete_state = isset($progress['delete_state']) && is_array($progress['delete_state'])
+            ? $progress['delete_state']
+            : array();
+        $delete_runtime = isset($progress['delete_runtime']) && is_array($progress['delete_runtime'])
+            ? $progress['delete_runtime']
+            : array();
 
         // Get last session info
         // Adapted to existing table: status='done' (not 'completed'), 'error'/'retry' (not 'failed'), processed_at (not updated_at)
@@ -1359,6 +1367,27 @@ class RealEstate_Sync_Admin {
         ");
 
         if (!$last_session) {
+            if ($progress_session_id !== '') {
+                wp_send_json_success(array(
+                    'has_session' => true,
+                    'session_id' => $progress_session_id,
+                    'start_time' => isset($progress['start_time']) ? date('Y-m-d H:i:s', (int) $progress['start_time']) : '-',
+                    'session_phase' => isset($progress['status']) ? (string) $progress['status'] : '',
+                    'is_active' => false,
+                    'total' => isset($progress['total_items']) ? intval($progress['total_items']) : 0,
+                    'completed' => 0,
+                    'pending' => 0,
+                    'processing' => 0,
+                    'failed' => 0,
+                    'remaining' => 0,
+                    'progress_percent' => 0,
+                    'minutes_since_activity' => null,
+                    'delete_state' => $this->normalize_delete_state_for_monitor($delete_state),
+                    'delete_runtime' => $this->normalize_delete_runtime_for_monitor($delete_runtime),
+                ));
+                return;
+            }
+
             wp_send_json_success(array(
                 'has_session' => false,
                 'message' => 'Nessun import nella queue'
@@ -1387,6 +1416,7 @@ class RealEstate_Sync_Admin {
             'has_session' => true,
             'session_id' => $last_session->session_id,
             'start_time' => $last_session->start_time,
+            'session_phase' => isset($progress['status']) && $progress_session_id === (string) $last_session->session_id ? (string) $progress['status'] : '',
             'is_active' => $is_active,
             'total' => intval($last_session->total),
             'completed' => intval($last_session->completed),
@@ -1395,8 +1425,64 @@ class RealEstate_Sync_Admin {
             'failed' => intval($last_session->failed),
             'remaining' => $remaining,
             'progress_percent' => $progress_percent,
-            'minutes_since_activity' => round($minutes_since_activity, 1)
+            'minutes_since_activity' => round($minutes_since_activity, 1),
+            'delete_state' => $progress_session_id === (string) $last_session->session_id ? $this->normalize_delete_state_for_monitor($delete_state) : $this->normalize_delete_state_for_monitor(array()),
+            'delete_runtime' => $progress_session_id === (string) $last_session->session_id ? $this->normalize_delete_runtime_for_monitor($delete_runtime) : $this->normalize_delete_runtime_for_monitor(array()),
         ));
+    }
+
+    /**
+     * Normalize backend delete state for the admin monitor.
+     */
+    private function normalize_delete_state_for_monitor($delete_state) {
+        $defaults = array(
+            'status' => '',
+            'worker_enabled' => false,
+            'pending' => 0,
+            'processing' => 0,
+            'done' => 0,
+            'error' => 0,
+            'skipped' => 0,
+            'total' => 0,
+            'stale_processing_threshold_seconds' => 0,
+            'max_stale_recovery_attempts' => 0,
+        );
+
+        $delete_state = is_array($delete_state) ? array_merge($defaults, array_intersect_key($delete_state, $defaults)) : $defaults;
+
+        return array(
+            'status' => sanitize_key($delete_state['status']),
+            'worker_enabled' => (bool) $delete_state['worker_enabled'],
+            'pending' => intval($delete_state['pending']),
+            'processing' => intval($delete_state['processing']),
+            'done' => intval($delete_state['done']),
+            'error' => intval($delete_state['error']),
+            'skipped' => intval($delete_state['skipped']),
+            'total' => intval($delete_state['total']),
+            'stale_processing_threshold_seconds' => intval($delete_state['stale_processing_threshold_seconds']),
+            'max_stale_recovery_attempts' => intval($delete_state['max_stale_recovery_attempts']),
+        );
+    }
+
+    /**
+     * Normalize backend delete runtime guardrails for the admin monitor.
+     */
+    private function normalize_delete_runtime_for_monitor($delete_runtime) {
+        $defaults = array(
+            'mode' => '',
+            'kill_switch' => true,
+            'cap' => 0,
+            'contract' => array(),
+        );
+
+        $delete_runtime = is_array($delete_runtime) ? array_merge($defaults, array_intersect_key($delete_runtime, $defaults)) : $defaults;
+
+        return array(
+            'mode' => sanitize_key($delete_runtime['mode']),
+            'kill_switch' => (bool) $delete_runtime['kill_switch'],
+            'cap' => intval($delete_runtime['cap']),
+            'contract' => is_array($delete_runtime['contract']) ? $delete_runtime['contract'] : array(),
+        );
     }
 
     /**

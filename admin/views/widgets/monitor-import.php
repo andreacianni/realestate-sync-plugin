@@ -45,6 +45,30 @@ if (!defined('ABSPATH')) exit;
                         <td id="import-process-status" class="text-muted">-</td>
                     </tr>
                     <tr>
+                        <td class="fw-semibold">Fase Sessione:</td>
+                        <td id="import-session-phase" class="text-muted">-</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">Stato Delete:</td>
+                        <td id="delete-state-status" class="text-muted">-</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">Modalita Delete:</td>
+                        <td id="delete-runtime-mode" class="text-muted">-</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">Kill Switch:</td>
+                        <td id="delete-runtime-kill-switch" class="text-muted">-</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">Cap Delete:</td>
+                        <td id="delete-runtime-cap" class="text-muted">-</td>
+                    </tr>
+                    <tr>
+                        <td class="fw-semibold">Contatori Delete:</td>
+                        <td id="delete-state-counters" class="text-muted">-</td>
+                    </tr>
+                    <tr>
                         <td class="fw-semibold">Totale Elementi:</td>
                         <td id="import-total-items" class="text-muted">-</td>
                     </tr>
