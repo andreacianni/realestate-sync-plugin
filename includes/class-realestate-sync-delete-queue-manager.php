@@ -21,6 +21,16 @@ class RealEstate_Sync_Delete_Queue_Manager {
     const TABLE_NAME = 'realestate_delete_queue';
 
     /**
+     * Initial threshold for recovering stale processing items.
+     */
+    const STALE_PROCESSING_THRESHOLD_SECONDS = 900;
+
+    /**
+     * Number of allowed recoveries back to pending before marking error.
+     */
+    const MAX_STALE_RECOVERY_ATTEMPTS = 1;
+
+    /**
      * Queue table name.
      *
      * @var string
@@ -221,6 +231,124 @@ class RealEstate_Sync_Delete_Queue_Manager {
             "SELECT * FROM {$this->table_name} WHERE id = %d",
             $id
         ));
+    }
+
+    /**
+     * Get status counters for a session.
+     *
+     * @param string $session_id Session ID.
+     * @return array
+     */
+    public function get_stats($session_id) {
+        global $wpdb;
+
+        $stats = array(
+            'total'      => 0,
+            'pending'    => 0,
+            'processing' => 0,
+            'done'       => 0,
+            'error'      => 0,
+            'skipped'    => 0,
+        );
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT status, COUNT(*) AS item_count
+             FROM {$this->table_name}
+             WHERE session_id = %s
+             GROUP BY status",
+            $session_id
+        ));
+
+        foreach ($rows as $row) {
+            $status = (string) $row->status;
+            $count = (int) $row->item_count;
+
+            if (array_key_exists($status, $stats)) {
+                $stats[$status] = $count;
+            }
+
+            $stats['total'] += $count;
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Recover stale processing items deterministically.
+     *
+     * Items older than the threshold are moved back to pending once. If they are
+     * stale again after the allowed recovery count, they are marked as error.
+     *
+     * @param int      $threshold_seconds       Stale threshold in seconds.
+     * @param int      $max_recovery_attempts   Allowed recoveries back to pending.
+     * @param int|null $now_timestamp           Optional timestamp for deterministic tests.
+     * @return array
+     */
+    public function recover_stale_processing_items($threshold_seconds = self::STALE_PROCESSING_THRESHOLD_SECONDS, $max_recovery_attempts = self::MAX_STALE_RECOVERY_ATTEMPTS, $now_timestamp = null) {
+        global $wpdb;
+
+        $threshold_seconds = max(1, (int) $threshold_seconds);
+        $max_recovery_attempts = max(0, (int) $max_recovery_attempts);
+        $now_timestamp = $now_timestamp === null ? time() : (int) $now_timestamp;
+        $cutoff = gmdate('Y-m-d H:i:s', $now_timestamp - $threshold_seconds);
+
+        $stats = array(
+            'stale_found' => 0,
+            'requeued'    => 0,
+            'errored'     => 0,
+            'threshold_seconds' => $threshold_seconds,
+            'max_recovery_attempts' => $max_recovery_attempts,
+            'cutoff' => $cutoff,
+        );
+
+        $items = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, attempts
+             FROM {$this->table_name}
+             WHERE status = %s
+             AND updated_at < %s
+             ORDER BY updated_at ASC, id ASC",
+            'processing',
+            $cutoff
+        ));
+
+        $stats['stale_found'] = count($items);
+
+        foreach ($items as $item) {
+            $new_attempts = ((int) $item->attempts) + 1;
+            $new_status = ((int) $item->attempts) < $max_recovery_attempts ? 'pending' : 'error';
+
+            $updated = $wpdb->update(
+                $this->table_name,
+                array(
+                    'status' => $new_status,
+                    'attempts' => $new_attempts,
+                    'updated_at' => gmdate('Y-m-d H:i:s', $now_timestamp),
+                ),
+                array(
+                    'id' => (int) $item->id,
+                    'status' => 'processing',
+                ),
+                array('%s', '%d', '%s'),
+                array('%d', '%s')
+            );
+
+            if ($updated) {
+                if ($new_status === 'pending') {
+                    $stats['requeued']++;
+                } else {
+                    $stats['errored']++;
+                }
+            }
+        }
+
+        error_log(
+            '[DELETE-QUEUE] Stale processing recovery: found=' . $stats['stale_found']
+            . ', requeued=' . $stats['requeued']
+            . ', errored=' . $stats['errored']
+            . ', threshold_seconds=' . $stats['threshold_seconds']
+        );
+
+        return $stats;
     }
 
     /**

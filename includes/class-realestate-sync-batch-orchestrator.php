@@ -262,6 +262,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 			$missing_from_feed_candidates,
 			'missing_from_feed'
 		);
+		$delete_queue_stats = $delete_queue_manager->get_stats( $session_id );
 
 		$tracker->log_event('INFO', 'ORCHESTRATOR', 'missing_from_feed detection complete', array(
 			'feed_active_property_ids' => count( $feed_active_property_ids ),
@@ -495,7 +496,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 			$force_update,
 			$total_queued,
 			'processing',
-			$delete_runtime_config
+			$delete_runtime_config,
+			$delete_queue_stats
 		) );
 
 		// Process first batch immediately (max 10 items)
@@ -532,7 +534,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 				$force_update,
 				$total_queued,
 				'completed',
-				$delete_runtime_config
+				$delete_runtime_config,
+				$delete_queue_stats
 			) );
 		}
 
@@ -625,7 +628,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 	}
 
 	/**
-	 * Build the import progress payload with delete runtime guardrails.
+	 * Build the import progress payload with delete runtime guardrails and counters.
 	 *
 	 * @param string $session_id            Import session ID.
 	 * @param string $xml_file              XML file path.
@@ -634,9 +637,10 @@ class RealEstate_Sync_Batch_Orchestrator {
 	 * @param int    $total_items           Total queued items.
 	 * @param string $status                Import status.
 	 * @param array  $delete_runtime_config Delete runtime config.
+	 * @param array  $delete_queue_stats    Delete queue counters.
 	 * @return array
 	 */
-	private static function build_import_progress_payload( $session_id, $xml_file, $mark_as_test, $force_update, $total_items, $status, array $delete_runtime_config ) {
+	private static function build_import_progress_payload( $session_id, $xml_file, $mark_as_test, $force_update, $total_items, $status, array $delete_runtime_config, array $delete_queue_stats = array() ) {
 		return array(
 			'session_id'     => $session_id,
 			'xml_file_path'  => $xml_file,
@@ -646,6 +650,41 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'status'         => $status,
 			'total_items'    => $total_items,
 			'delete_runtime' => $delete_runtime_config,
+			'delete_state'   => self::build_delete_state_payload( $delete_queue_stats ),
+		);
+	}
+
+	/**
+	 * Build the backend delete state payload for future delete phases.
+	 *
+	 * Step 4 only stores observable state; it does not drive cron or block imports.
+	 *
+	 * @param array $delete_queue_stats Delete queue counters.
+	 * @return array
+	 */
+	private static function build_delete_state_payload( array $delete_queue_stats ) {
+		$defaults = array(
+			'total'      => 0,
+			'pending'    => 0,
+			'processing' => 0,
+			'done'       => 0,
+			'error'      => 0,
+			'skipped'    => 0,
+		);
+		$stats = array_merge( $defaults, array_intersect_key( $delete_queue_stats, $defaults ) );
+		$status = $stats['total'] > 0 ? 'delete_pending' : 'idle';
+
+		return array(
+			'status' => $status,
+			'worker_enabled' => false,
+			'pending' => (int) $stats['pending'],
+			'processing' => (int) $stats['processing'],
+			'done' => (int) $stats['done'],
+			'error' => (int) $stats['error'],
+			'skipped' => (int) $stats['skipped'],
+			'total' => (int) $stats['total'],
+			'stale_processing_threshold_seconds' => RealEstate_Sync_Delete_Queue_Manager::STALE_PROCESSING_THRESHOLD_SECONDS,
+			'max_stale_recovery_attempts' => RealEstate_Sync_Delete_Queue_Manager::MAX_STALE_RECOVERY_ATTEMPTS,
 		);
 	}
 }
