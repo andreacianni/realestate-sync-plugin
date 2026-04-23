@@ -778,19 +778,29 @@ jQuery(document).ready(function($) {
     function updateDeleteMonitorFields(prefix, data) {
         const deleteState = data.delete_state || {};
         const deleteRuntime = data.delete_runtime || {};
-        const killSwitch = deleteRuntime.kill_switch === true ? 'attivo' : (deleteRuntime.kill_switch === false ? 'non attivo' : '-');
-        const counters = 'pending ' + (deleteState.pending || 0) +
-            ' / processing ' + (deleteState.processing || 0) +
-            ' / done ' + (deleteState.done || 0) +
-            ' / error ' + (deleteState.error || 0) +
-            ' / skipped ' + (deleteState.skipped || 0) +
-            ' / total ' + (deleteState.total || 0);
+        const hasDeleteState = Object.keys(deleteState).length > 0 && Object.values(deleteState).some(value => value !== '' && value !== 0 && value !== false);
+        const hasDeleteRuntime = Object.keys(deleteRuntime).length > 0 && (
+            deleteRuntime.mode ||
+            typeof deleteRuntime.kill_switch === 'boolean' ||
+            deleteRuntime.cap
+        );
+        const killSwitch = typeof deleteRuntime.kill_switch === 'boolean'
+            ? (deleteRuntime.kill_switch ? 'attivo' : 'non attivo')
+            : '-';
+        const counters = hasDeleteState
+            ? 'pending ' + (deleteState.pending ?? '-') +
+                ' / processing ' + (deleteState.processing ?? '-') +
+                ' / done ' + (deleteState.done ?? '-') +
+                ' / error ' + (deleteState.error ?? '-') +
+                ' / skipped ' + (deleteState.skipped ?? '-') +
+                ' / total ' + (deleteState.total ?? '-')
+            : '-';
 
         $(prefix + 'import-session-phase').text(data.session_phase || '-');
         $(prefix + 'delete-state-status').text(deleteState.status || '-');
         $(prefix + 'delete-runtime-mode').text(deleteRuntime.mode || '-');
-        $(prefix + 'delete-runtime-kill-switch').text(killSwitch);
-        $(prefix + 'delete-runtime-cap').text(deleteRuntime.cap || '0');
+        $(prefix + 'delete-runtime-kill-switch').text(hasDeleteRuntime ? killSwitch : '-');
+        $(prefix + 'delete-runtime-cap').text(deleteRuntime.cap !== undefined && deleteRuntime.cap !== null && deleteRuntime.cap !== '' ? deleteRuntime.cap : '-');
         $(prefix + 'delete-state-counters').text(counters);
     }
 

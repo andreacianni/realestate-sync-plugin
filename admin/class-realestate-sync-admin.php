@@ -1416,7 +1416,7 @@ class RealEstate_Sync_Admin {
             'has_session' => true,
             'session_id' => $last_session->session_id,
             'start_time' => $last_session->start_time,
-            'session_phase' => isset($progress['status']) && $progress_session_id === (string) $last_session->session_id ? (string) $progress['status'] : '',
+            'session_phase' => isset($progress['status']) ? (string) $progress['status'] : '',
             'is_active' => $is_active,
             'total' => intval($last_session->total),
             'completed' => intval($last_session->completed),
@@ -1426,8 +1426,8 @@ class RealEstate_Sync_Admin {
             'remaining' => $remaining,
             'progress_percent' => $progress_percent,
             'minutes_since_activity' => round($minutes_since_activity, 1),
-            'delete_state' => $progress_session_id === (string) $last_session->session_id ? $this->normalize_delete_state_for_monitor($delete_state) : $this->normalize_delete_state_for_monitor(array()),
-            'delete_runtime' => $progress_session_id === (string) $last_session->session_id ? $this->normalize_delete_runtime_for_monitor($delete_runtime) : $this->normalize_delete_runtime_for_monitor(array()),
+            'delete_state' => $this->normalize_delete_state_for_monitor($delete_state),
+            'delete_runtime' => $this->normalize_delete_runtime_for_monitor($delete_runtime),
         ));
     }
 
