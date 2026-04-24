@@ -369,7 +369,7 @@ try {
     if ((int) $delete_queue_stats['pending'] === 0 && (int) $delete_queue_stats['processing'] === 0) {
         $progress['status'] = 'completed';
         $progress['end_time'] = time();
-        $progress['delete_state'] = RealEstate_Sync_Batch_Orchestrator::build_delete_state_payload($delete_queue_stats, 'delete_pending', false);
+        $progress['delete_state'] = RealEstate_Sync_Batch_Orchestrator::build_delete_state_payload($delete_queue_stats, 'idle', false);
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
@@ -396,7 +396,7 @@ try {
     if ($mode === 'dry_run') {
         $progress['status'] = 'completed';
         $progress['end_time'] = time();
-        $progress['delete_state'] = RealEstate_Sync_Batch_Orchestrator::build_delete_state_payload($delete_queue_stats, 'idle', false);
+        $progress['delete_state'] = RealEstate_Sync_Batch_Orchestrator::build_delete_state_payload($delete_queue_stats, 'delete_pending', false);
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
