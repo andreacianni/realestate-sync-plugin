@@ -16,6 +16,57 @@
 class RealEstate_Sync_Batch_Orchestrator {
 
 	/**
+	 * Status values that block starting a new import while delete work is active.
+	 *
+	 * @return array
+	 */
+	public static function get_import_blocking_statuses() {
+		return array( 'delete_pending', 'delete_processing', 'delete_paused' );
+	}
+
+	/**
+	 * Return the blocking delete-phase status if the current progress payload forbids a new import.
+	 *
+	 * @param array|null $progress Optional progress payload.
+	 * @return string|null
+	 */
+	public static function get_blocking_delete_phase_status( array $progress = null ) {
+		if ( null === $progress ) {
+			$progress = get_option( 'realestate_sync_background_import_progress', array() );
+		}
+
+		$status = isset( $progress['status'] ) ? (string) $progress['status'] : '';
+
+		return in_array( $status, self::get_import_blocking_statuses(), true ) ? $status : null;
+	}
+
+	/**
+	 * Determine whether a new import must be blocked.
+	 *
+	 * @param array|null $progress Optional progress payload.
+	 * @return bool
+	 */
+	public static function is_import_start_blocked( array $progress = null ) {
+		return null !== self::get_blocking_delete_phase_status( $progress );
+	}
+
+	/**
+	 * Build a deterministic blocking message for import entry points.
+	 *
+	 * @param array|null $progress Optional progress payload.
+	 * @return string|null
+	 */
+	public static function get_import_start_block_message( array $progress = null ) {
+		$status = self::get_blocking_delete_phase_status( $progress );
+
+		if ( null === $status ) {
+			return null;
+		}
+
+		return sprintf( 'Import blocked: delete phase active (%s)', $status );
+	}
+
+	/**
 	 * Process XML file using batch system
 	 *
 	 * This is the SHARED function called by all entry points.
@@ -36,6 +87,17 @@ class RealEstate_Sync_Batch_Orchestrator {
 	public static function process_xml_batch( $xml_file, $mark_as_test = false, $force_update = false ) {
 
 		// 🔍 Start debug trace
+		$block_message = self::get_import_start_block_message();
+
+		if ( null !== $block_message ) {
+			error_log( '[BATCH-ORCHESTRATOR] ' . $block_message );
+
+			return array(
+				'success' => false,
+				'error'   => $block_message,
+			);
+		}
+
 		$tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 		$trace_id = $tracker->start_trace('BATCH_ORCHESTRATOR', array(
 			'xml_file' => basename($xml_file),
@@ -662,7 +724,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 	 * @param array $delete_queue_stats Delete queue counters.
 	 * @return array
 	 */
-	private static function build_delete_state_payload( array $delete_queue_stats ) {
+	public static function build_delete_state_payload( array $delete_queue_stats, $status_override = null, $worker_enabled = false ) {
 		$defaults = array(
 			'total'      => 0,
 			'pending'    => 0,
@@ -672,11 +734,11 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'skipped'    => 0,
 		);
 		$stats = array_merge( $defaults, array_intersect_key( $delete_queue_stats, $defaults ) );
-		$status = $stats['total'] > 0 ? 'delete_pending' : 'idle';
+		$status = null !== $status_override ? $status_override : ( $stats['total'] > 0 ? 'delete_pending' : 'idle' );
 
 		return array(
 			'status' => $status,
-			'worker_enabled' => false,
+			'worker_enabled' => (bool) $worker_enabled,
 			'pending' => (int) $stats['pending'],
 			'processing' => (int) $stats['processing'],
 			'done' => (int) $stats['done'],

@@ -766,6 +766,12 @@ class RealEstate_Sync_Admin {
         }
 
         try {
+            $block_message = RealEstate_Sync_Batch_Orchestrator::get_import_start_block_message();
+
+            if (null !== $block_message) {
+                throw new Exception($block_message);
+            }
+
             // Get credential source
             $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
 

@@ -686,6 +686,13 @@ class RealEstate_Sync {
      */
     public function run_scheduled_import() {
         try {
+            $block_message = RealEstate_Sync_Batch_Orchestrator::get_import_start_block_message();
+
+            if (null !== $block_message) {
+                $this->instances['logger']->log($block_message, 'warning');
+                return;
+            }
+
             // Get credential source
             $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
 

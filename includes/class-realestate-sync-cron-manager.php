@@ -75,6 +75,13 @@ class RealEstate_Sync_Cron_Manager {
         $this->logger->log("Starting automated daily import", 'info');
 
         try {
+            $block_message = RealEstate_Sync_Batch_Orchestrator::get_import_start_block_message();
+
+            if (null !== $block_message) {
+                $this->logger->log($block_message, 'warning');
+                return;
+            }
+
             // Get credential source
             $credential_source = get_option('realestate_sync_credential_source', 'hardcoded');
 
