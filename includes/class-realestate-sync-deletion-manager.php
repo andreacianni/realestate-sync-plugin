@@ -131,54 +131,64 @@ class RealEstate_Sync_Deletion_Manager {
 	 * @return array
 	 */
 	private function perform_property_deletion($property_id, array $result) {
-		$wp_post_id = $this->find_post_by_property_id($property_id, 'estate_property');
+		$wp_post_ids = $this->find_posts_by_property_id($property_id);
 
-		if (!$wp_post_id) {
+		if (empty($wp_post_ids)) {
 			error_log("[DELETION-MANAGER] Property $property_id not found in WP - skipping");
 			$result['outcome'] = self::SINGLE_DELETE_NOT_FOUND;
 			return $result;
 		}
 
-		$result['wp_post_id'] = $wp_post_id;
-		error_log("[DELETION-MANAGER] Deleting property $property_id (WP ID: $wp_post_id)");
+		$result['wp_post_id'] = count($wp_post_ids) === 1 ? $wp_post_ids[0] : $wp_post_ids;
+		$result['wp_post_ids'] = $wp_post_ids;
+		error_log("[DELETION-MANAGER] Deleting property $property_id (WP IDs: " . implode(', ', $wp_post_ids) . ")");
 
-		// Get and delete all attachments (images)
-		$attachments = get_attached_media('image', $wp_post_id);
+		$delete_errors = 0;
 
-		if (!empty($attachments)) {
-			error_log("[DELETION-MANAGER]   Found " . count($attachments) . " attachments");
+		foreach ($wp_post_ids as $wp_post_id) {
+			$attachments = get_attached_media('image', $wp_post_id);
 
-			foreach ($attachments as $attachment) {
-				$file_path = get_attached_file($attachment->ID);
-				$file_size = file_exists($file_path) ? filesize($file_path) : 0;
+			if (!empty($attachments)) {
+				error_log("[DELETION-MANAGER]   Found " . count($attachments) . " attachments for post $wp_post_id");
 
-				// wp_delete_attachment($id, $force_delete = true) → elimina fisicamente file + thumbnails
-				$deleted = wp_delete_attachment($attachment->ID, true);
+				foreach ($attachments as $attachment) {
+					$file_path = get_attached_file($attachment->ID);
+					$file_size = file_exists($file_path) ? filesize($file_path) : 0;
 
-				if ($deleted) {
-					error_log("[DELETION-MANAGER]   ✅ Deleted attachment {$attachment->ID}: {$attachment->post_title}");
-					$result['attachments_deleted']++;
-					$result['disk_space_freed'] += $file_size;
-				} else {
-					error_log("[DELETION-MANAGER]   ❌ Failed to delete attachment {$attachment->ID}");
+					// wp_delete_attachment($id, $force_delete = true) → elimina fisicamente file + thumbnails
+					$deleted = wp_delete_attachment($attachment->ID, true);
+
+					if ($deleted) {
+						error_log("[DELETION-MANAGER]   ✅ Deleted attachment {$attachment->ID}: {$attachment->post_title}");
+						$result['attachments_deleted']++;
+						$result['disk_space_freed'] += $file_size;
+					} else {
+						error_log("[DELETION-MANAGER]   ❌ Failed to delete attachment {$attachment->ID}");
+						$delete_errors++;
+					}
 				}
+			}
+
+			// Delete the property post
+			// wp_delete_post($id, $force_delete = true) → elimina definitivamente (bypass trash)
+			$deleted_post = wp_delete_post($wp_post_id, true);
+
+			if ($deleted_post) {
+				error_log("[DELETION-MANAGER]   ✅ Deleted property post $wp_post_id");
+			} else {
+				error_log("[DELETION-MANAGER]   ❌ Failed to delete property post $wp_post_id");
+				$delete_errors++;
 			}
 		}
 
-		// Delete the property post
-		// wp_delete_post($id, $force_delete = true) → elimina definitivamente (bypass trash)
-		$deleted_post = wp_delete_post($wp_post_id, true);
-
-		if ($deleted_post) {
-			error_log("[DELETION-MANAGER]   ✅ Deleted property post $wp_post_id");
-			$result['outcome'] = self::SINGLE_DELETE_SUCCESS;
-		} else {
-			error_log("[DELETION-MANAGER]   ❌ Failed to delete property post $wp_post_id");
+		if ($delete_errors > 0) {
+			$result['outcome'] = self::SINGLE_DELETE_ERROR;
 			return $result;
 		}
 
-		// Update tracking table
+		// Update tracking table only when all duplicate posts were deleted successfully.
 		$this->update_tracking_deleted($property_id, 'property');
+		$result['outcome'] = self::SINGLE_DELETE_SUCCESS;
 
 		return $result;
 	}
@@ -315,6 +325,41 @@ class RealEstate_Sync_Deletion_Manager {
 	// ========================================================================
 	// HELPER METHODS
 	// ========================================================================
+
+	/**
+	 * Find all WordPress post IDs by property_import_id.
+	 *
+	 * @param string $property_id Property import ID.
+	 * @return array
+	 */
+	private function find_posts_by_property_id($property_id) {
+		global $wpdb;
+
+		error_log("[DELETION-MANAGER] Searching for estate_property with property_import_id = '$property_id'");
+
+		$post_ids = $wpdb->get_col($wpdb->prepare(
+			"SELECT DISTINCT p.ID
+			FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+			WHERE p.post_type = %s
+			AND pm.meta_key = %s
+			AND pm.meta_value = %s
+			ORDER BY p.ID ASC",
+			'estate_property',
+			'property_import_id',
+			$property_id
+		));
+
+		$post_ids = array_values(array_map('intval', is_array($post_ids) ? $post_ids : array()));
+
+		if (!empty($post_ids)) {
+			error_log("[DELETION-MANAGER]   ✅ Found WP post IDs: " . implode(', ', $post_ids));
+		} else {
+			error_log("[DELETION-MANAGER]   ❌ NOT FOUND - no post with property_import_id = '$property_id'");
+		}
+
+		return $post_ids;
+	}
 
 	/**
 	 * Find WordPress post by property_import_id or agency_xml_id
