@@ -160,19 +160,44 @@ jQuery(document).ready(function($) {
             const data = {
                 action: 'realestate_sync_save_settings',
                 nonce: realestateSync.nonce,
-                xml_url: $('#xml_url').val(),
-                username: $('#username').val(),
-                password: $('#password').val(),
-                notification_email: $('#notification_email').val(),
-                enabled_provinces: [],
-                chunk_size: $('#chunk_size').val() || 25,
-                sleep_seconds: $('#sleep_seconds').val() || 1
+                missing_from_feed_delete_mode: $('#missing_from_feed_delete_mode').val() || 'dry_run',
+                missing_from_feed_delete_cap: $('#missing_from_feed_delete_cap').val() || 10,
+                missing_from_feed_delete_kill_switch: $('#missing_from_feed_delete_kill_switch').is(':checked') ? '1' : '0'
             };
+
+            const xmlUrl = $('#xml_url').val();
+            const username = $('#username').val();
+            const password = $('#password').val();
+            const notificationEmail = $('#notification_email').val();
+            const chunkSize = $('#chunk_size').val();
+            const sleepSeconds = $('#sleep_seconds').val();
+
+            if (xmlUrl !== undefined) {
+                data.xml_url = xmlUrl;
+            }
+            if (username !== undefined) {
+                data.username = username;
+            }
+            if (password !== undefined) {
+                data.password = password;
+            }
+            if (notificationEmail !== undefined) {
+                data.notification_email = notificationEmail;
+            }
+            if (chunkSize !== undefined) {
+                data.chunk_size = chunkSize;
+            }
+            if (sleepSeconds !== undefined) {
+                data.sleep_seconds = sleepSeconds;
+            }
             
             // Collect enabled provinces
-            $('input[name="enabled_provinces[]"]:checked').each(function() {
-                data.enabled_provinces.push($(this).val());
-            });
+            if ($('input[name="enabled_provinces[]"]').length > 0) {
+                data.enabled_provinces = [];
+                $('input[name="enabled_provinces[]"]:checked').each(function() {
+                    data.enabled_provinces.push($(this).val());
+                });
+            }
             
             $button.prop('disabled', true).html('<span class="rs-spinner"></span>Salvataggio...');
             $status.empty();

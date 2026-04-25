@@ -905,15 +905,45 @@ class RealEstate_Sync_Admin {
             wp_die('Unauthorized');
         }
         
-        $settings = array(
-            'xml_url' => sanitize_url($_POST['xml_url']),
-            'username' => sanitize_text_field($_POST['username']),
-            'password' => sanitize_text_field($_POST['password']),
-            'notification_email' => sanitize_email($_POST['notification_email']),
-            'enabled_provinces' => isset($_POST['enabled_provinces']) ? array_map('sanitize_text_field', $_POST['enabled_provinces']) : array(),
-            'chunk_size' => isset($_POST['chunk_size']) ? intval($_POST['chunk_size']) : 50,
-            'sleep_seconds' => isset($_POST['sleep_seconds']) ? intval($_POST['sleep_seconds']) : 2
-        );
+        $existing_settings = get_option('realestate_sync_settings', array());
+        $existing_settings = is_array($existing_settings) ? $existing_settings : array();
+
+        $allowed_modes = array('dry_run', 'soft', 'live');
+        $requested_mode = (!empty($_POST['missing_from_feed_delete_mode'])) ? sanitize_key($_POST['missing_from_feed_delete_mode']) : null;
+        $requested_cap = (!empty($_POST['missing_from_feed_delete_cap'])) ? max(1, intval($_POST['missing_from_feed_delete_cap'])) : null;
+        $requested_kill_switch = array_key_exists('missing_from_feed_delete_kill_switch', $_POST)
+            ? (bool) intval($_POST['missing_from_feed_delete_kill_switch'])
+            : null;
+
+        $requested_xml_url = (!empty($_POST['xml_url'])) ? sanitize_url($_POST['xml_url']) : null;
+        $requested_username = (!empty($_POST['username'])) ? sanitize_text_field($_POST['username']) : null;
+        $requested_password = (!empty($_POST['password'])) ? sanitize_text_field($_POST['password']) : null;
+        $requested_notification_email = (!empty($_POST['notification_email'])) ? sanitize_email($_POST['notification_email']) : null;
+        $requested_chunk_size = (!empty($_POST['chunk_size'])) ? intval($_POST['chunk_size']) : null;
+        $requested_sleep_seconds = (!empty($_POST['sleep_seconds'])) ? intval($_POST['sleep_seconds']) : null;
+
+        $settings = array_merge($existing_settings, array(
+            'xml_url' => $requested_xml_url !== null ? $requested_xml_url : ($existing_settings['xml_url'] ?? ''),
+            'username' => $requested_username !== null ? $requested_username : ($existing_settings['username'] ?? ''),
+            'password' => $requested_password !== null ? $requested_password : ($existing_settings['password'] ?? ''),
+            'notification_email' => $requested_notification_email !== null ? $requested_notification_email : ($existing_settings['notification_email'] ?? ''),
+            'enabled_provinces' => isset($_POST['enabled_provinces']) && is_array($_POST['enabled_provinces']) && !empty($_POST['enabled_provinces'])
+                ? array_map('sanitize_text_field', (array) $_POST['enabled_provinces'])
+                : ($existing_settings['enabled_provinces'] ?? array()),
+            'chunk_size' => $requested_chunk_size !== null ? $requested_chunk_size : (isset($existing_settings['chunk_size']) ? intval($existing_settings['chunk_size']) : 50),
+            'sleep_seconds' => $requested_sleep_seconds !== null ? $requested_sleep_seconds : (isset($existing_settings['sleep_seconds']) ? intval($existing_settings['sleep_seconds']) : 2),
+            'missing_from_feed_delete_mode' => in_array($requested_mode, $allowed_modes, true)
+                ? $requested_mode
+                : (isset($existing_settings['missing_from_feed_delete_mode']) && in_array(sanitize_key($existing_settings['missing_from_feed_delete_mode']), $allowed_modes, true)
+                    ? sanitize_key($existing_settings['missing_from_feed_delete_mode'])
+                    : 'dry_run'),
+            'missing_from_feed_delete_cap' => $requested_cap !== null
+                ? $requested_cap
+                : (isset($existing_settings['missing_from_feed_delete_cap']) ? max(1, intval($existing_settings['missing_from_feed_delete_cap'])) : 10),
+            'missing_from_feed_delete_kill_switch' => $requested_kill_switch !== null
+                ? $requested_kill_switch
+                : (array_key_exists('missing_from_feed_delete_kill_switch', $existing_settings) ? (bool) $existing_settings['missing_from_feed_delete_kill_switch'] : true),
+        ));
         
         $result = update_option('realestate_sync_settings', $settings);
         
