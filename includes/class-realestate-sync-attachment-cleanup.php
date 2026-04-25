@@ -39,6 +39,10 @@ class RealEstate_Sync_Attachment_Cleanup {
 		}
 
 		$post_type_label = ( $post->post_type === 'estate_property' ) ? 'Property' : 'Agency';
+		$property_import_id = (string) get_post_meta( $post_id, 'property_import_id', true );
+		if ( '' === $property_import_id ) {
+			$property_import_id = (string) get_post_meta( $post_id, 'agency_xml_id', true );
+		}
 
 		error_log( "[ATTACHMENT-CLEANUP] Processing deletion of {$post_type_label} ID: {$post_id}" );
 
@@ -59,22 +63,21 @@ class RealEstate_Sync_Attachment_Cleanup {
 		// Delete each attachment
 		foreach ( $attachments as $attachment ) {
 			$attachment_id = $attachment->ID;
-			$file_path = get_attached_file( $attachment_id );
-
-			// Get file size before deletion
-			if ( file_exists( $file_path ) ) {
-				$file_size = filesize( $file_path );
-				$total_size += $file_size;
-			}
+			$audit_before = self::build_delete_media_audit_snapshot( $post_id, $attachment_id, $property_import_id );
+			self::log_delete_media_audit( $post_id, $attachment_id, 'before_wp_delete_attachment', $audit_before );
+			$total_size += (int) ( $audit_before['file_size_bytes'] ?? 0 );
 
 			// Delete attachment (force=true deletes file + all thumbnails)
 			$deleted = wp_delete_attachment( $attachment_id, true );
+			$audit_after = self::build_delete_media_audit_after_snapshot( $audit_before, $attachment_id );
+			$audit_after['wp_delete_attachment_result'] = (bool) $deleted;
+			self::log_delete_media_audit( $post_id, $attachment_id, 'after_wp_delete_attachment', $audit_after );
 
 			if ( $deleted ) {
 				$deleted_count++;
-				error_log( "[ATTACHMENT-CLEANUP] Deleted attachment {$attachment_id}: {$file_path}" );
+				error_log( "[ATTACHMENT-CLEANUP] Deleted attachment {$attachment_id}: " . ( $audit_before['absolute_path'] ?? '' ) );
 			} else {
-				error_log( "[ATTACHMENT-CLEANUP] Failed to delete attachment {$attachment_id}: {$file_path}" );
+				error_log( "[ATTACHMENT-CLEANUP] Failed to delete attachment {$attachment_id}: " . ( $audit_before['absolute_path'] ?? '' ) );
 			}
 		}
 
@@ -115,13 +118,18 @@ class RealEstate_Sync_Attachment_Cleanup {
 		);
 
 		foreach ( $attachments as $attachment ) {
-			$file_path = get_attached_file( $attachment->ID );
-
-			if ( file_exists( $file_path ) ) {
-				$stats['disk_space_freed'] += filesize( $file_path );
+			$property_import_id = (string) get_post_meta( $post_id, 'property_import_id', true );
+			if ( '' === $property_import_id ) {
+				$property_import_id = (string) get_post_meta( $post_id, 'agency_xml_id', true );
 			}
+			$audit_before = self::build_delete_media_audit_snapshot( $post_id, $attachment->ID, $property_import_id );
+			self::log_delete_media_audit( $post_id, $attachment->ID, 'before_wp_delete_attachment', $audit_before );
+			$stats['disk_space_freed'] += (int) ( $audit_before['file_size_bytes'] ?? 0 );
 
 			$deleted = wp_delete_attachment( $attachment->ID, true );
+			$audit_after = self::build_delete_media_audit_after_snapshot( $audit_before, $attachment->ID );
+			$audit_after['wp_delete_attachment_result'] = (bool) $deleted;
+			self::log_delete_media_audit( $post_id, $attachment->ID, 'after_wp_delete_attachment', $audit_after );
 
 			if ( $deleted ) {
 				$stats['attachments_deleted']++;
@@ -210,5 +218,97 @@ class RealEstate_Sync_Attachment_Cleanup {
 		error_log( "[ATTACHMENT-CLEANUP]   Space freed: {$stats['disk_space_freed_mb']} MB" );
 
 		return $stats;
+	}
+
+	/**
+	 * Build a media audit snapshot for one attachment.
+	 *
+	 * @param int $post_id Post ID being deleted.
+	 * @param int $attachment_id Attachment ID.
+	 * @return array
+	 */
+	private static function build_delete_media_audit_snapshot( $post_id, $attachment_id, $property_import_id = '' ) {
+		$attached_file = (string) get_post_meta( $attachment_id, '_wp_attached_file', true );
+		$absolute_path = (string) get_attached_file( $attachment_id );
+		$file_exists = '' !== $absolute_path ? file_exists( $absolute_path ) : false;
+		$metadata = wp_get_attachment_metadata( $attachment_id );
+		$metadata = is_array( $metadata ) ? $metadata : array();
+		$sizes = isset( $metadata['sizes'] ) && is_array( $metadata['sizes'] ) ? $metadata['sizes'] : array();
+		$size_paths = array();
+		$size_exists = array();
+
+		foreach ( $sizes as $size_name => $size_data ) {
+			$size_file = isset( $size_data['file'] ) ? (string) $size_data['file'] : '';
+			$size_path = '' !== $absolute_path && '' !== $size_file
+				? trailingslashit( dirname( $absolute_path ) ) . $size_file
+				: '';
+
+			$size_paths[ $size_name ] = $size_path;
+			$size_exists[ $size_name ] = '' !== $size_path ? file_exists( $size_path ) : false;
+		}
+
+		return array(
+			'property_post_id' => (int) $post_id,
+			'property_import_id' => (string) $property_import_id,
+			'attachment_id' => (int) $attachment_id,
+			'_wp_attached_file' => $attached_file,
+			'absolute_path' => $absolute_path,
+			'file_exists_before' => $file_exists,
+			'file_size_bytes' => ( $file_exists && '' !== $absolute_path ) ? (int) filesize( $absolute_path ) : 0,
+			'metadata_sizes' => $sizes,
+			'metadata_size_paths' => $size_paths,
+			'metadata_size_exists_before' => $size_exists,
+		);
+	}
+
+	/**
+	 * Recheck attachment state after delete.
+	 *
+	 * @param array $snapshot Pre-delete snapshot.
+	 * @param int   $attachment_id Attachment ID.
+	 * @return array
+	 */
+	private static function build_delete_media_audit_after_snapshot( array $snapshot, $attachment_id ) {
+		$after_size_exists = array();
+
+		foreach ( ( $snapshot['metadata_size_paths'] ?? array() ) as $size_name => $size_path ) {
+			$after_size_exists[ $size_name ] = '' !== $size_path ? file_exists( $size_path ) : false;
+		}
+
+		$absolute_path = isset( $snapshot['absolute_path'] ) ? (string) $snapshot['absolute_path'] : '';
+
+		return array_merge( $snapshot, array(
+			'attachment_post_exists_after' => (bool) get_post( $attachment_id ),
+			'file_exists_after' => '' !== $absolute_path ? file_exists( $absolute_path ) : false,
+			'metadata_size_exists_after' => $after_size_exists,
+		) );
+	}
+
+	/**
+	 * Write temporary audit log line.
+	 *
+	 * @param int    $post_id Property post ID.
+	 * @param int    $attachment_id Attachment ID.
+	 * @param string $stage Audit stage.
+	 * @param array  $payload Audit payload.
+	 * @return void
+	 */
+	private static function log_delete_media_audit( $post_id, $attachment_id, $stage, array $payload ) {
+		error_log( '[DELETE-MEDIA-AUDIT] ' . $stage . ' ' . wp_json_encode( array(
+			'property_post_id' => (int) $post_id,
+			'property_import_id' => isset( $payload['property_import_id'] ) ? (string) $payload['property_import_id'] : '',
+			'attachment_id' => (int) $attachment_id,
+			'_wp_attached_file' => $payload['_wp_attached_file'] ?? '',
+			'absolute_path' => $payload['absolute_path'] ?? '',
+			'file_exists_before' => $payload['file_exists_before'] ?? null,
+			'file_exists_after' => $payload['file_exists_after'] ?? null,
+			'metadata_sizes' => $payload['metadata_sizes'] ?? array(),
+			'metadata_size_paths' => $payload['metadata_size_paths'] ?? array(),
+			'metadata_size_exists_before' => $payload['metadata_size_exists_before'] ?? array(),
+			'metadata_size_exists_after' => $payload['metadata_size_exists_after'] ?? array(),
+			'wp_delete_attachment_result' => $payload['wp_delete_attachment_result'] ?? null,
+			'attachment_post_exists_after' => $payload['attachment_post_exists_after'] ?? null,
+			'file_size_bytes' => $payload['file_size_bytes'] ?? 0,
+		) ) );
 	}
 }
