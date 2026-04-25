@@ -55,7 +55,14 @@ require_once(dirname(__FILE__) . '/includes/class-realestate-sync-delete-queue-m
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-delete-batch-processor.php');
 
 $update_delete_phase_progress = static function (array $progress, array $delete_queue_stats, $status, $worker_enabled = false) {
-    $progress['status'] = $status;
+    $delete_runtime = isset($progress['delete_runtime']) && is_array($progress['delete_runtime']) ? $progress['delete_runtime'] : array();
+    $mode = $delete_runtime['mode'] ?? 'dry_run';
+    $session_completed = ($progress['status'] ?? '') === 'completed';
+
+    if (!($mode === 'dry_run' && $session_completed)) {
+        $progress['status'] = $status;
+    }
+
     $progress['delete_state'] = RealEstate_Sync_Batch_Orchestrator::build_delete_state_payload(
         $delete_queue_stats,
         $status,

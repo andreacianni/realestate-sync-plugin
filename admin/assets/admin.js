@@ -751,14 +751,15 @@ jQuery(document).ready(function($) {
     }
 
     function getMonitorProcessStatus(data) {
+        const lifecycleStatus = data.session_phase || data.status || '';
         const deleteState = data.delete_state || {};
+
+        if (lifecycleStatus) {
+            return buildMonitorStatusBadge(lifecycleStatus, data.is_active ? 'active' : 'closed');
+        }
 
         if (deleteState.status && deleteState.status !== 'idle') {
             return buildMonitorStatusBadge(deleteState.status, 'delete');
-        }
-
-        if (data.session_phase) {
-            return buildMonitorStatusBadge(data.session_phase, data.is_active ? 'active' : 'closed');
         }
 
         return data.is_active
