@@ -112,3 +112,5 @@ docs/develop/*-analysis.md
 docs/develop/2026-04-18-delete-missing-properties-blueprint.md
 docs/develop/2026-04-20-delete-missing-properties-implementation-plan.md
 docs/supporto-oneshot/2026-04-18-docs-status.md
+docs/develop/*
+docs/supporto-oneshot/*
