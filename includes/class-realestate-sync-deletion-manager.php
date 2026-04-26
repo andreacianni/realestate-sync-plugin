@@ -51,9 +51,6 @@ class RealEstate_Sync_Deletion_Manager {
 			'session_id' => $session_id
 		));
 
-		error_log("[DELETION-MANAGER] Starting property deletion process");
-		error_log("[DELETION-MANAGER] Properties to process: " . count($deleted_property_ids));
-
 		$stats = array(
 			'properties_found' => count($deleted_property_ids),
 			'properties_deleted' => 0,
@@ -78,15 +75,6 @@ class RealEstate_Sync_Deletion_Manager {
 		}
 
 		// Log final statistics
-		error_log("[DELETION-MANAGER] ========== PROPERTY DELETION SUMMARY ==========");
-		error_log("[DELETION-MANAGER]   Properties to delete: {$stats['properties_found']}");
-		error_log("[DELETION-MANAGER]   Properties deleted: {$stats['properties_deleted']}");
-		error_log("[DELETION-MANAGER]   Properties not found: {$stats['properties_not_found']}");
-		error_log("[DELETION-MANAGER]   Attachments deleted: {$stats['attachments_deleted']}");
-		error_log("[DELETION-MANAGER]   Disk space freed: " . round($stats['disk_space_freed'] / 1024 / 1024, 2) . " MB");
-		error_log("[DELETION-MANAGER]   Errors: {$stats['errors']}");
-		error_log("[DELETION-MANAGER] " . str_repeat("=", 60));
-
 		$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Property deletion complete', $stats);
 
 		return $stats;
@@ -114,11 +102,6 @@ class RealEstate_Sync_Deletion_Manager {
 			$result['error_message'] = $e->getMessage();
 			error_log("[DELETION-MANAGER] ERROR: Property $property_id - " . $e->getMessage());
 
-			$this->tracker->log_event('ERROR', 'DELETION_MANAGER', 'Single property deletion failed', array(
-				'property_id' => $property_id,
-				'error' => $e->getMessage()
-			));
-
 			return $result;
 		}
 	}
@@ -134,14 +117,19 @@ class RealEstate_Sync_Deletion_Manager {
 		$wp_post_ids = $this->find_posts_by_property_id($property_id);
 
 		if (empty($wp_post_ids)) {
-			error_log("[DELETION-MANAGER] Property $property_id not found in WP - skipping");
+			$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Property not found in WP - skipping', array(
+				'property_id' => $property_id
+			));
 			$result['outcome'] = self::SINGLE_DELETE_NOT_FOUND;
 			return $result;
 		}
 
 		$result['wp_post_id'] = count($wp_post_ids) === 1 ? $wp_post_ids[0] : $wp_post_ids;
 		$result['wp_post_ids'] = $wp_post_ids;
-		error_log("[DELETION-MANAGER] Deleting property $property_id (WP IDs: " . implode(', ', $wp_post_ids) . ")");
+		$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Deleting property', array(
+			'property_id' => $property_id,
+			'wp_post_ids' => $wp_post_ids
+		));
 
 		$delete_errors = 0;
 
@@ -149,7 +137,11 @@ class RealEstate_Sync_Deletion_Manager {
 			$attachments = get_attached_media('image', $wp_post_id);
 
 			if (!empty($attachments)) {
-				error_log("[DELETION-MANAGER]   Found " . count($attachments) . " attachments for post $wp_post_id");
+				$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Property attachments found', array(
+					'property_id' => $property_id,
+					'wp_post_id' => $wp_post_id,
+					'attachments_count' => count($attachments)
+				));
 
 				foreach ($attachments as $attachment) {
 					$file_path = get_attached_file($attachment->ID);
@@ -159,7 +151,13 @@ class RealEstate_Sync_Deletion_Manager {
 					$deleted = wp_delete_attachment($attachment->ID, true);
 
 					if ($deleted) {
-						error_log("[DELETION-MANAGER]   ✅ Deleted attachment {$attachment->ID}: {$attachment->post_title}");
+						$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Attachment deleted', array(
+							'property_id' => $property_id,
+							'wp_post_id' => $wp_post_id,
+							'attachment_id' => $attachment->ID,
+							'attachment_title' => $attachment->post_title,
+							'file_size' => $file_size
+						));
 						$result['attachments_deleted']++;
 						$result['disk_space_freed'] += $file_size;
 					} else {
@@ -174,7 +172,10 @@ class RealEstate_Sync_Deletion_Manager {
 			$deleted_post = wp_delete_post($wp_post_id, true);
 
 			if ($deleted_post) {
-				error_log("[DELETION-MANAGER]   ✅ Deleted property post $wp_post_id");
+				$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Property post deleted', array(
+					'property_id' => $property_id,
+					'wp_post_id' => $wp_post_id
+				));
 			} else {
 				error_log("[DELETION-MANAGER]   ❌ Failed to delete property post $wp_post_id");
 				$delete_errors++;
@@ -210,9 +211,6 @@ class RealEstate_Sync_Deletion_Manager {
 			'session_id' => $session_id
 		));
 
-		error_log("[DELETION-MANAGER] Starting agency deletion process");
-		error_log("[DELETION-MANAGER] Agencies to process: " . count($deleted_agency_ids));
-
 		$stats = array(
 			'agencies_found' => count($deleted_agency_ids),
 			'agencies_deleted' => 0,
@@ -239,24 +237,10 @@ class RealEstate_Sync_Deletion_Manager {
 			} catch (Exception $e) {
 				error_log("[DELETION-MANAGER] ERROR: Agency $agency_id - " . $e->getMessage());
 				$stats['errors']++;
-
-				$this->tracker->log_event('ERROR', 'DELETION_MANAGER', 'Agency deletion failed', array(
-					'agency_id' => $agency_id,
-					'error' => $e->getMessage()
-				));
 			}
 		}
 
 		// Log final statistics
-		error_log("[DELETION-MANAGER] ========== AGENCY DELETION SUMMARY ==========");
-		error_log("[DELETION-MANAGER]   Agencies to delete: {$stats['agencies_found']}");
-		error_log("[DELETION-MANAGER]   Agencies deleted: {$stats['agencies_deleted']}");
-		error_log("[DELETION-MANAGER]   Agencies not found: {$stats['agencies_not_found']}");
-		error_log("[DELETION-MANAGER]   Featured images deleted: {$stats['featured_images_deleted']}");
-		error_log("[DELETION-MANAGER]   Disk space freed: " . round($stats['disk_space_freed'] / 1024 / 1024, 2) . " MB");
-		error_log("[DELETION-MANAGER]   Errors: {$stats['errors']}");
-		error_log("[DELETION-MANAGER] " . str_repeat("=", 60));
-
 		$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Agency deletion complete', $stats);
 
 		return $stats;
@@ -280,12 +264,17 @@ class RealEstate_Sync_Deletion_Manager {
 		$wp_post_id = $this->find_post_by_property_id($agency_id, 'estate_agency');
 
 		if (!$wp_post_id) {
-			error_log("[DELETION-MANAGER] Agency $agency_id not found in WP - skipping");
+			$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Agency not found in WP - skipping', array(
+				'agency_id' => $agency_id
+			));
 			$result['not_found'] = true;
 			return $result;
 		}
 
-		error_log("[DELETION-MANAGER] Deleting agency $agency_id (WP ID: $wp_post_id)");
+		$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Deleting agency', array(
+			'agency_id' => $agency_id,
+			'wp_post_id' => $wp_post_id
+		));
 
 		// Get and delete featured image
 		$thumbnail_id = get_post_thumbnail_id($wp_post_id);
@@ -297,7 +286,12 @@ class RealEstate_Sync_Deletion_Manager {
 			$deleted = wp_delete_attachment($thumbnail_id, true);
 
 			if ($deleted) {
-				error_log("[DELETION-MANAGER]   ✅ Deleted featured image $thumbnail_id");
+				$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Featured image deleted', array(
+					'agency_id' => $agency_id,
+					'wp_post_id' => $wp_post_id,
+					'thumbnail_id' => $thumbnail_id,
+					'file_size' => $file_size
+				));
 				$result['featured_image_deleted'] = true;
 				$result['disk_space_freed'] += $file_size;
 			} else {
@@ -309,7 +303,10 @@ class RealEstate_Sync_Deletion_Manager {
 		$deleted_post = wp_delete_post($wp_post_id, true);
 
 		if ($deleted_post) {
-			error_log("[DELETION-MANAGER]   ✅ Deleted agency post $wp_post_id");
+			$this->tracker->log_event('INFO', 'DELETION_MANAGER', 'Agency post deleted', array(
+				'agency_id' => $agency_id,
+				'wp_post_id' => $wp_post_id
+			));
 			$result['success'] = true;
 		} else {
 			error_log("[DELETION-MANAGER]   ❌ Failed to delete agency post $wp_post_id");
@@ -335,7 +332,10 @@ class RealEstate_Sync_Deletion_Manager {
 	private function find_posts_by_property_id($property_id) {
 		global $wpdb;
 
-		error_log("[DELETION-MANAGER] Searching for estate_property with property_import_id = '$property_id'");
+		$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Searching for property posts', array(
+			'property_id' => $property_id,
+			'meta_key' => 'property_import_id'
+		));
 
 		$post_ids = $wpdb->get_col($wpdb->prepare(
 			"SELECT DISTINCT p.ID
@@ -353,9 +353,14 @@ class RealEstate_Sync_Deletion_Manager {
 		$post_ids = array_values(array_map('intval', is_array($post_ids) ? $post_ids : array()));
 
 		if (!empty($post_ids)) {
-			error_log("[DELETION-MANAGER]   ✅ Found WP post IDs: " . implode(', ', $post_ids));
+			$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Property posts found', array(
+				'property_id' => $property_id,
+				'wp_post_ids' => $post_ids
+			));
 		} else {
-			error_log("[DELETION-MANAGER]   ❌ NOT FOUND - no post with property_import_id = '$property_id'");
+			$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Property posts not found', array(
+				'property_id' => $property_id
+			));
 		}
 
 		return $post_ids;
@@ -373,7 +378,11 @@ class RealEstate_Sync_Deletion_Manager {
 
 		$meta_key = ($post_type === 'estate_property') ? 'property_import_id' : 'agency_xml_id';
 
-		error_log("[DELETION-MANAGER] Searching for $post_type with $meta_key = '$import_id'");
+		$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Searching for post', array(
+			'import_id' => $import_id,
+			'post_type' => $post_type,
+			'meta_key' => $meta_key
+		));
 
 		$post_id = $wpdb->get_var($wpdb->prepare(
 			"SELECT p.ID
@@ -389,9 +398,17 @@ class RealEstate_Sync_Deletion_Manager {
 		));
 
 		if ($post_id) {
-			error_log("[DELETION-MANAGER]   ✅ Found WP post ID: $post_id");
+			$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Post found', array(
+				'import_id' => $import_id,
+				'post_type' => $post_type,
+				'post_id' => (int) $post_id
+			));
 		} else {
-			error_log("[DELETION-MANAGER]   ❌ NOT FOUND - no post with $meta_key = '$import_id'");
+			$this->tracker->log_event('DEBUG', 'DELETION_MANAGER', 'Post not found', array(
+				'import_id' => $import_id,
+				'post_type' => $post_type,
+				'meta_key' => $meta_key
+			));
 		}
 
 		return $post_id ? (int) $post_id : false;
@@ -453,7 +470,5 @@ class RealEstate_Sync_Deletion_Manager {
 		$message .= "\nTimestamp: " . current_time('mysql');
 
 		wp_mail($admin_email, $subject, $message);
-
-		error_log("[DELETION-MANAGER] Email notification sent to $admin_email");
 	}
 }

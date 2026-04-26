@@ -46,8 +46,6 @@ if (!isset($_GET['token']) || $_GET['token'] !== $valid_token) {
     die('Forbidden');
 }
 
-error_log('[BATCH-CONTINUATION] ========== Cron check started ==========');
-
 // Load WordPress
 define('WP_USE_THEMES', false);
 require_once(dirname(__FILE__) . '/../../../wp-load.php');
@@ -137,10 +135,8 @@ if ($schedule_enabled) {
         $block_message = RealEstate_Sync_Batch_Orchestrator::get_import_start_block_message();
 
         if (null !== $block_message) {
-            error_log('[BATCH-CONTINUATION] Scheduled import skipped: ' . $block_message);
+        // Intentionally silent.
         } else {
-        error_log('[BATCH-CONTINUATION] 🕐 SCHEDULED IMPORT TRIGGER: Starting scheduled import now');
-
         // Update last run timestamp BEFORE starting (prevent duplicate runs)
         update_option('realestate_sync_last_scheduled_run', $now);
 
@@ -159,7 +155,6 @@ if ($schedule_enabled) {
                     throw new Exception('XML credentials not configured');
                 }
 
-                error_log('[BATCH-CONTINUATION] Using XML credentials from database');
             } else {
                 $settings = array(
                     'xml_url' => 'https://www.gestionaleimmobiliare.it/export/xml/trentinoimmobiliare_it/export_gi_full_merge_multilevel.xml.tar.gz',
@@ -167,7 +162,6 @@ if ($schedule_enabled) {
                     'password' => 'dget6g52'
                 );
 
-                error_log('[BATCH-CONTINUATION] Using hardcoded XML credentials');
             }
 
             // Download XML
@@ -182,16 +176,11 @@ if ($schedule_enabled) {
             $mark_as_test = get_option('realestate_sync_schedule_mark_test', false);
 
             // Start batch import using Batch Orchestrator
-            error_log('[BATCH-CONTINUATION] 🎯 Calling Batch Orchestrator for scheduled import');
-
             $result = RealEstate_Sync_Batch_Orchestrator::process_xml_batch($xml_file, $mark_as_test);
 
             if (!$result['success']) {
                 throw new Exception('Batch processing failed: ' . ($result['error'] ?? 'Unknown error'));
             }
-
-            error_log('[BATCH-CONTINUATION] ✅ Scheduled import batch started: ' . $result['total_queued'] . ' items queued, ' . $result['first_batch_processed'] . ' processed');
-            error_log('[BATCH-CONTINUATION] 🔄 Continuing with batch processing...');
 
         } catch (Exception $e) {
             error_log('[BATCH-CONTINUATION] ❌ Scheduled import failed: ' . $e->getMessage());
@@ -208,7 +197,6 @@ if ($schedule_enabled) {
 // NOTE: Keep lock as transient - it's short-lived (2 min) and not critical if lost
 $processing_lock = get_transient('realestate_sync_processing_lock');
 if ($processing_lock) {
-    error_log('[BATCH-CONTINUATION] >>> Another batch is processing - skipping this run');
     echo "OK - Batch already processing\n";
     exit;
 }
@@ -233,8 +221,6 @@ $active_session = $wpdb->get_row("
 ");
 
 if ((!$active_session || $active_session->pending == 0) && null === $delete_phase_status) {
-    error_log('[BATCH-CONTINUATION] No active sessions with pending items - exiting');
-    error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
     echo "OK - No pending work\n";
     exit;
 }
@@ -244,24 +230,16 @@ $session_id = $active_session && $active_session->pending > 0
     : ($progress['session_id'] ?? '');
 
 if (empty($session_id)) {
-    error_log('[BATCH-CONTINUATION] No active session id available - exiting');
-    error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
     echo "OK - No pending work\n";
     exit;
 }
 
 set_transient('realestate_sync_processing_lock', $session_id, 120);
-error_log('[BATCH-CONTINUATION] >>> Processing lock set');
 
 try {
     if ($active_session && $active_session->pending > 0) {
-        error_log("[BATCH-CONTINUATION] >>> Found active import session: {$session_id}");
-        error_log("[BATCH-CONTINUATION] >>> Pending items in queue: {$active_session->pending} / {$active_session->total}");
-
         if (($progress['session_id'] ?? '') !== $session_id) {
-            error_log("[BATCH-CONTINUATION] WARNING: Progress session mismatch");
-            error_log("[BATCH-CONTINUATION]   Queue session: {$session_id}");
-            error_log("[BATCH-CONTINUATION]   Progress session: " . ($progress['session_id'] ?? 'none'));
+            // Session mismatch is tolerated; queue remains source of truth.
         }
 
         $xml_file_path = $progress['xml_file_path'] ?? '';
@@ -272,28 +250,18 @@ try {
             throw new Exception('XML file path not found');
         }
 
-        error_log("[BATCH-CONTINUATION] >>> XML file (stored but not used): {$xml_file_path}");
-        error_log("[BATCH-CONTINUATION] >>> Mark as test: " . ($mark_as_test ? 'YES' : 'NO'));
-        error_log("[BATCH-CONTINUATION] >>> Force update: " . ($force_update ? 'YES' : 'NO'));
-
         require_once(dirname(__FILE__) . '/includes/class-realestate-sync-queue-manager.php');
         require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processor.php');
 
         $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test, $force_update);
         $result = $batch_processor->process_next_batch();
 
-        error_log('[BATCH-CONTINUATION] <<< Batch result: ' . json_encode($result['stats'] ?? array()));
-
         $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
         $progress['last_batch_time'] = time();
         update_option('realestate_sync_background_import_progress', $progress);
 
         if (!$result['complete']) {
-            $remaining = $result['stats']['pending'] ?? 'unknown';
             delete_transient('realestate_sync_processing_lock');
-            error_log("[BATCH-CONTINUATION] >>> Batch not complete - {$remaining} items remaining in queue");
-            error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-            error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
             echo "OK - Batch processed, more pending\n";
             exit;
         }
@@ -312,9 +280,6 @@ try {
                 update_option('realestate_sync_background_import_progress', $progress);
 
                 delete_transient('realestate_sync_processing_lock');
-                error_log('[BATCH-CONTINUATION] Import queue complete in dry_run - session closed without real delete');
-                error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-                error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
                 echo "OK - Dry run complete, delete queue observed only\n";
                 exit;
             }
@@ -323,9 +288,6 @@ try {
             update_option('realestate_sync_background_import_progress', $progress);
 
             delete_transient('realestate_sync_processing_lock');
-            error_log('[BATCH-CONTINUATION] Import queue complete - entering delete_pending phase');
-            error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-            error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
             echo "OK - Import complete, delete pending\n";
             exit;
         }
@@ -334,12 +296,10 @@ try {
         $progress['end_time'] = time();
         update_option('realestate_sync_background_import_progress', $progress);
 
-        error_log('[VERIFICATION] >>> Starting post-import quality check...');
         try {
             require_once(dirname(__FILE__) . '/includes/class-realestate-sync-import-verifier.php');
             $verifier = new RealEstate_Sync_Import_Verifier();
             $verifier->verify_session($session_id);
-            error_log('[VERIFICATION] >>> Quality check completed');
         } catch (Exception $e) {
             error_log('[VERIFICATION] ERROR: ' . $e->getMessage());
         }
@@ -354,13 +314,9 @@ try {
         }
 
         delete_transient('realestate_sync_processing_lock');
-        error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-        error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
         echo "OK - All batches complete!\n";
         exit;
     }
-
-    error_log("[BATCH-CONTINUATION] >>> Resuming delete phase session: {$session_id}");
 
     $delete_runtime = isset($progress['delete_runtime']) && is_array($progress['delete_runtime']) ? $progress['delete_runtime'] : array();
     $mode = $delete_runtime['mode'] ?? 'dry_run';
@@ -368,8 +324,6 @@ try {
     $cap = max(1, (int) ($delete_runtime['cap'] ?? 10));
 
     $recovery_stats = $delete_queue_manager->recover_stale_processing_items();
-    error_log('[BATCH-CONTINUATION] Delete stale recovery: ' . json_encode($recovery_stats));
-
     $delete_queue_stats = $delete_queue_manager->get_stats($session_id);
     $processed_delete_count = (int) $delete_queue_stats['done'] + (int) $delete_queue_stats['skipped'] + (int) $delete_queue_stats['error'];
 
@@ -380,10 +334,6 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
-        error_log('[BATCH-CONTINUATION] Delete phase complete - session marked completed');
-        error_log('[BATCH-CONTINUATION] Post-import verifier/report deferred until Step 8');
-        error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-        error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
         echo "OK - Delete phase complete\n";
         exit;
     }
@@ -393,9 +343,6 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
-        error_log('[BATCH-CONTINUATION] Delete phase paused by kill switch');
-        error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-        error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
         echo "OK - Delete phase paused by kill switch\n";
         exit;
     }
@@ -407,9 +354,6 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
-        error_log('[BATCH-CONTINUATION] Dry_run delete phase closed without real delete');
-        error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-        error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
         echo "OK - Dry run complete, delete queue observed only\n";
         exit;
     }
@@ -419,9 +363,6 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
-        error_log('[BATCH-CONTINUATION] Delete phase paused - cap reached');
-        error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-        error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
         echo "OK - Delete phase paused by cap\n";
         exit;
     }
@@ -431,7 +372,6 @@ try {
 
     $delete_batch_processor = new RealEstate_Sync_Delete_Batch_Processor($delete_queue_manager);
     $delete_result = $delete_batch_processor->process_next_item($session_id);
-    error_log('[BATCH-CONTINUATION] Delete batch result: ' . json_encode($delete_result));
 
     $delete_queue_stats = $delete_queue_manager->get_stats($session_id);
 
@@ -442,10 +382,6 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
-        error_log('[BATCH-CONTINUATION] Delete phase complete after processing one item');
-        error_log('[BATCH-CONTINUATION] Post-import verifier/report deferred until Step 8');
-        error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-        error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
         echo "OK - Delete phase complete\n";
         exit;
     }
@@ -455,9 +391,6 @@ try {
     update_option('realestate_sync_background_import_progress', $progress);
 
     delete_transient('realestate_sync_processing_lock');
-    error_log('[BATCH-CONTINUATION] Delete phase advanced by one item');
-    error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-    error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
     echo "OK - Delete item processed, more pending\n";
     exit;
 
@@ -466,14 +399,12 @@ try {
     error_log('[BATCH-CONTINUATION] Stack trace: ' . $e->getTraceAsString());
 
     delete_transient('realestate_sync_processing_lock');
-    error_log('[BATCH-CONTINUATION] >>> Processing lock released (error)');
 
     $progress['last_error'] = $e->getMessage();
     $progress['last_error_time'] = time();
     update_option('realestate_sync_background_import_progress', $progress);
 
     http_response_code(500);
-    error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
     echo "ERROR - " . $e->getMessage() . "\n";
     exit;
 }
@@ -496,28 +427,21 @@ $active_session = $wpdb->get_row("
 ");
 
 if (!$active_session || $active_session->pending == 0) {
-    error_log('[BATCH-CONTINUATION] No active sessions with pending items - exiting');
     echo "OK - No pending work\n";
     exit;
 }
 
 $session_id = $active_session->session_id;
-error_log("[BATCH-CONTINUATION] >>> Found active session: {$session_id}");
-error_log("[BATCH-CONTINUATION] >>> Pending items in queue: {$active_session->pending} / {$active_session->total}");
 
 // Set processing lock (expires in 2 minutes - longer than batch timeout)
 set_transient('realestate_sync_processing_lock', $session_id, 120);
-error_log('[BATCH-CONTINUATION] >>> Processing lock set');
 
 // Get session info from progress option
 $progress = get_option('realestate_sync_background_import_progress', array());
 
 // Verify session match (warn if mismatch but continue)
 if (($progress['session_id'] ?? '') !== $session_id) {
-    error_log("[BATCH-CONTINUATION] ⚠️ WARNING: Progress session mismatch");
-    error_log("[BATCH-CONTINUATION]   Queue session: {$session_id}");
-    error_log("[BATCH-CONTINUATION]   Progress session: " . ($progress['session_id'] ?? 'none'));
-    error_log("[BATCH-CONTINUATION]   Continuing with queue session...");
+    // Session mismatch is tolerated; queue remains source of truth.
 }
 
 $xml_file_path = $progress['xml_file_path'] ?? '';
@@ -541,23 +465,14 @@ if (empty($xml_file_path)) {
 //     ...OMITTED...
 // }
 
-error_log("[BATCH-CONTINUATION] >>> XML file (stored but not used): {$xml_file_path}");
-error_log("[BATCH-CONTINUATION] >>> Mark as test: " . ($mark_as_test ? 'YES' : 'NO'));
-error_log("[BATCH-CONTINUATION] >>> Force update: " . ($force_update ? 'YES' : 'NO'));
-error_log("[BATCH-CONTINUATION] >>> Batch processor will use pre-parsed data from database");
-
 // Load the batch processor
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-queue-manager.php');
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processor.php');
 
 try {
-    error_log('[BATCH-CONTINUATION] >>> Creating batch processor...');
     $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test, $force_update);
 
-    error_log('[BATCH-CONTINUATION] >>> Processing next batch...');
     $result = $batch_processor->process_next_batch();
-
-    error_log('[BATCH-CONTINUATION] <<< Batch result: ' . json_encode($result['stats'] ?? []));
 
     // Update progress
     $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
@@ -566,29 +481,21 @@ try {
 
     // ✅ Release processing lock
     delete_transient('realestate_sync_processing_lock');
-    error_log('[BATCH-CONTINUATION] >>> Processing lock released');
-
     // ✅ NO MORE TRANSIENT MANAGEMENT - Queue is source of truth!
     // Cron will keep running and checking queue until it's empty
     if (!$result['complete']) {
-        $remaining = $result['stats']['pending'] ?? 'unknown';
-        error_log("[BATCH-CONTINUATION] >>> Batch not complete - {$remaining} items remaining in queue");
         echo "OK - Batch processed, more pending\n";
     } else {
-        error_log('[BATCH-CONTINUATION] ========== ALL BATCHES COMPLETE ==========');
-
         // Mark import as complete
         $progress['status'] = 'completed';
         $progress['end_time'] = time();
         update_option('realestate_sync_background_import_progress', $progress);
 
         // ✅ POST-IMPORT VERIFICATION: Quality check su proprietà INSERT/UPDATE
-        error_log('[VERIFICATION] >>> Starting post-import quality check...');
         try {
             require_once(dirname(__FILE__) . '/includes/class-realestate-sync-import-verifier.php');
             $verifier = new RealEstate_Sync_Import_Verifier();
             $verifier->verify_session($session_id);
-            error_log('[VERIFICATION] >>> Quality check completed');
         } catch (Exception $e) {
             error_log('[VERIFICATION] ERROR: ' . $e->getMessage());
             // Non blocca - verifica è opzionale
@@ -613,8 +520,6 @@ try {
 
     // ✅ Release processing lock on error
     delete_transient('realestate_sync_processing_lock');
-    error_log('[BATCH-CONTINUATION] >>> Processing lock released (error)');
-
     // Mark error in progress
     $progress['last_error'] = $e->getMessage();
     $progress['last_error_time'] = time();
@@ -623,5 +528,3 @@ try {
     http_response_code(500);
     echo "ERROR - " . $e->getMessage() . "\n";
 }
-
-error_log('[BATCH-CONTINUATION] ========== Cron check ended ==========');
