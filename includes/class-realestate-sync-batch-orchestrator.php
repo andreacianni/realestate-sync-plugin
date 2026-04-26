@@ -461,12 +461,6 @@ class RealEstate_Sync_Batch_Orchestrator {
 					$result = $queue_manager->add_property( $session_id, $property_id );
 					if ( $result ) {
 						$properties_queued++;
-
-						$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Property queued', array(
-							'property_id' => $property_id,
-							'action' => $change_check['action'],
-							'reason' => $change_check['reason']
-						));
 					} else {
 						$properties_failed++;
 						$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Failed to add property to queue', array(
@@ -477,11 +471,6 @@ class RealEstate_Sync_Batch_Orchestrator {
 				} else {
 					// ✨ Skip properties with no changes (optimization!)
 					$properties_skipped_no_changes++;
-
-					$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Property skipped (no changes)', array(
-						'property_id' => $property_id,
-						'reason' => $change_check['reason']
-					));
 				}
 			} catch ( Exception $e ) {
 				// Fallback: if hash check fails, queue anyway to avoid data loss
@@ -570,7 +559,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'processed' => $first_batch_result['processed'],
 			'agencies' => $first_batch_result['agencies_processed'] ?? 0,
 			'properties' => $first_batch_result['properties_processed'] ?? 0,
-			'complete' => $first_batch_result['complete']
+			'complete' => $first_batch_result['complete'],
+			'processing_stats' => $first_batch_result['processing_stats'] ?? array()
 		));
 
 		// ═════════════════════════════════════════════════════════
@@ -610,6 +600,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'first_batch_processed' => $first_batch_result['processed'],
 			'complete' => $first_batch_result['complete'],
 			'remaining' => $total_queued - $first_batch_result['processed'],
+			'processing_stats' => $first_batch_result['processing_stats'] ?? array(),
 			'deletion_stats' => $deletion_stats // ✨ v1.7.1
 		));
 

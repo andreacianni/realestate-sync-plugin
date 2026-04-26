@@ -423,6 +423,31 @@ class RealEstate_Sync_Batch_Processor {
             'failed' => 0,
         ], (array) $this->queue_manager->get_session_stats($this->session_id));
 
+        $processing_stats = method_exists($this->import_engine, 'get_processing_stats')
+            ? $this->import_engine->get_processing_stats()
+            : array();
+
+        $summary_data = array_merge(array(
+            'session_id' => $this->session_id,
+            'batch_processed' => $processed,
+            'batch_errors' => $errors,
+            'pending' => $stats['pending'],
+        ), $processing_stats);
+
+        if (!empty($processing_stats)) {
+            $this->logger->log(
+                'Batch summary: processed=' . ($summary_data['processed'] ?? $processed) . ' created=' . ($summary_data['created'] ?? 0) . ' updated=' . ($summary_data['updated'] ?? 0) . ' skipped=' . ($summary_data['skipped'] ?? 0) . ' deleted=' . ($summary_data['deleted'] ?? 0) . ' errors=' . ($summary_data['errors'] ?? $errors) . ' pending=' . $summary_data['pending'],
+                'info',
+                $summary_data
+            );
+        } else {
+            $this->logger->log(
+                'Batch summary: processed=' . $processed . ' errors=' . $errors . ' pending=' . $stats['pending'],
+                'info',
+                $summary_data
+            );
+        }
+
         error_log("[BATCH-PROCESSOR] <<< Batch complete: processed={$processed}, errors={$errors}, remaining=" . $stats['pending']);
 
         // ðŸ End trace if ALL batches complete
@@ -450,6 +475,7 @@ class RealEstate_Sync_Batch_Processor {
             'errors' => $errors,
             'agencies_processed' => $agencies_processed,     // âœ… Return agency count
             'properties_processed' => $properties_processed, // âœ… Return property count
+            'processing_stats' => $processing_stats,
             'stats' => $stats
         );
     }
@@ -626,9 +652,13 @@ class RealEstate_Sync_Batch_Processor {
         ], (array) $this->queue_manager->get_session_stats($this->session_id));
         $retry_successes = $this->queue_manager->get_retry_successes($this->session_id);
         $failed_items = $this->queue_manager->get_items_by_status($this->session_id, 'error');
+        $processing_stats = method_exists($this->import_engine, 'get_processing_stats')
+            ? $this->import_engine->get_processing_stats()
+            : array();
 
         return array(
             'stats' => $stats,
+            'processing_stats' => $processing_stats,
             'retry_successes' => count($retry_successes),
             'failed_items' => count($failed_items)
         );

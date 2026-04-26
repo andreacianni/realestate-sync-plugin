@@ -1232,6 +1232,23 @@ class RealEstate_Sync_Import_Engine {
             )
         );
     }
+
+    /**
+     * Get property processing statistics for batch/session summaries.
+     *
+     * @return array
+     */
+    public function get_processing_stats() {
+        return array(
+            'processed' => $this->stats['total_processed'],
+            'new_properties' => $this->stats['new_properties'],
+            'created' => $this->stats['new_properties'],
+            'updated' => $this->stats['updated_properties'],
+            'skipped' => $this->stats['skipped_properties'],
+            'deleted' => $this->stats['deleted_properties'],
+            'errors' => $this->stats['error_properties'],
+        );
+    }
     
     /**
      * Get real agency statistics from Agency Manager

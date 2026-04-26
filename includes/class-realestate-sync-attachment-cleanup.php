@@ -17,9 +17,6 @@ class RealEstate_Sync_Attachment_Cleanup {
 	public static function init() {
 		// Hook before post deletion (properties and agencies)
 		add_action( 'before_delete_post', array( __CLASS__, 'cleanup_attachments_on_delete' ), 10, 2 );
-
-		// Log initialization
-		error_log( '[ATTACHMENT-CLEANUP] Hooks initialized - will clean attachments on post deletion' );
 	}
 
 	/**
@@ -40,21 +37,16 @@ class RealEstate_Sync_Attachment_Cleanup {
 
 		$post_type_label = ( $post->post_type === 'estate_property' ) ? 'Property' : 'Agency';
 
-		error_log( "[ATTACHMENT-CLEANUP] Processing deletion of {$post_type_label} ID: {$post_id}" );
-
 		// Get all attached media
 		$attachments = get_attached_media( '', $post_id );
 
 		if ( empty( $attachments ) ) {
-			error_log( "[ATTACHMENT-CLEANUP] No attachments found for {$post_type_label} {$post_id}" );
 			return;
 		}
 
 		$attachment_count = count( $attachments );
 		$deleted_count = 0;
 		$total_size = 0;
-
-		error_log( "[ATTACHMENT-CLEANUP] Found {$attachment_count} attachments for {$post_type_label} {$post_id}" );
 
 		// Delete each attachment
 		foreach ( $attachments as $attachment ) {
@@ -72,7 +64,6 @@ class RealEstate_Sync_Attachment_Cleanup {
 
 			if ( $deleted ) {
 				$deleted_count++;
-				error_log( "[ATTACHMENT-CLEANUP] Deleted attachment {$attachment_id}: {$file_path}" );
 			} else {
 				error_log( "[ATTACHMENT-CLEANUP] Failed to delete attachment {$attachment_id}: {$file_path}" );
 			}
@@ -80,9 +71,7 @@ class RealEstate_Sync_Attachment_Cleanup {
 
 		// Summary
 		$mb_freed = round( $total_size / 1024 / 1024, 2 );
-		error_log( "[ATTACHMENT-CLEANUP] Summary for {$post_type_label} {$post_id}:" );
-		error_log( "[ATTACHMENT-CLEANUP]   Attachments deleted: {$deleted_count}/{$attachment_count}" );
-		error_log( "[ATTACHMENT-CLEANUP]   Disk space freed: {$mb_freed} MB" );
+		error_log( "[ATTACHMENT-CLEANUP] {$post_type_label} {$post_id}: {$deleted_count}/{$attachment_count} attachments deleted, {$mb_freed} MB freed" );
 	}
 
 	/**
@@ -177,9 +166,6 @@ class RealEstate_Sync_Attachment_Cleanup {
 			'errors' => 0
 		);
 
-		error_log( "[ATTACHMENT-CLEANUP] Orphaned attachments cleanup: " . ( $dry_run ? 'DRY-RUN' : 'LIVE' ) );
-		error_log( "[ATTACHMENT-CLEANUP] Found {$stats['orphaned_found']} orphaned attachments" );
-
 		foreach ( $orphaned_ids as $attachment_id ) {
 			$file_path = get_attached_file( $attachment_id );
 
@@ -188,13 +174,12 @@ class RealEstate_Sync_Attachment_Cleanup {
 			}
 
 			if ( $dry_run ) {
-				error_log( "[ATTACHMENT-CLEANUP] [DRY-RUN] Would delete attachment {$attachment_id}: {$file_path}" );
+				// dry run: no-op
 			} else {
 				$deleted = wp_delete_attachment( $attachment_id, true );
 
 				if ( $deleted ) {
 					$stats['deleted']++;
-					error_log( "[ATTACHMENT-CLEANUP] Deleted orphaned attachment {$attachment_id}: {$file_path}" );
 				} else {
 					$stats['errors']++;
 					error_log( "[ATTACHMENT-CLEANUP] Failed to delete attachment {$attachment_id}" );
@@ -204,10 +189,7 @@ class RealEstate_Sync_Attachment_Cleanup {
 
 		$stats['disk_space_freed_mb'] = round( $stats['disk_space_freed'] / 1024 / 1024, 2 );
 
-		error_log( "[ATTACHMENT-CLEANUP] Cleanup summary:" );
-		error_log( "[ATTACHMENT-CLEANUP]   Orphaned found: {$stats['orphaned_found']}" );
-		error_log( "[ATTACHMENT-CLEANUP]   Deleted: {$stats['deleted']}" );
-		error_log( "[ATTACHMENT-CLEANUP]   Space freed: {$stats['disk_space_freed_mb']} MB" );
+		error_log( "[ATTACHMENT-CLEANUP] Cleanup summary: orphaned_found={$stats['orphaned_found']} deleted={$stats['deleted']} freed={$stats['disk_space_freed_mb']} MB" );
 
 		return $stats;
 	}
