@@ -21,12 +21,14 @@ class RealEstate_Sync_Self_Healing_Manager {
     private $wpdb;
     private $tracking_manager;
     private $logger;
+    private $tracker;
 
     public function __construct($tracking_manager, $logger) {
         global $wpdb;
         $this->wpdb = $wpdb;
         $this->tracking_manager = $tracking_manager;
         $this->logger = $logger;
+        $this->tracker = RealEstate_Sync_Debug_Tracker::get_instance();
     }
 
     /**
@@ -40,9 +42,11 @@ class RealEstate_Sync_Self_Healing_Manager {
      *
      * @param string $property_id Import ID della proprietà
      * @param string $new_hash Hash calcolato dei dati attuali
+     * @param array $context Optional context (title, source)
      * @return array ['action' => string, 'wp_post_id' => int|null, 'reason' => string]
      */
-    public function resolve_property_action($property_id, $new_hash) {
+    public function resolve_property_action($property_id, $new_hash, $context = array()) {
+        $property_title = $context['title'] ?? null;
 
         $this->logger->log("🩹 [SELF-HEALING] Resolving action for property {$property_id}", 'debug');
 
@@ -52,6 +56,15 @@ class RealEstate_Sync_Self_Healing_Manager {
         if (!$existing_post_id) {
             // ✅ Post NON esiste → INSERT (compatibility with legacy code)
             $this->logger->log("🩹 [SELF-HEALING] No existing post found → INSERT", 'debug');
+            $this->tracker->log_event('INFO', 'SELF_HEALING', 'Property decision resolved', array(
+                'property_id' => $property_id,
+                'title' => $property_title,
+                'action' => 'create',
+                'reason' => 'new_property',
+                'wp_post_id' => null,
+                'new_hash' => $new_hash,
+                'hash_match' => null
+            ));
             return [
                 'action' => 'insert',
                 'wp_post_id' => null,
@@ -70,6 +83,16 @@ class RealEstate_Sync_Self_Healing_Manager {
                 'property_id' => $property_id,
                 'wp_post_id' => $existing_post_id
             ]);
+            $this->tracker->log_event('INFO', 'SELF_HEALING', 'Property decision resolved', array(
+                'property_id' => $property_id,
+                'title' => $property_title,
+                'action' => 'update',
+                'reason' => 'tracking_missing_force_update',
+                'wp_post_id' => $existing_post_id,
+                'old_hash' => null,
+                'new_hash' => $new_hash,
+                'hash_match' => false
+            ));
 
             // Ricostruisci tracking
             $this->rebuild_tracking_record($property_id, $existing_post_id, $new_hash);
@@ -92,6 +115,16 @@ class RealEstate_Sync_Self_Healing_Manager {
                 'wp_post_id' => $existing_post_id,
                 'hash' => $new_hash
             ]);
+            $this->tracker->log_event('INFO', 'SELF_HEALING', 'Property decision resolved', array(
+                'property_id' => $property_id,
+                'title' => $property_title,
+                'action' => 'skip',
+                'reason' => 'no_changes',
+                'wp_post_id' => $existing_post_id,
+                'old_hash' => $old_hash,
+                'new_hash' => $new_hash,
+                'hash_match' => true
+            ));
 
             return [
                 'action' => 'skip',
@@ -107,6 +140,16 @@ class RealEstate_Sync_Self_Healing_Manager {
             'old_hash' => $old_hash,
             'new_hash' => $new_hash
         ]);
+        $this->tracker->log_event('INFO', 'SELF_HEALING', 'Property decision resolved', array(
+            'property_id' => $property_id,
+            'title' => $property_title,
+            'action' => 'update',
+            'reason' => 'property_changed',
+            'wp_post_id' => $existing_post_id,
+            'old_hash' => $old_hash,
+            'new_hash' => $new_hash,
+            'hash_match' => false
+        ));
 
         return [
             'action' => 'update',

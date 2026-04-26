@@ -702,16 +702,28 @@ class RealEstate_Sync_Import_Engine {
         try {
             $this->stats['total_in_xml']++;
             $property_id = $property_data['id'] ?? 'unknown';
+            $property_title = $property_data['title'] ?? null;
 
             $this->logger->log("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
             $this->logger->log("┃ STEP 1: IMPORT ENGINE - Property Processing Started", 'info');
             $this->logger->log("┃ Property ID: {$property_id} | Index: {$property_index}", 'info');
             $this->logger->log("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
+            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property received', array(
+                'property_id' => $property_id,
+                'title' => $property_title,
+                'property_index' => $property_index
+            ));
 
             // Skip properties deleted
             if (isset($property_data['deleted']) && $property_data['deleted'] == '1') {
                 $this->stats['deleted_properties']++;
                 $this->logger->log("❌ STEP 1a: Property {$property_id} SKIPPED - marked as deleted", 'info');
+                $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property skipped', array(
+                    'property_id' => $property_id,
+                    'title' => $property_title,
+                    'decision' => 'deleted',
+                    'reason' => 'marked_deleted'
+                ));
                 return;
             }
             
@@ -719,10 +731,20 @@ class RealEstate_Sync_Import_Engine {
             if (!$this->property_mapper->is_property_in_enabled_provinces($property_data, $this->config['enabled_provinces'])) {
                 $this->stats['skipped_properties']++;
                 $this->logger->log("❌ STEP 1b: Property {$property_id} SKIPPED - province filtering failed", 'info');
+                $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property skipped', array(
+                    'property_id' => $property_id,
+                    'title' => $property_title,
+                    'decision' => 'province_skip',
+                    'reason' => 'province_filter_failed'
+                ));
                 return;
             }
 
             $this->logger->log("✅ STEP 1c: Province filtering passed", 'info');
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Province filter passed', array(
+                'property_id' => $property_id,
+                'title' => $property_title
+            ));
 
             // 🎯 NORMAL PROCESSING: Always process properties, update if different
             $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
@@ -730,7 +752,9 @@ class RealEstate_Sync_Import_Engine {
 
             // 🩹 SELF-HEALING: Resolve action (create/update/skip)
             $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
-            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
+            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash, array(
+                'title' => $property_title
+            ));
 
             $this->logger->log("STEP 2a: Action determined", 'info', [
                 'action' => $change_status['action'],
@@ -802,10 +826,12 @@ class RealEstate_Sync_Import_Engine {
     public function process_single_property($property_data) {
         try {
             $property_id = intval($property_data['id']);
+            $property_title = $property_data['title'] ?? null;
 
             // 🔍 LOG: Start property processing
             $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Processing property', array(
                 'property_id' => $property_id,
+                'title' => $property_title,
                 'has_price' => isset($property_data['price']),
                 'price' => $property_data['price'] ?? null
             ));
@@ -816,12 +842,15 @@ class RealEstate_Sync_Import_Engine {
             // 🔍 LOG: Hash calculated
             $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property hash calculated', array(
                 'property_id' => $property_id,
+                'title' => $property_title,
                 'hash' => $property_hash
             ));
 
             // 🩹 STEP 2: TRACKING - Self-healing property resolution
             $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
-            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash);
+            $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash, array(
+                'title' => $property_title
+            ));
 
             $this->logger->log("✅ STEP 2a: Action determined", 'info', [
                 'action' => $change_status['action'],
@@ -849,20 +878,6 @@ class RealEstate_Sync_Import_Engine {
                 $change_status['has_changed'] = true;
             }
 
-            // 🔍 LOG: Change detection result (debug tracker)
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Self-healing resolution complete', array(
-                'property_id' => $property_id,
-                'action' => $change_status['action'],
-                'reason' => $change_status['reason'],
-                'wp_post_id' => $change_status['wp_post_id'] ?? null
-            ));
-
-            // 🔍 ENHANCED LOGGING: Show WHY this action was chosen
-            $property_title = $property_data['title'] ?? 'no title';
-            error_log("[IMPORT-ENGINE] >>> Processing property {$property_id} (action: {$change_status['action']})");
-            error_log("[IMPORT-ENGINE]     Reason: {$change_status['reason']}");
-            error_log("[IMPORT-ENGINE]     Title: {$property_title}");
-
             // Gestione azione SKIP
             if ($change_status['action'] === 'skip') {
                 $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'info');
@@ -888,10 +903,9 @@ class RealEstate_Sync_Import_Engine {
 
             // 🔧 FIX 2: Verify wp_post_id is valid before marking as success
             if (empty($wp_post_id)) {
-                error_log("[IMPORT-ENGINE] ❌ Property {$property_id} processing returned NULL wp_post_id (API timeout or failure)");
-
                 $this->tracker->log_event('ERROR', 'IMPORT_ENGINE', 'Property processing returned no wp_post_id', array(
                     'property_id' => $property_id,
+                    'title' => $property_title,
                     'action' => $change_status['action'],
                     'error' => 'API timeout or failure - no post ID returned'
                 ));
@@ -905,11 +919,10 @@ class RealEstate_Sync_Import_Engine {
                 );
             }
 
-            error_log("[IMPORT-ENGINE] <<< Property {$property_id} processed successfully");
-
             // 🔍 LOG: Property processed successfully
             $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property processed successfully', array(
                 'property_id' => $property_id,
+                'title' => $property_title,
                 'action' => $change_status['action'],
                 'wp_post_id' => $wp_post_id
             ));
@@ -923,11 +936,10 @@ class RealEstate_Sync_Import_Engine {
             );
 
         } catch (Exception $e) {
-            error_log("[IMPORT-ENGINE] ❌ Property processing failed: " . $e->getMessage());
-
             // 🔍 LOG: Error
             $this->tracker->log_event('ERROR', 'IMPORT_ENGINE', 'Property processing failed', array(
                 'property_id' => $property_id ?? null,
+                'title' => $property_data['title'] ?? null,
                 'error' => $e->getMessage()
             ));
 

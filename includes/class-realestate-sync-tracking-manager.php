@@ -120,6 +120,7 @@ class RealEstate_Sync_Tracking_Manager {
         if ($tracker->is_active()) {
             $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Hash calculation - fields included', array(
                 'property_id' => $property_data['id'] ?? null,
+                'title' => $property_data['title'] ?? null,
                 'has_price' => isset($property_data['price']),
                 'price_value' => $property_data['price'] ?? null,
                 'has_numeric_data' => isset($property_data['numeric_data']),
@@ -156,6 +157,7 @@ class RealEstate_Sync_Tracking_Manager {
         if ($tracker->is_active()) {
             $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Hash generated', array(
                 'property_id' => $property_data['id'] ?? null,
+                'title' => $property_data['title'] ?? null,
                 'hash' => $hash,
                 'data_size' => strlen($hash_string),
                 'fields' => array_keys($hash_data),  // ← MOSTRA TUTTI I CAMPI
@@ -189,7 +191,9 @@ class RealEstate_Sync_Tracking_Manager {
             'property_id' => $property_id,
             'table' => $table_name,
             'found' => !empty($result),
-            'result' => $result,
+            'wp_post_id' => $result['wp_post_id'] ?? null,
+            'property_hash' => $result['property_hash'] ?? null,
+            'status' => $result['status'] ?? null,
             'wpdb_error' => $this->wpdb->last_error
         ));
 
@@ -218,7 +222,9 @@ class RealEstate_Sync_Tracking_Manager {
 
         if (!$existing) {
             $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Property not in tracking table → INSERT', array(
-                'property_id' => $property_id
+                'property_id' => $property_id,
+                'hash_match' => null,
+                'decision' => 'insert'
             ));
             return array(
                 'has_changed' => true,
@@ -232,7 +238,9 @@ class RealEstate_Sync_Tracking_Manager {
                 'property_id' => $property_id,
                 'stored_hash' => $existing['property_hash'],
                 'new_hash' => $new_hash,
-                'wp_post_id' => $existing['wp_post_id']
+                'wp_post_id' => $existing['wp_post_id'],
+                'hash_match' => false,
+                'decision' => 'update'
             ));
             return array(
                 'has_changed' => true,
@@ -245,7 +253,9 @@ class RealEstate_Sync_Tracking_Manager {
         $tracker->log_event('DEBUG', 'TRACKING_MANAGER', 'Property hash UNCHANGED → SKIP', array(
             'property_id' => $property_id,
             'hash' => $new_hash,
-            'wp_post_id' => $existing['wp_post_id']
+            'wp_post_id' => $existing['wp_post_id'],
+            'hash_match' => true,
+            'decision' => 'skip'
         ));
         return array(
             'has_changed' => false,
