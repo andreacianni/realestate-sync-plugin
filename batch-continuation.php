@@ -267,9 +267,8 @@ try {
         }
 
         $delete_queue_stats = $delete_queue_manager->get_stats($session_id);
-        $delete_queue_active = (int) $delete_queue_stats['pending'] + (int) $delete_queue_stats['processing'];
 
-        if ($delete_queue_active > 0) {
+        if ((int) $delete_queue_stats['pending'] > 0) {
             $delete_runtime = isset($progress['delete_runtime']) && is_array($progress['delete_runtime']) ? $progress['delete_runtime'] : array();
             $mode = $delete_runtime['mode'] ?? 'dry_run';
             $worker_enabled = (($delete_runtime['mode'] ?? 'dry_run') !== 'dry_run') && empty($delete_runtime['kill_switch']);
