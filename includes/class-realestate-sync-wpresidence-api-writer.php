@@ -231,7 +231,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 	public function format_api_body($mapped_property) {
 		$api_body = array();
 
-		$this->logger->log('Formatting property data for API', 'INFO');
+		$this->logger->log('Formatting property data for API', 'DEBUG');
 
 		// 1. Core post fields
 		if (isset($mapped_property['post_data']['post_title'])) {
@@ -254,7 +254,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 
 		// Force prop_featured to 0 to keep properties visible in theme queries.
 		$api_body['prop_featured'] = '0';
-		$this->logger->log('Forcing prop_featured=0 in API payload', 'INFO');
+		$this->logger->log('Forcing prop_featured=0 in API payload', 'DEBUG');
 
 		// 3. Taxonomies (as arrays)
 		if (!empty($mapped_property['taxonomies']) && is_array($mapped_property['taxonomies'])) {
@@ -273,13 +273,13 @@ class RealEstate_Sync_WPResidence_API_Writer {
 		// 5. Gallery images (convert to API format)
 		if (!empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
 			$api_body['images'] = $this->format_gallery_for_api($mapped_property['gallery']);
-			$this->logger->log('Formatted ' . count($api_body['images']) . ' gallery images for API', 'INFO');
+			$this->logger->log('Formatted ' . count($api_body['images']) . ' gallery images for API', 'DEBUG');
 		}
 
 		// 6. Agency/Agent assignment
 		if (!empty($mapped_property['source_data']['agency_id'])) {
 			$api_body['property_agent'] = (string) $mapped_property['source_data']['agency_id'];
-			$this->logger->log('Agency/Agent ID: ' . $api_body['property_agent'], 'INFO');
+			$this->logger->log('Agency/Agent ID: ' . $api_body['property_agent'], 'DEBUG');
 
 			// Set sidebar_agent_option to 'global' to enable agency sidebar display
 			// This follows WPResidence default behavior for property creation
@@ -292,7 +292,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 		$property_user_id = get_option('realestate_sync_property_user_id', '');
 		if (!empty($property_user_id)) {
 			$api_body['property_user'] = (string) $property_user_id;
-			$this->logger->log('Property User ID: ' . $api_body['property_user'], 'INFO');
+				$this->logger->log('Property User ID: ' . $api_body['property_user'], 'DEBUG');
 		}
 
 		// 7. Catasto data as custom fields
@@ -324,7 +324,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			}
 		}
 
-		$this->logger->log('API body formatted with ' . count($api_body) . ' top-level fields', 'INFO');
+		$this->logger->log('API body formatted with ' . count($api_body) . ' top-level fields', 'DEBUG');
 
 		return $api_body;
 	}
@@ -383,7 +383,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 	 * @return array Result array with success status, post_id, action, and message
 	 */
 	public function create_property($api_body) {
-		$this->logger->log('Creating property via API', 'INFO');
+		$this->logger->log('Creating property via API', 'DEBUG');
 
 		// Get JWT token
 		$token = $this->get_jwt_token();
@@ -411,7 +411,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			$post_id = isset($body['property_id']) ? $body['property_id'] : null;
 
 			if ($post_id) {
-				$this->logger->log("Property created successfully via API (ID: $post_id)", 'SUCCESS');
+					$this->logger->log("Property created successfully via API (ID: $post_id)", 'DEBUG');
 
 				return array(
 					'success' => true,
@@ -443,7 +443,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 	 * @return array Result array with success status, post_id, action, and message
 	 */
 	public function update_property($post_id, $api_body) {
-		$this->logger->log("Updating property $post_id via API", 'INFO');
+		$this->logger->log("Updating property $post_id via API", 'DEBUG');
 
 		// Get JWT token
 		$token = $this->get_jwt_token();
@@ -468,7 +468,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 
 		// Check API response status
 		if (isset($body['status']) && $body['status'] === 'success') {
-			$this->logger->log("Property $post_id updated successfully via API", 'SUCCESS');
+			$this->logger->log("Property $post_id updated successfully via API", 'DEBUG');
 
 			return array(
 				'success' => true,

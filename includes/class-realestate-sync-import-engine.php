@@ -704,11 +704,11 @@ class RealEstate_Sync_Import_Engine {
             $property_id = $property_data['id'] ?? 'unknown';
             $property_title = $property_data['title'] ?? null;
 
-            $this->logger->log("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
-            $this->logger->log("┃ STEP 1: IMPORT ENGINE - Property Processing Started", 'info');
-            $this->logger->log("┃ Property ID: {$property_id} | Index: {$property_index}", 'info');
-            $this->logger->log("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'info');
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property received', array(
+            $this->logger->log("┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'debug');
+            $this->logger->log("┃ STEP 1: IMPORT ENGINE - Property Processing Started", 'debug');
+            $this->logger->log("┃ Property ID: {$property_id} | Index: {$property_index}", 'debug');
+            $this->logger->log("┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━", 'debug');
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property received', array(
                 'property_id' => $property_id,
                 'title' => $property_title,
                 'property_index' => $property_index
@@ -717,8 +717,8 @@ class RealEstate_Sync_Import_Engine {
             // Skip properties deleted
             if (isset($property_data['deleted']) && $property_data['deleted'] == '1') {
                 $this->stats['deleted_properties']++;
-                $this->logger->log("❌ STEP 1a: Property {$property_id} SKIPPED - marked as deleted", 'info');
-                $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property skipped', array(
+                $this->logger->log("❌ STEP 1a: Property {$property_id} SKIPPED - marked as deleted", 'debug');
+                $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property skipped', array(
                     'property_id' => $property_id,
                     'title' => $property_title,
                     'decision' => 'deleted',
@@ -730,8 +730,8 @@ class RealEstate_Sync_Import_Engine {
             // Province filtering
             if (!$this->property_mapper->is_property_in_enabled_provinces($property_data, $this->config['enabled_provinces'])) {
                 $this->stats['skipped_properties']++;
-                $this->logger->log("❌ STEP 1b: Property {$property_id} SKIPPED - province filtering failed", 'info');
-                $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property skipped', array(
+                $this->logger->log("❌ STEP 1b: Property {$property_id} SKIPPED - province filtering failed", 'debug');
+                $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property skipped', array(
                     'property_id' => $property_id,
                     'title' => $property_title,
                     'decision' => 'province_skip',
@@ -740,7 +740,7 @@ class RealEstate_Sync_Import_Engine {
                 return;
             }
 
-            $this->logger->log("✅ STEP 1c: Province filtering passed", 'info');
+            $this->logger->log("✅ STEP 1c: Province filtering passed", 'debug');
             $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Province filter passed', array(
                 'property_id' => $property_id,
                 'title' => $property_title
@@ -751,12 +751,12 @@ class RealEstate_Sync_Import_Engine {
             $property_id = intval($property_data['id']);
 
             // 🩹 SELF-HEALING: Resolve action (create/update/skip)
-            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
+            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'debug');
             $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash, array(
                 'title' => $property_title
             ));
 
-            $this->logger->log("STEP 2a: Action determined", 'info', [
+            $this->logger->log("STEP 2a: Action determined", 'debug', [
                 'action' => $change_status['action'],
                 'reason' => $change_status['reason']
             ]);
@@ -767,13 +767,13 @@ class RealEstate_Sync_Import_Engine {
                 static $forced_skip_suppressed = false;
 
                 if ($forced_skip_logged < 10) {
-                    $this->logger->log('Force update: bypassing skip for unchanged property', 'info', [
+                    $this->logger->log('Force update: bypassing skip for unchanged property', 'debug', [
                         'property_id' => $property_id,
                         'reason' => $change_status['reason'] ?? null
                     ]);
                     $forced_skip_logged++;
                 } elseif (!$forced_skip_suppressed) {
-                    $this->logger->log('Force update: skip bypass logging suppressed after 10 properties', 'info');
+                    $this->logger->log('Force update: skip bypass logging suppressed after 10 properties', 'debug');
                     $forced_skip_suppressed = true;
                 }
 
@@ -785,12 +785,12 @@ class RealEstate_Sync_Import_Engine {
             // Gestione azione SKIP
             if ($change_status['action'] === 'skip') {
                 $this->stats['skipped_properties']++;
-                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'info');
+                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'debug');
                 return;
             }
 
             // Per 'create' e 'update', procedi con processing normale
-            $this->logger->log("✅ STEP 2c: Property will be processed", 'info', [
+            $this->logger->log("✅ STEP 2c: Property will be processed", 'debug', [
                 'action' => $change_status['action']
             ]);
 
@@ -798,7 +798,7 @@ class RealEstate_Sync_Import_Engine {
             $change_status['has_changed'] = true;
 
             // Process property based on action needed
-            $this->logger->log("➤ STEP 3: DATA CONVERSION - Converting to v3.0 format", 'info');
+            $this->logger->log("➤ STEP 3: DATA CONVERSION - Converting to v3.0 format", 'debug');
             $this->process_property_by_action($property_data, $change_status, $property_hash);
             
             // Track processed property ID
@@ -829,7 +829,7 @@ class RealEstate_Sync_Import_Engine {
             $property_title = $property_data['title'] ?? null;
 
             // 🔍 LOG: Start property processing
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Processing property', array(
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Processing property', array(
                 'property_id' => $property_id,
                 'title' => $property_title,
                 'has_price' => isset($property_data['price']),
@@ -847,12 +847,12 @@ class RealEstate_Sync_Import_Engine {
             ));
 
             // 🩹 STEP 2: TRACKING - Self-healing property resolution
-            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'info');
+            $this->logger->log("➤ STEP 2: TRACKING - Self-healing property resolution", 'debug');
             $change_status = $this->self_healing_manager->resolve_property_action($property_id, $property_hash, array(
                 'title' => $property_title
             ));
 
-            $this->logger->log("✅ STEP 2a: Action determined", 'info', [
+            $this->logger->log("✅ STEP 2a: Action determined", 'debug', [
                 'action' => $change_status['action'],
                 'reason' => $change_status['reason']
             ]);
@@ -863,13 +863,13 @@ class RealEstate_Sync_Import_Engine {
                 static $forced_skip_suppressed = false;
 
                 if ($forced_skip_logged < 10) {
-                    $this->logger->log('Force update: bypassing skip for unchanged property', 'info', [
+                    $this->logger->log('Force update: bypassing skip for unchanged property', 'debug', [
                         'property_id' => $property_id,
                         'reason' => $change_status['reason'] ?? null
                     ]);
                     $forced_skip_logged++;
                 } elseif (!$forced_skip_suppressed) {
-                    $this->logger->log('Force update: skip bypass logging suppressed after 10 properties', 'info');
+                    $this->logger->log('Force update: skip bypass logging suppressed after 10 properties', 'debug');
                     $forced_skip_suppressed = true;
                 }
 
@@ -880,7 +880,7 @@ class RealEstate_Sync_Import_Engine {
 
             // Gestione azione SKIP
             if ($change_status['action'] === 'skip') {
-                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'info');
+                $this->logger->log("⏭️ STEP 2b: Property {$property_id} SKIPPED - no changes detected", 'debug');
 
                 return array(
                     'success' => true,
@@ -891,7 +891,7 @@ class RealEstate_Sync_Import_Engine {
             }
 
             // Per 'create' e 'update', procedi con processing normale
-            $this->logger->log("✅ STEP 2c: Property will be processed", 'info', [
+            $this->logger->log("✅ STEP 2c: Property will be processed", 'debug', [
                 'action' => $change_status['action']
             ]);
 
@@ -920,7 +920,7 @@ class RealEstate_Sync_Import_Engine {
             }
 
             // 🔍 LOG: Property processed successfully
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property processed successfully', array(
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property processed successfully', array(
                 'property_id' => $property_id,
                 'title' => $property_title,
                 'action' => $change_status['action'],
@@ -963,7 +963,7 @@ class RealEstate_Sync_Import_Engine {
         // 🔧 CONVERT XML DATA TO SAMPLE v3.0 FORMAT
         $v3_formatted_data = $this->convert_xml_to_v3_format($property_data);
 
-        $this->logger->log("✅ STEP 3a: Data conversion completed", 'info', [
+            $this->logger->log("✅ STEP 3a: Data conversion completed", 'debug', [
             'property_id' => $property_id,
             'media_files' => count($v3_formatted_data['file_allegati'] ?? []),
             'has_agency' => !empty($v3_formatted_data['agency_data']['id'] ?? null)
@@ -982,7 +982,7 @@ class RealEstate_Sync_Import_Engine {
         // }
 
         // 🔥 UPGRADED TO v3.0: Use enhanced Property Mapper with complete structure
-        $this->logger->log("➤ STEP 4: PROPERTY MAPPER - Mapping data to WP structure", 'info');
+        $this->logger->log("➤ STEP 4: PROPERTY MAPPER - Mapping data to WP structure", 'debug');
         $mapped_result = $this->property_mapper->map_properties([$v3_formatted_data]);
 
         if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
@@ -991,7 +991,7 @@ class RealEstate_Sync_Import_Engine {
         }
 
         $mapped_data = $mapped_result['properties'][0];
-        $this->logger->log("✅ STEP 4a: Property mapping completed", 'info', [
+        $this->logger->log("✅ STEP 4a: Property mapping completed", 'debug', [
             'property_id' => $property_id,
             'taxonomies' => count($mapped_data['taxonomies'] ?? []),
             'features' => count($mapped_data['features'] ?? []),
@@ -999,10 +999,10 @@ class RealEstate_Sync_Import_Engine {
         ]);
 
         if ($change_status['action'] === 'insert') {
-            $this->logger->log("➤ STEP 5: WP IMPORTER - Creating NEW property", 'info');
+            $this->logger->log("➤ STEP 5: WP IMPORTER - Creating NEW property", 'debug');
 
             // 🔍 LOG: Creating property
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Creating NEW property via API', array(
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Creating NEW property via API', array(
                 'property_id' => $property_id,
                 'price' => $mapped_data['property_price'] ?? null
             ));
@@ -1011,7 +1011,7 @@ class RealEstate_Sync_Import_Engine {
             $result = $this->call_wp_importer($mapped_data);
 
             // 🔍 LOG: API result
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property creation result', array(
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property creation result', array(
                 'property_id' => $property_id,
                 'success' => $result['success'],
                 'wp_post_id' => $result['post_id'] ?? null,
@@ -1020,7 +1020,7 @@ class RealEstate_Sync_Import_Engine {
             ));
 
             if ($result['success']) {
-                $this->logger->log("✅ STEP 5a: Property created successfully", 'info', [
+                $this->logger->log("✅ STEP 5a: Property created successfully", 'debug', [
                     'property_id' => $property_id,
                     'post_id' => $result['post_id']
                 ]);
@@ -1044,7 +1044,7 @@ class RealEstate_Sync_Import_Engine {
 
                 $this->stats['new_properties']++;
 
-                $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
+                $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'debug');
 
                 // ⚠️ FIX TIMEOUT BUG: Verifica che wp_post_id non sia NULL
                 if (empty($result['post_id'])) {
@@ -1059,10 +1059,10 @@ class RealEstate_Sync_Import_Engine {
             }
 
         } elseif ($change_status['action'] === 'update') {
-            $this->logger->log("➤ STEP 5: WP IMPORTER - Updating EXISTING property", 'info');
+            $this->logger->log("➤ STEP 5: WP IMPORTER - Updating EXISTING property", 'debug');
 
             // 🔍 LOG: Updating property
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Updating EXISTING property via API', array(
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Updating EXISTING property via API', array(
                 'property_id' => $property_id,
                 'wp_post_id' => $change_status['wp_post_id'] ?? null,
                 'price' => $mapped_data['property_price'] ?? null
@@ -1072,7 +1072,7 @@ class RealEstate_Sync_Import_Engine {
             $result = $this->call_wp_importer($mapped_data);
 
             // 🔍 LOG: API result
-            $this->tracker->log_event('INFO', 'IMPORT_ENGINE', 'Property update result', array(
+            $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property update result', array(
                 'property_id' => $property_id,
                 'success' => $result['success'],
                 'wp_post_id' => $result['post_id'] ?? null,
@@ -1082,13 +1082,13 @@ class RealEstate_Sync_Import_Engine {
 
             if ($result['success']) {
                 if ($result['action'] === 'updated') {
-                    $this->logger->log("✅ STEP 5a: Property updated successfully", 'info', [
+                    $this->logger->log("✅ STEP 5a: Property updated successfully", 'debug', [
                         'property_id' => $property_id,
                         'post_id' => $result['post_id']
                     ]);
                     $this->stats['updated_properties']++;
                 } else {
-                    $this->logger->log("✅ STEP 5a: Property unchanged (skipped)", 'info', [
+                    $this->logger->log("✅ STEP 5a: Property unchanged (skipped)", 'debug', [
                         'property_id' => $property_id,
                         'post_id' => $result['post_id']
                     ]);
@@ -1109,7 +1109,7 @@ class RealEstate_Sync_Import_Engine {
                     'active'
                 );
 
-                $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'info');
+                $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'debug');
 
                 // ⚠️ FIX TIMEOUT BUG: Verifica che wp_post_id non sia NULL
                 if (empty($result['post_id'])) {

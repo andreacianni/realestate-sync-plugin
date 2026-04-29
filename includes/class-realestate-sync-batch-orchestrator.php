@@ -382,11 +382,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 					// ✨ Skip agencies with no changes (optimization!)
 					$agencies_skipped_no_changes++;
 
-					$tracker->log_event('DEBUG', 'ORCHESTRATOR', 'Agency skipped (no changes)', array(
-						'agency_id' => $agency['id'],
-						'reason' => $change_check['reason']
-					));
-				}
+					}
 			} catch ( Exception $e ) {
 				// Fallback: if hash check fails, queue anyway to avoid data loss
 				$tracker->log_event('ERROR', 'ORCHESTRATOR', 'Agency hash check failed - queueing as fallback', array(

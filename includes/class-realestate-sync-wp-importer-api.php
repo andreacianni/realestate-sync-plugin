@@ -142,7 +142,7 @@ class RealEstate_Sync_WP_Importer_API {
 			);
 		}
 
-		$this->logger->log("Processing property via API: {$import_id}", 'INFO');
+		$this->logger->log("Processing property via API: {$import_id}", 'DEBUG');
 
 		// Item-level lock per import_id (re-entrant per session)
 		$lock_key = 'realestate_sync_import_lock_' . $import_id;
@@ -174,7 +174,7 @@ class RealEstate_Sync_WP_Importer_API {
 			$converted_from_create = false;
 
 			if ($existing_post_id) {
-				$this->logger->log("Existing property found (ID: {$existing_post_id}) - will UPDATE", 'INFO');
+			$this->logger->log("Existing property found (ID: {$existing_post_id}) - will UPDATE", 'DEBUG');
 
 				// ✅ CHANGE DETECTION DELEGATED TO TRACKING MANAGER
 				// Import_Engine + Tracking_Manager already handle change detection via hash comparison
@@ -202,7 +202,7 @@ class RealEstate_Sync_WP_Importer_API {
 						$mapped_property['gallery'] = $filtered_gallery;
 						$api_body = $this->api_writer->format_api_body($mapped_property);
 
-						$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Gallery filtered for UPDATE', array(
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'Gallery filtered for UPDATE', array(
 							'import_id' => $import_id,
 							'original_images' => $original_count,
 							'new_images' => count($filtered_gallery),
@@ -212,7 +212,7 @@ class RealEstate_Sync_WP_Importer_API {
 				}
 
 				// Update existing property
-				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Calling API to UPDATE property', array(
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'Calling API to UPDATE property', array(
 					'import_id' => $import_id,
 					'wp_post_id' => $existing_post_id,
 					'price' => $api_body['property_price'] ?? null
@@ -220,7 +220,7 @@ class RealEstate_Sync_WP_Importer_API {
 
 				$result = $this->api_writer->update_property($existing_post_id, $api_body);
 
-				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'API UPDATE result', array(
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'API UPDATE result', array(
 					'import_id' => $import_id,
 					'success' => $result['success'],
 					'action' => $result['action'] ?? null,
@@ -232,7 +232,7 @@ class RealEstate_Sync_WP_Importer_API {
 				}
 			} else {
 				// Create new property
-				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'Calling API to CREATE property', array(
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'Calling API to CREATE property', array(
 					'import_id' => $import_id,
 					'price' => $api_body['property_price'] ?? null
 				));
@@ -246,7 +246,7 @@ class RealEstate_Sync_WP_Importer_API {
 					$result = $recovered;
 				}
 
-				$this->tracker->log_event('INFO', 'WP_IMPORTER_API', 'API CREATE result', array(
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'API CREATE result', array(
 					'import_id' => $import_id,
 					'success' => $result['success'],
 					'action' => $result['action'] ?? null,
@@ -269,7 +269,7 @@ class RealEstate_Sync_WP_Importer_API {
 			if ($result['success']) {
 				$this->update_tracking_metadata($result['post_id'], $mapped_property, $import_id);
 
-				$this->logger->log("Property {$import_id} processed successfully via API", 'SUCCESS', array(
+					$this->logger->log("Property {$import_id} processed successfully via API", 'DEBUG', array(
 					'action'  => $result['action'],
 					'post_id' => $result['post_id'],
 				));

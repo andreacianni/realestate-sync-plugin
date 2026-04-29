@@ -223,14 +223,14 @@ class RealEstate_Sync_Agency_Manager {
 
         if ($query->have_posts()) {
             $agency_id = $query->posts[0];
-            $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency found', array(
+            $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Agency found', array(
                 'xml_id' => $xml_id,
                 'wp_id' => $agency_id
             ));
             return $agency_id;
         }
 
-        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency not found', array(
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Agency not found', array(
             'xml_id' => $xml_id
         ));
 
@@ -249,7 +249,7 @@ class RealEstate_Sync_Agency_Manager {
         // 🔍 Debug tracker
         $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 
-        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Creating agency via API', array(
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Creating agency via API', array(
             'name' => $agency_data['name'],
             'xml_id' => $agency_data['xml_agency_id']
         ));
@@ -273,7 +273,7 @@ class RealEstate_Sync_Agency_Manager {
 
         $agency_id = $result['agency_id'];
 
-        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency created', array(
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Agency created', array(
             'xml_id' => $agency_data['xml_agency_id'],
             'wp_id' => $agency_id
         ));
@@ -286,7 +286,7 @@ class RealEstate_Sync_Agency_Manager {
         $tracker->log_meta_operation('AGENCY_MANAGER', 'save', $agency_id, 'agency_xml_id', $xml_id);
 
         update_post_meta($agency_id, 'agency_xml_id', $xml_id);
-        $this->logger->log("Stored agency_xml_id meta: agency_id=$agency_id, xml_id=$xml_id", 'INFO');
+        $this->logger->log("Stored agency_xml_id meta: agency_id=$agency_id, xml_id=$xml_id", 'DEBUG');
 
         // Verify it was saved
         $saved_value = get_post_meta($agency_id, 'agency_xml_id', true);
@@ -295,7 +295,7 @@ class RealEstate_Sync_Agency_Manager {
             'matches_expected' => ($saved_value === $xml_id)
         ));
 
-        $this->logger->log("Verified agency_xml_id meta: saved_value=$saved_value", 'INFO');
+        $this->logger->log("Verified agency_xml_id meta: saved_value=$saved_value", 'DEBUG');
 
         // Mark as test if requested
         if ($mark_as_test) {
@@ -317,7 +317,7 @@ class RealEstate_Sync_Agency_Manager {
             'active'           // status
         );
 
-        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency tracking record created', array(
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Agency tracking record created', array(
             'xml_id' => $xml_id,
             'wp_id' => $agency_id,
             'hash' => $agency_hash
@@ -339,7 +339,7 @@ class RealEstate_Sync_Agency_Manager {
         // 🔍 Debug tracker
         $tracker = RealEstate_Sync_Debug_Tracker::get_instance();
 
-        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Updating agency via API', array(
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Updating agency via API', array(
             'wp_id' => $agency_id,
             'xml_id' => $agency_data['xml_agency_id'],
             'name' => $agency_data['name']
@@ -354,7 +354,7 @@ class RealEstate_Sync_Agency_Manager {
             if (!$logo_changed) {
                 // Logo URL unchanged → remove from API body to avoid re-upload
                 unset($api_body['featured_image']);
-                $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Logo unchanged, skipped from API call', array(
+                $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Logo unchanged, skipped from API call', array(
                     'wp_id' => $agency_id,
                     'logo_url' => $agency_data['logo_url']
                 ));
@@ -376,7 +376,7 @@ class RealEstate_Sync_Agency_Manager {
             return false;
         }
 
-        $tracker->log_event('INFO', 'AGENCY_MANAGER', 'Agency updated', array(
+        $tracker->log_event('DEBUG', 'AGENCY_MANAGER', 'Agency updated', array(
             'wp_id' => $agency_id,
             'xml_id' => $agency_data['xml_agency_id']
         ));
@@ -703,12 +703,12 @@ class RealEstate_Sync_Agency_Manager {
             return false;
         }
 
-        $this->logger->log('🔍 Looking up agency by XML ID: ' . $xml_agency_id, 'info');
+        $this->logger->log('🔍 Looking up agency by XML ID: ' . $xml_agency_id, 'debug');
 
         // Check cache first
         $cache_key = 'xmlid_' . md5($xml_agency_id);
         if (isset($this->agency_cache[$cache_key])) {
-            $this->logger->log('✅ Found agency in cache - XML ID: ' . $xml_agency_id . ', WP ID: ' . $this->agency_cache[$cache_key], 'info');
+            $this->logger->log('✅ Found agency in cache - XML ID: ' . $xml_agency_id . ', WP ID: ' . $this->agency_cache[$cache_key], 'debug');
             return $this->agency_cache[$cache_key];
         }
 
@@ -731,7 +731,7 @@ class RealEstate_Sync_Agency_Manager {
         $agency_id = false;
         if ($query->have_posts()) {
             $agency_id = $query->posts[0];
-            $this->logger->log('✅ Found agency by XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'info');
+            $this->logger->log('✅ Found agency by XML ID: ' . $xml_agency_id . ' → WP ID: ' . $agency_id, 'debug');
 
             // Cache result
             $this->agency_cache[$cache_key] = $agency_id;
