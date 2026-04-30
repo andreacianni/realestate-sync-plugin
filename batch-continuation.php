@@ -212,20 +212,22 @@ $active_session = $wpdb->get_row("
     SELECT
         session_id,
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
+        SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing
     FROM {$queue_table}
     GROUP BY session_id
-    HAVING pending > 0
+    HAVING pending > 0 OR stale_processing > 0
     ORDER BY MIN(created_at) ASC
     LIMIT 1
 ");
 
-if ((!$active_session || $active_session->pending == 0) && null === $delete_phase_status) {
+if ((!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing ?? 0) === 0)) && null === $delete_phase_status) {
     echo "OK - No pending work\n";
     exit;
 }
 
-$session_id = $active_session && $active_session->pending > 0
+$session_id = $active_session && (((int) ($active_session->pending ?? 0) > 0) || ((int) ($active_session->stale_processing ?? 0) > 0))
     ? $active_session->session_id
     : ($progress['session_id'] ?? '');
 
@@ -237,7 +239,7 @@ if (empty($session_id)) {
 set_transient('realestate_sync_processing_lock', $session_id, 120);
 
 try {
-    if ($active_session && $active_session->pending > 0) {
+    if ($active_session && (((int) ($active_session->pending ?? 0) > 0) || ((int) ($active_session->stale_processing ?? 0) > 0))) {
         if (($progress['session_id'] ?? '') !== $session_id) {
             // Session mismatch is tolerated; queue remains source of truth.
         }
@@ -418,15 +420,17 @@ $active_session = $wpdb->get_row("
     SELECT
         session_id,
         COUNT(*) as total,
-        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending
+        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
+        SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing
     FROM {$queue_table}
     GROUP BY session_id
-    HAVING pending > 0
+    HAVING pending > 0 OR stale_processing > 0
     ORDER BY MIN(created_at) ASC
     LIMIT 1
 ");
 
-if (!$active_session || $active_session->pending == 0) {
+if (!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing ?? 0) === 0)) {
     echo "OK - No pending work\n";
     exit;
 }

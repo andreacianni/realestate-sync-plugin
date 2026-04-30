@@ -260,7 +260,7 @@ class RealEstate_Sync_Batch_Processor {
      */
     public function process_next_batch() {
         // Recover stale processing items before starting a new batch
-        $this->recover_stale_processing_items();
+        $recovery_stats = $this->recover_stale_processing_items();
         // ðŸ”„ Resume trace if not already active (background continuation)
         if (!$this->tracker->is_active()) {
             $trace_id = get_option('realestate_sync_current_trace_id');
@@ -289,12 +289,14 @@ class RealEstate_Sync_Batch_Processor {
         $items = $this->queue_manager->get_next_batch($this->session_id, self::ITEMS_PER_BATCH);
 
         if (empty($items)) {
+            $processed += (int) ($recovery_stats['done'] ?? 0);
+            $errors += (int) ($recovery_stats['requeued'] ?? 0) + (int) ($recovery_stats['terminal_errors'] ?? 0);
             error_log("[BATCH-PROCESSOR] <<< No items to process - batch complete");
             return array(
                 'success' => true,
                 'complete' => true,
-                'processed' => 0,
-                'errors' => 0,
+                'processed' => $processed,
+                'errors' => $errors,
                 'agencies_processed' => 0,
                 'properties_processed' => 0
             );
@@ -353,12 +355,21 @@ class RealEstate_Sync_Batch_Processor {
 
                     // ÐY"õ FIX PRIORITÇ? 3: Update wp_post_id IMMEDIATELY after property creation
                     if (!empty($result['post_id'])) {
-                        $this->queue_manager->update_wp_post_id($item->id, $result['post_id']);
-                        error_log("[BATCH-PROCESSOR]    ƒo. wp_post_id updated: {$result['post_id']}");
-                    }
-
-                    // Treat missing/failed post_id as failure
-                    if (empty($result['success']) || empty($result['post_id'])) {
+                        if ($this->finalize_queue_item_success($item, $result['post_id'])) {
+                            error_log("[BATCH-PROCESSOR]    ƒo. wp_post_id updated: {$result['post_id']}");
+                            $processed++;
+                            error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
+                        } else {
+                            $error_msg = 'Failed to finalize property queue item after wp_post_id update';
+                            $error_status_before = $item->status ?? 'processing';
+                            $error_retry_before = (int) ($item->retry_count ?? 0);
+                            $this->queue_manager->mark_error($item->id, $error_msg);
+                            $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $error_status_before, $error_retry_before, 'error', $error_msg);
+                            $property_failed = true;
+                            $errors++;
+                            error_log("[BATCH-PROCESSOR]    ƒ?O ERROR: {$item->item_type} {$item->item_id} - {$error_msg}");
+                        }
+                    } else {
                         $error_msg = $result['error'] ?? 'Property processing returned no wp_post_id';
                         $error_status_before = $item->status ?? 'processing';
                         $error_retry_before = (int) ($item->retry_count ?? 0);
@@ -367,13 +378,6 @@ class RealEstate_Sync_Batch_Processor {
                         $property_failed = true;
                         $errors++;
                         error_log("[BATCH-PROCESSOR]    ƒ?O ERROR: {$item->item_type} {$item->item_id} - {$error_msg}");
-                    } else {
-                        $done_status_before = $item->status ?? 'processing';
-                        $done_retry_before = (int) ($item->retry_count ?? 0);
-                        $this->queue_manager->mark_done($item->id);
-                        $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $done_status_before, $done_retry_before, 'done');
-                        $processed++;
-                        error_log("[BATCH-PROCESSOR]    <<< SUCCESS: {$item->item_type} {$item->item_id}");
                     }
                 }
 
@@ -427,10 +431,15 @@ class RealEstate_Sync_Batch_Processor {
             ? $this->import_engine->get_processing_stats()
             : array();
 
+        $recovered_done = (int) ($recovery_stats['done'] ?? 0);
+        $recovered_errors = (int) ($recovery_stats['requeued'] ?? 0) + (int) ($recovery_stats['terminal_errors'] ?? 0);
+        $total_processed = $processed + $recovered_done;
+        $total_errors = $errors + $recovered_errors;
+
         $summary_data = array_merge(array(
             'session_id' => $this->session_id,
-            'batch_processed' => $processed,
-            'batch_errors' => $errors,
+            'batch_processed' => $total_processed,
+            'batch_errors' => $total_errors,
             'pending' => $stats['pending'],
         ), $processing_stats);
 
@@ -442,13 +451,13 @@ class RealEstate_Sync_Batch_Processor {
             );
         } else {
             $this->logger->log(
-                'Batch summary: processed=' . $processed . ' errors=' . $errors . ' pending=' . $stats['pending'],
+                'Batch summary: processed=' . $total_processed . ' errors=' . $total_errors . ' pending=' . $stats['pending'],
                 'info',
                 $summary_data
             );
         }
 
-        error_log("[BATCH-PROCESSOR] <<< Batch complete: processed={$processed}, errors={$errors}, remaining=" . $stats['pending']);
+        error_log("[BATCH-PROCESSOR] <<< Batch complete: processed={$total_processed}, errors={$total_errors}, remaining=" . $stats['pending']);
 
         // ðŸ End trace if ALL batches complete
         if ($is_complete && $this->tracker->is_active()) {
@@ -471,10 +480,13 @@ class RealEstate_Sync_Batch_Processor {
         return array(
             'success' => true,
             'complete' => $is_complete,
-            'processed' => $processed,
-            'errors' => $errors,
+            'processed' => $total_processed,
+            'errors' => $total_errors,
             'agencies_processed' => $agencies_processed,     // âœ… Return agency count
             'properties_processed' => $properties_processed, // âœ… Return property count
+            'recovered_done' => $recovered_done,
+            'recovered_requeued' => (int) ($recovery_stats['requeued'] ?? 0),
+            'recovered_terminal_errors' => (int) ($recovery_stats['terminal_errors'] ?? 0),
             'processing_stats' => $processing_stats,
             'stats' => $stats
         );
@@ -730,23 +742,362 @@ class RealEstate_Sync_Batch_Processor {
     private function recover_stale_processing_items() {
         $processing_items = $this->queue_manager->get_items_by_status($this->session_id, 'processing');
         if (empty($processing_items)) {
-            return;
+            return array(
+                'done' => 0,
+                'requeued' => 0,
+                'terminal_errors' => 0
+            );
         }
 
         $now = time();
+        $recovery_stats = array(
+            'done' => 0,
+            'requeued' => 0,
+            'terminal_errors' => 0
+        );
+
         foreach ($processing_items as $processing_item) {
             $updated_at_ts = isset($processing_item->updated_at) ? strtotime($processing_item->updated_at) : 0;
             if ($updated_at_ts > 0 && ($now - $updated_at_ts) >= self::STALE_PROCESSING_THRESHOLD) {
-                $message = "Auto-reset stale processing item after " . self::STALE_PROCESSING_THRESHOLD . "s";
-                // Record as error (increments retry_count) then requeue for retry
-                $stale_status_before = $processing_item->status ?? 'processing';
-                $stale_retry_before = (int) ($processing_item->retry_count ?? 0);
-                $this->queue_manager->mark_error($processing_item->id, $message);
-                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', $stale_status_before, $stale_retry_before, 'error', $message);
-                $this->queue_manager->update_item_status($processing_item->id, 'pending');
-                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', 'error', $stale_retry_before + 1, 'pending');
-                error_log("[BATCH-PROCESSOR] ƒo. Stale item reset to pending: ID={$processing_item->id}, item_id={$processing_item->item_id}");
+                if (($processing_item->item_type ?? 'property') !== 'property') {
+                    $message = "Auto-reset stale processing item after " . self::STALE_PROCESSING_THRESHOLD . "s";
+                    $stale_status_before = $processing_item->status ?? 'processing';
+                    $stale_retry_before = (int) ($processing_item->retry_count ?? 0);
+                    $this->queue_manager->mark_error($processing_item->id, $message);
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', $stale_status_before, $stale_retry_before, 'error', $message);
+                    $this->queue_manager->update_item_status($processing_item->id, 'pending');
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', 'error', $stale_retry_before + 1, 'pending');
+                    $recovery_stats['requeued']++;
+                    error_log("[BATCH-PROCESSOR] ƒo. Stale non-property item reset to pending: ID={$processing_item->id}, item_id={$processing_item->item_id}");
+                    continue;
+                }
+
+                $retry_count = (int) ($processing_item->retry_count ?? 0);
+                if ($retry_count >= RealEstate_Sync_Queue_Manager::MAX_RETRIES) {
+                    $message = "Auto-error stale processing item after {$retry_count} recovery attempts";
+                    $stale_status_before = $processing_item->status ?? 'processing';
+                    $this->queue_manager->mark_error($processing_item->id, $message);
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $stale_status_before, $retry_count, 'error', $message);
+                    $recovery_stats['terminal_errors']++;
+                    error_log("[BATCH-PROCESSOR] ƒ?O Stale property item exceeded recovery limit: ID={$processing_item->id}, item_id={$processing_item->item_id}, retry_count={$retry_count}");
+                    continue;
+                }
+
+                $property_id = (string) $processing_item->item_id;
+                $property_data = $this->get_batch_property_data($property_id);
+                if (empty($property_data)) {
+                    $this->queue_item_to_pending_or_error($processing_item, "Stale recovery pending: batch data not available for property {$property_id}", "Stale recovery pending: batch data not available for property {$property_id}");
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', "Stale recovery pending: batch data not available for property {$property_id}");
+                    $recovery_stats['requeued']++;
+                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - batch data missing: {$property_id}");
+                    continue;
+                }
+
+                $wp_post_id = $this->find_existing_property_post($property_id);
+                if (empty($wp_post_id)) {
+                    $this->queue_item_to_pending_or_error($processing_item, "Stale recovery pending: property post not found for {$property_id}", "Stale recovery pending: property post not found for {$property_id}");
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', "Stale recovery pending: property post not found for {$property_id}");
+                    $recovery_stats['requeued']++;
+                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - post missing: {$property_id}");
+                    continue;
+                }
+
+                $validation = $this->validate_recovery_candidate($property_id, $property_data, $wp_post_id);
+                if (empty($validation['success'])) {
+                    $reason = $validation['reason'] ?? "Stale recovery pending: property {$property_id} not yet coherent";
+                    $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
+                    $recovery_stats['requeued']++;
+                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - {$reason}");
+                    continue;
+                }
+
+                $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
+                $tracking_updated = $this->tracking_manager->update_tracking_record(
+                    intval($property_id),
+                    $property_hash,
+                    intval($wp_post_id),
+                    $property_data,
+                    'active'
+                );
+
+                if (!$tracking_updated) {
+                    $reason = "Stale recovery pending: tracking not updateable for property {$property_id}";
+                    $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
+                    $recovery_stats['requeued']++;
+                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - tracking update failed: {$property_id}");
+                    continue;
+                }
+
+                if (!$this->finalize_queue_item_success($processing_item, $wp_post_id)) {
+                    $reason = "Stale recovery pending: finalize failed for property {$property_id}";
+                    $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
+                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
+                    $recovery_stats['requeued']++;
+                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - finalize failed: {$property_id}");
+                    continue;
+                }
+
+                $recovery_stats['done']++;
+                error_log("[BATCH-PROCESSOR] ƒo. Stale property item finalized: ID={$processing_item->id}, item_id={$processing_item->item_id}, wp_post_id={$wp_post_id}");
             }
         }
+
+        return $recovery_stats;
+    }
+
+    /**
+     * Load pre-parsed property data from session batch cache.
+     *
+     * @param string $property_id Property import ID.
+     * @return array|null
+     */
+    private function get_batch_property_data($property_id) {
+        $batch_data = get_option("realestate_sync_batch_data_{$this->session_id}");
+
+        if (!$batch_data || !isset($batch_data['properties']) || !is_array($batch_data['properties'])) {
+            return null;
+        }
+
+        return $batch_data['properties'][$property_id] ?? null;
+    }
+
+    /**
+     * Find existing estate_property post by property_import_id.
+     *
+     * @param string $property_id Property import ID.
+     * @return int|null
+     */
+    private function find_existing_property_post($property_id) {
+        global $wpdb;
+
+        $post_id = $wpdb->get_var($wpdb->prepare("
+            SELECT p.ID
+            FROM {$wpdb->posts} p
+            JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id
+            WHERE pm.meta_key = 'property_import_id'
+              AND pm.meta_value = %s
+              AND p.post_type = 'estate_property'
+              AND p.post_status NOT IN ('trash', 'auto-draft', 'inherit')
+            ORDER BY p.ID ASC
+            LIMIT 1
+        ", $property_id));
+
+        return $post_id ? intval($post_id) : null;
+    }
+
+    /**
+     * Validate whether a stale processing property can be finalized safely.
+     *
+     * @param string $property_id Property import ID.
+     * @param array  $property_data Pre-parsed XML property data.
+     * @param int    $wp_post_id Existing WordPress post ID.
+     * @return array
+     */
+    private function validate_recovery_candidate($property_id, $property_data, $wp_post_id) {
+        $post = get_post($wp_post_id);
+        if (!$post || $post->post_type !== 'estate_property') {
+            return array(
+                'success' => false,
+                'reason' => "Stale recovery pending: property post missing or invalid for {$property_id}"
+            );
+        }
+
+        $meta_import_id = (string) get_post_meta($wp_post_id, 'property_import_id', true);
+        if ($meta_import_id !== (string) $property_id) {
+            return array(
+                'success' => false,
+                'reason' => "Stale recovery pending: property_import_id mismatch for {$property_id}"
+            );
+        }
+
+        if (empty($post->post_title)) {
+            return array(
+                'success' => false,
+                'reason' => "Stale recovery pending: empty post title for {$property_id}"
+            );
+        }
+
+        $property_price = get_post_meta($wp_post_id, 'property_price', true);
+        if ($property_price === '' || $property_price === null) {
+            return array(
+                'success' => false,
+                'reason' => "Stale recovery pending: property price missing for {$property_id}"
+            );
+        }
+
+        $expected_media = $this->count_expected_media_items($property_data);
+        $present_media = $this->count_present_wp_media($wp_post_id);
+        $required_media = $expected_media > 0 ? (int) ceil($expected_media * 0.8) : 0;
+
+        $this->tracker->log_event('DEBUG', 'BATCH_PROCESSOR', 'Recovery media fallback check', array(
+            'property_id' => $property_id,
+            'expected_media' => $expected_media,
+            'present_media' => $present_media,
+            'required_media' => $required_media,
+            'mode' => 'count-based-fallback',
+            'http_distinction' => 'not_implemented'
+        ));
+        error_log("[BATCH-PROCESSOR] Recovery media fallback: property_id={$property_id} expected={$expected_media} present={$present_media} required={$required_media}");
+
+        if ($expected_media > 0 && $present_media < $required_media) {
+            return array(
+                'success' => false,
+                'reason' => "Stale recovery pending: media below threshold for {$property_id} ({$present_media}/{$expected_media})",
+                'media' => array(
+                    'expected' => $expected_media,
+                    'present' => $present_media,
+                    'required' => $required_media
+                )
+            );
+        }
+
+        return array(
+            'success' => true,
+            'property_id' => $property_id,
+            'wp_post_id' => $wp_post_id,
+            'media' => array(
+                'expected' => $expected_media,
+                'present' => $present_media,
+                'required' => $required_media
+            )
+        );
+    }
+
+    /**
+     * Count expected media items already available in parsed XML data.
+     *
+     * @param array $property_data Pre-parsed XML property data.
+     * @return int
+     */
+    private function count_expected_media_items($property_data) {
+        $fields = array('media_files', 'file_allegati', 'images', 'photos', 'allegati', 'files');
+
+        foreach ($fields as $field) {
+            if (!isset($property_data[$field])) {
+                continue;
+            }
+
+            $value = $property_data[$field];
+            if (is_string($value)) {
+                $decoded = json_decode($value, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $value = $decoded;
+                } else {
+                    $value = array($value);
+                }
+            }
+
+            if (!is_array($value)) {
+                continue;
+            }
+
+            $count = 0;
+            foreach ($value as $media) {
+                if (is_string($media) && trim($media) !== '') {
+                    $count++;
+                } elseif (is_array($media) && !empty($media['url'])) {
+                    $count++;
+                }
+            }
+
+            if ($count > 0) {
+                return $count;
+            }
+        }
+
+        return 0;
+    }
+
+    /**
+     * Count WP media currently attached to a property post.
+     *
+     * @param int $wp_post_id WordPress post ID.
+     * @return int
+     */
+    private function count_present_wp_media($wp_post_id) {
+        $attachment_ids = array();
+        $attachments = get_attached_media('image', $wp_post_id);
+
+        if (!empty($attachments) && is_array($attachments)) {
+            foreach ($attachments as $attachment) {
+                if (!empty($attachment->ID)) {
+                    $attachment_ids[] = (int) $attachment->ID;
+                }
+            }
+        }
+
+        $thumbnail_id = get_post_thumbnail_id($wp_post_id);
+        if (!empty($thumbnail_id)) {
+            $attachment_ids[] = (int) $thumbnail_id;
+        }
+
+        $gallery_meta_keys = array('wpestate_property_gallery', 'property_gallery');
+        foreach ($gallery_meta_keys as $meta_key) {
+            $gallery_meta = get_post_meta($wp_post_id, $meta_key, true);
+            if (!is_array($gallery_meta)) {
+                continue;
+            }
+
+            foreach ($gallery_meta as $gallery_item) {
+                if (is_numeric($gallery_item)) {
+                    $attachment_ids[] = (int) $gallery_item;
+                }
+            }
+        }
+
+        return count(array_unique(array_filter($attachment_ids)));
+    }
+
+    /**
+     * Move an item back to pending or terminal error based on retry threshold.
+     *
+     * @param object $item Queue item.
+     * @param string $error_msg Error message.
+     * @param string $log_message Logging message.
+     * @return void
+     */
+    private function queue_item_to_pending_or_error($item, $error_msg, $log_message) {
+        $retry_count = (int) ($item->retry_count ?? 0);
+
+        if ($retry_count >= RealEstate_Sync_Queue_Manager::MAX_RETRIES) {
+            $status_before = $item->status ?? 'processing';
+            $this->queue_manager->mark_error($item->id, $error_msg);
+            $this->log_queue_status_change($item->id, $item->item_id, $item->item_type ?? 'property', $status_before, $retry_count, 'error', $error_msg);
+            return;
+        }
+
+        $status_before = $item->status ?? 'processing';
+        $this->queue_manager->mark_error($item->id, $error_msg);
+        $this->log_queue_status_change($item->id, $item->item_id, $item->item_type ?? 'property', $status_before, $retry_count, 'error', $error_msg);
+        $this->queue_manager->update_item_status($item->id, 'pending');
+        $this->log_queue_status_change($item->id, $item->item_id, $item->item_type ?? 'property', 'error', $retry_count + 1, 'pending', $log_message);
+    }
+
+    /**
+     * Finalize a property queue item after recovery or normal processing.
+     *
+     * @param object $item Queue item.
+     * @param int    $wp_post_id WordPress post ID.
+     * @return bool
+     */
+    private function finalize_queue_item_success($item, $wp_post_id) {
+        if (empty($wp_post_id)) {
+            return false;
+        }
+
+        if (!$this->queue_manager->update_wp_post_id($item->id, $wp_post_id)) {
+            return false;
+        }
+
+        $done_status_before = $item->status ?? 'processing';
+        $done_retry_before = (int) ($item->retry_count ?? 0);
+        if (!$this->queue_manager->mark_done($item->id)) {
+            return false;
+        }
+
+        $this->log_queue_status_change($item->id, $item->item_id, $item->item_type, $done_status_before, $done_retry_before, 'done');
+        return true;
     }
 }
