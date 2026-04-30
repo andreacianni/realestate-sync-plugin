@@ -203,7 +203,7 @@ class RealEstate_Sync_Batch_Orchestrator {
 
 		foreach ( $xml->annuncio as $annuncio ) {
 
-			$property_id = (string) $annuncio->info->id;
+			$property_id = RealEstate_Sync_Tracking_Manager::normalize_property_id( $annuncio->info->id );
 			if ( empty( $property_id ) ) {
 				continue;
 			}
@@ -637,7 +637,10 @@ class RealEstate_Sync_Batch_Orchestrator {
 			AND status <> 'deleted'"
 		);
 
-		return array_values( array_unique( array_map( 'strval', $property_ids ) ) );
+		return array_values( array_unique( array_map(
+			array( 'RealEstate_Sync_Tracking_Manager', 'normalize_property_id' ),
+			$property_ids
+		) ) );
 	}
 
 	/**

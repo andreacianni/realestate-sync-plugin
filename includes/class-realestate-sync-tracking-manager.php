@@ -140,6 +140,29 @@ class RealEstate_Sync_Tracking_Manager {
 
         return $hash;
     }
+
+    /**
+     * Normalize a property import ID to its canonical string form.
+     *
+     * Keeps alphanumeric IDs unchanged, strips whitespace, and only collapses
+     * numeric IDs with a trailing ".000000" suffix.
+     *
+     * @param mixed $property_id Raw property import ID.
+     * @return string
+     */
+    public static function normalize_property_id($property_id) {
+        $property_id = trim((string) $property_id);
+
+        if ($property_id === '') {
+            return '';
+        }
+
+        if (preg_match('/^\d+\.0+$/', $property_id)) {
+            return preg_replace('/\.0+$/', '', $property_id);
+        }
+
+        return $property_id;
+    }
     
     /**
      * Verifica se property esiste nel tracking
@@ -149,14 +172,26 @@ class RealEstate_Sync_Tracking_Manager {
      */
     public function get_tracking_record($property_id) {
         $table_name = $this->wpdb->prefix . self::TABLE_NAME;
+        $property_id = self::normalize_property_id($property_id);
 
         $result = $this->wpdb->get_row(
             $this->wpdb->prepare(
-                "SELECT * FROM $table_name WHERE property_id = %d",
+                "SELECT * FROM $table_name WHERE property_id = %s",
                 $property_id
             ),
             ARRAY_A
         );
+
+        if (!$result && preg_match('/^\d+$/', $property_id)) {
+            $legacy_property_id = $property_id . '.000000';
+            $result = $this->wpdb->get_row(
+                $this->wpdb->prepare(
+                    "SELECT * FROM $table_name WHERE property_id = %s",
+                    $legacy_property_id
+                ),
+                ARRAY_A
+            );
+        }
 
         return $result;
     }
@@ -208,6 +243,7 @@ class RealEstate_Sync_Tracking_Manager {
      */
     public function update_tracking_record($property_id, $property_hash, $wp_post_id = null, $property_data = array(), $status = 'active') {
         $table_name = $this->wpdb->prefix . self::TABLE_NAME;
+        $property_id = self::normalize_property_id($property_id);
         
         $data = array(
             'property_hash' => $property_hash,
@@ -246,13 +282,19 @@ class RealEstate_Sync_Tracking_Manager {
 
         // Check se record esiste
         $existing = $this->get_tracking_record($property_id);
+        $existing_property_id = $existing && isset($existing['property_id']) ? (string) $existing['property_id'] : $property_id;
 
         if ($existing) {
+            if ($existing_property_id !== $property_id) {
+                $data['property_id'] = $property_id;
+                $formats[] = '%s';
+            }
+
             // UPDATE
             $result = $this->wpdb->update(
                 $table_name,
                 $data,
-                array('property_id' => $property_id),
+                array('property_id' => $existing_property_id),
                 $formats,      // ✅ Dynamic format specifiers
                 array('%s')    // 🔧 FIX: property_id is VARCHAR(50), not INT!
             );
@@ -392,17 +434,18 @@ class RealEstate_Sync_Tracking_Manager {
      * @return array|null Tracking record with wp_post_id or null if not found
      */
     public function get_property_tracking($property_id) {
-        $table_name = $this->wpdb->prefix . self::TABLE_NAME;
-        
-        $result = $this->wpdb->get_row(
-            $this->wpdb->prepare(
-                "SELECT property_id, wp_post_id, status, last_import_date FROM $table_name WHERE property_id = %d",
-                $property_id
-            ),
-            ARRAY_A
+        $result = $this->get_tracking_record($property_id);
+
+        if (!$result) {
+            return null;
+        }
+
+        return array(
+            'property_id' => $result['property_id'] ?? null,
+            'wp_post_id' => $result['wp_post_id'] ?? null,
+            'status' => $result['status'] ?? null,
+            'last_import_date' => $result['last_import_date'] ?? null,
         );
-        
-        return $result;
     }
     
     /**
