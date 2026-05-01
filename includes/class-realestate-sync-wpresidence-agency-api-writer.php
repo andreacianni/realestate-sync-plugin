@@ -507,10 +507,18 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		// API returned error
 		$error_msg = isset($body['message']) ? $body['message'] : 'Unknown API error';
 		$this->logger->log("API update response error for agency $agency_id: $error_msg", 'ERROR');
+		$this->logger->log('Agency API PUT response diagnostics', 'DEBUG', array(
+			'http_code' => $response['http_code'] ?? null,
+			'body_length' => $response['body_length'] ?? null,
+			'body_preview' => $response['body_preview'] ?? null,
+		));
 
 		return array(
-			'success' => false,
-			'error'   => $error_msg,
+			'success'      => false,
+			'error'        => $error_msg,
+			'http_code'    => $response['http_code'] ?? null,
+			'body_length'  => $response['body_length'] ?? null,
+			'body_preview' => $response['body_preview'] ?? null,
 		);
 	}
 
