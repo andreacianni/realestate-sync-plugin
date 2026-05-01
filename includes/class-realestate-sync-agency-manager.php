@@ -88,6 +88,7 @@ class RealEstate_Sync_Agency_Manager {
             'updated' => 0,
             'skipped' => 0,
             'errors' => 0,
+            'with_logo' => 0,
             'agency_ids' => array()
         );
 
