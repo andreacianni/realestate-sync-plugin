@@ -578,6 +578,14 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 			$body_preview = $this->sanitize_api_body_preview($response_body);
 			$parsed_body = json_decode($response_body, true);
 
+			if (!is_array($parsed_body)) {
+				$body_start = strpos($response_body, '{');
+				if ($body_start !== false) {
+					$sanitized_body = preg_replace('/^[\x00-\x1F\x7F-\x9F\x{FEFF}]+/u', '', substr($response_body, $body_start));
+					$parsed_body = json_decode($sanitized_body, true);
+				}
+			}
+
 		$this->logger->log("Agency API Response: HTTP $http_code", 'DEBUG');
 
 		// Handle JWT token expiration (403)
