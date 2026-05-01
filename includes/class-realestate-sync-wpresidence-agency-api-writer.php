@@ -482,6 +482,11 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		// Handle errors
 		if (!$response['success']) {
 			$this->logger->log("API update_agency failed for agency $agency_id: " . $response['error'], 'ERROR');
+			$this->logger->log('Agency API PUT response diagnostics', 'DEBUG', array(
+				'http_code' => $response['http_code'] ?? null,
+				'body_length' => $response['body_length'] ?? null,
+				'body_preview' => $response['body_preview'] ?? null,
+			));
 			return $response;
 		}
 
@@ -537,9 +542,9 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		$response = wp_remote_request($endpoint, $request_args);
 
 		// Handle WP_Error (network issues, timeouts, etc.)
-		if (is_wp_error($response)) {
-			$error_msg = $response->get_error_message();
-			$this->logger->log("Agency API request failed: $error_msg", 'ERROR');
+			if (is_wp_error($response)) {
+				$error_msg = $response->get_error_message();
+				$this->logger->log("Agency API request failed: $error_msg", 'ERROR');
 
 			// Retry on network errors
 			if ($retry < $this->max_retries && $this->should_retry_error($error_msg)) {
@@ -549,17 +554,21 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 				return $this->make_api_request($method, $endpoint, $body, $token, $retry + 1);
 			}
 
-			return array(
-				'success'   => false,
-				'error'     => $error_msg,
-				'http_code' => null,
-			);
-		}
+				return array(
+					'success'   => false,
+					'error'     => $error_msg,
+					'http_code' => null,
+					'body_length' => null,
+					'body_preview' => null,
+				);
+			}
 
-		// Parse response
-		$http_code = wp_remote_retrieve_response_code($response);
-		$response_body = wp_remote_retrieve_body($response);
-		$parsed_body = json_decode($response_body, true);
+			// Parse response
+			$http_code = wp_remote_retrieve_response_code($response);
+			$response_body = wp_remote_retrieve_body($response);
+			$body_length = strlen((string) $response_body);
+			$body_preview = $this->sanitize_api_body_preview($response_body);
+			$parsed_body = json_decode($response_body, true);
 
 		$this->logger->log("Agency API Response: HTTP $http_code", 'DEBUG');
 
@@ -590,19 +599,36 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 				return $this->make_api_request($method, $endpoint, $body, $token, $retry + 1);
 			}
 
+				return array(
+					'success'   => false,
+					'error'     => $error_msg,
+					'http_code' => $http_code,
+					'body_length' => $body_length,
+					'body_preview' => $body_preview,
+				);
+			}
+
+		// Success
 			return array(
-				'success'   => false,
-				'error'     => $error_msg,
+				'success'   => true,
+				'body'      => $parsed_body,
 				'http_code' => $http_code,
+				'body_length' => $body_length,
+				'body_preview' => $body_preview,
 			);
 		}
 
-		// Success
-		return array(
-			'success'   => true,
-			'body'      => $parsed_body,
-			'http_code' => $http_code,
-		);
+	/**
+	 * Return a short, sanitized preview of an API response body.
+	 *
+	 * @param string $response_body Raw response body.
+	 * @return string
+	 */
+	private function sanitize_api_body_preview($response_body) {
+		$preview = substr((string) $response_body, 0, 240);
+		$preview = preg_replace('/("password"\s*:\s*")[^"]*(")/i', '$1[redacted]$2', $preview);
+		$preview = preg_replace('/("token"\s*:\s*")[^"]*(")/i', '$1[redacted]$2', $preview);
+		return $preview;
 	}
 
 	/**

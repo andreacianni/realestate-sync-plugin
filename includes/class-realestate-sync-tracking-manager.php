@@ -601,6 +601,37 @@ class RealEstate_Sync_Tracking_Manager {
         $existing = $this->get_agency_tracking_record($agency_id);
 
         if (!$existing) {
+            $fallback_wp_id = $this->lookup_agency_wp_id_by_xml_id($agency_id);
+
+            if ($fallback_wp_id) {
+                $existing = $this->get_agency_tracking_record_by_wp_post_id($fallback_wp_id);
+
+                if ($existing) {
+                    if ($existing['agency_hash'] !== $new_hash) {
+                        return array(
+                            'has_changed' => true,
+                            'action' => 'update',
+                            'reason' => 'data_changed',
+                            'wp_post_id' => $existing['wp_post_id']
+                        );
+                    }
+
+                    return array(
+                        'has_changed' => false,
+                        'action' => 'skip',
+                        'reason' => 'no_changes',
+                        'wp_post_id' => $existing['wp_post_id']
+                    );
+                }
+
+                return array(
+                    'has_changed' => true,
+                    'action' => 'update',
+                    'reason' => 'existing_agency_fallback',
+                    'wp_post_id' => $fallback_wp_id
+                );
+            }
+
             return array(
                 'has_changed' => true,
                 'action' => 'insert',
@@ -644,6 +675,53 @@ class RealEstate_Sync_Tracking_Manager {
         );
 
         return $result;
+    }
+
+    /**
+     * Get agency tracking record by WordPress post ID
+     *
+     * @since 1.7.0
+     * @param int $wp_post_id WordPress Post ID (estate_agency)
+     * @return array|null Tracking record or null if not exists
+     */
+    private function get_agency_tracking_record_by_wp_post_id($wp_post_id) {
+        $table_name = $this->wpdb->prefix . self::AGENCY_TABLE_NAME;
+
+        $result = $this->wpdb->get_row(
+            $this->wpdb->prepare(
+                "SELECT * FROM $table_name WHERE wp_post_id = %d",
+                $wp_post_id
+            ),
+            ARRAY_A
+        );
+
+        return $result;
+    }
+
+    /**
+     * Lookup existing agency WordPress post ID by XML agency ID.
+     *
+     * @since 1.7.0
+     * @param string $agency_id Agency ID from XML
+     * @return int|false WordPress post ID if found, false otherwise
+     */
+    private function lookup_agency_wp_id_by_xml_id($agency_id) {
+        if (empty($agency_id) || !class_exists('RealEstate_Sync_Agency_Manager')) {
+            return false;
+        }
+
+        $agency_manager = new RealEstate_Sync_Agency_Manager();
+        if (!method_exists($agency_manager, 'lookup_agency_by_xml_id')) {
+            return false;
+        }
+
+        $wp_post_id = $agency_manager->lookup_agency_by_xml_id($agency_id);
+
+        if ($wp_post_id) {
+            $this->logger->log("Agency fallback lookup hit: xml_id $agency_id → wp_id $wp_post_id", 'debug');
+        }
+
+        return $wp_post_id;
     }
 
     /**
