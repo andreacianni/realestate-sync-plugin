@@ -493,7 +493,10 @@ class RealEstate_Sync_WPResidence_Agency_API_Writer {
 		$body = $response['body'];
 
 		// Check API response status
-		if (isset($body['status']) && $body['status'] === 'success') {
+		if (
+			(isset($body['success']) && $body['success']) ||
+			(isset($body['status']) && $body['status'] === 'success')
+		) {
 			$this->logger->log("Agency $agency_id updated successfully via API", 'SUCCESS');
 
 			return array(
