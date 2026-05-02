@@ -62,6 +62,11 @@ class RealEstate_Sync_Batch_Processor {
     private $tracker;
 
     /**
+     * Tracking Manager instance
+     */
+    private $tracking_manager;
+
+    /**
      * âœ… IMPORT ENGINE - Reuses all PROTECTED methods
      * Delegates PROPERTY processing to Import_Engine
      * which already has working logic for:
@@ -123,6 +128,11 @@ class RealEstate_Sync_Batch_Processor {
 
         // Initialize debug tracker
         $this->tracker = RealEstate_Sync_Debug_Tracker::get_instance();
+
+        // Initialize tracking manager lazily for recovery paths that need direct hash/record access
+        $this->tracking_manager = class_exists('RealEstate_Sync_Tracking_Manager')
+            ? new RealEstate_Sync_Tracking_Manager()
+            : null;
 
         // âœ… Create API importer explicitly (GOLDEN approach)
         $wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
@@ -876,8 +886,18 @@ class RealEstate_Sync_Batch_Processor {
                 continue;
             }
 
-            $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
-            $tracking_updated = $this->tracking_manager->update_tracking_record(
+            $tracking_manager = $this->get_tracking_manager();
+            if (!$tracking_manager) {
+                $message = "Stale recovery pending: tracking manager unavailable for property {$property_id}";
+                $this->queue_item_to_pending_or_error($processing_item, $message, $message);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $message);
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale property item requeued - tracking manager unavailable: {$property_id}");
+                continue;
+            }
+
+            $property_hash = $tracking_manager->calculate_property_hash($property_data);
+            $tracking_updated = $tracking_manager->update_tracking_record(
                 intval($property_id),
                 $property_hash,
                 intval($wp_post_id),
@@ -908,6 +928,24 @@ class RealEstate_Sync_Batch_Processor {
         }
 
         return $recovery_stats;
+    }
+
+    /**
+     * Get or build the tracking manager used by stale recovery.
+     *
+     * @return RealEstate_Sync_Tracking_Manager|null
+     */
+    private function get_tracking_manager() {
+        if ($this->tracking_manager instanceof RealEstate_Sync_Tracking_Manager) {
+            return $this->tracking_manager;
+        }
+
+        if (!class_exists('RealEstate_Sync_Tracking_Manager')) {
+            return null;
+        }
+
+        $this->tracking_manager = new RealEstate_Sync_Tracking_Manager();
+        return $this->tracking_manager;
     }
 
     /**
