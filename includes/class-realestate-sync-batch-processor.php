@@ -430,6 +430,24 @@ class RealEstate_Sync_Batch_Processor {
         $processing_stats = method_exists($this->import_engine, 'get_processing_stats')
             ? $this->import_engine->get_processing_stats()
             : array();
+        $agency_session_stats = method_exists($this->agency_manager, 'get_session_stats')
+            ? $this->agency_manager->get_session_stats()
+            : array();
+        $functional_stats = RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+
+        if (!empty($processing_stats['functional_stats']) && is_array($processing_stats['functional_stats'])) {
+            $functional_stats = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+                $functional_stats,
+                $processing_stats['functional_stats']
+            );
+        }
+
+        if (!empty($agency_session_stats['functional_stats']) && is_array($agency_session_stats['functional_stats'])) {
+            $functional_stats = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+                $functional_stats,
+                $agency_session_stats['functional_stats']
+            );
+        }
 
         $recovered_done = (int) ($recovery_stats['done'] ?? 0);
         $recovered_errors = (int) ($recovery_stats['requeued'] ?? 0) + (int) ($recovery_stats['terminal_errors'] ?? 0);
@@ -441,6 +459,7 @@ class RealEstate_Sync_Batch_Processor {
             'batch_processed' => $total_processed,
             'batch_errors' => $total_errors,
             'pending' => $stats['pending'],
+            'functional_stats' => $functional_stats,
         ), $processing_stats);
 
         if (!empty($processing_stats)) {
@@ -488,6 +507,7 @@ class RealEstate_Sync_Batch_Processor {
             'recovered_requeued' => (int) ($recovery_stats['requeued'] ?? 0),
             'recovered_terminal_errors' => (int) ($recovery_stats['terminal_errors'] ?? 0),
             'processing_stats' => $processing_stats,
+            'functional_stats' => $functional_stats,
             'stats' => $stats
         );
     }
@@ -667,10 +687,29 @@ class RealEstate_Sync_Batch_Processor {
         $processing_stats = method_exists($this->import_engine, 'get_processing_stats')
             ? $this->import_engine->get_processing_stats()
             : array();
+        $agency_session_stats = method_exists($this->agency_manager, 'get_session_stats')
+            ? $this->agency_manager->get_session_stats()
+            : array();
+        $functional_stats = RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+
+        if (!empty($processing_stats['functional_stats']) && is_array($processing_stats['functional_stats'])) {
+            $functional_stats = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+                $functional_stats,
+                $processing_stats['functional_stats']
+            );
+        }
+
+        if (!empty($agency_session_stats['functional_stats']) && is_array($agency_session_stats['functional_stats'])) {
+            $functional_stats = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+                $functional_stats,
+                $agency_session_stats['functional_stats']
+            );
+        }
 
         return array(
             'stats' => $stats,
             'processing_stats' => $processing_stats,
+            'functional_stats' => $functional_stats,
             'retry_successes' => count($retry_successes),
             'failed_items' => count($failed_items)
         );

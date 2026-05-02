@@ -57,17 +57,24 @@ class RealEstate_Sync_Deletion_Manager {
 			'properties_not_found' => 0,
 			'attachments_deleted' => 0,
 			'disk_space_freed' => 0,
-			'errors' => 0
+			'errors' => 0,
+			'functional_stats' => array(
+				'deleted_properties' => 0,
+				'deleted_agencies' => 0,
+				'media_deleted_physical' => 0,
+			)
 		);
 
 		foreach ($deleted_property_ids as $property_id) {
 			$result = $this->delete_single_property($property_id);
 
-			if ($result['outcome'] === self::SINGLE_DELETE_SUCCESS) {
-				$stats['properties_deleted']++;
-				$stats['attachments_deleted'] += $result['attachments_deleted'];
-				$stats['disk_space_freed'] += $result['disk_space_freed'];
-			} elseif ($result['outcome'] === self::SINGLE_DELETE_NOT_FOUND) {
+				if ($result['outcome'] === self::SINGLE_DELETE_SUCCESS) {
+					$stats['properties_deleted']++;
+					$stats['attachments_deleted'] += $result['attachments_deleted'];
+					$stats['disk_space_freed'] += $result['disk_space_freed'];
+					$stats['functional_stats']['deleted_properties']++;
+					$stats['functional_stats']['media_deleted_physical'] += (int) $result['attachments_deleted'];
+				} elseif ($result['outcome'] === self::SINGLE_DELETE_NOT_FOUND) {
 				$stats['properties_not_found']++;
 			} else {
 				$stats['errors']++;
@@ -217,18 +224,25 @@ class RealEstate_Sync_Deletion_Manager {
 			'agencies_not_found' => 0,
 			'featured_images_deleted' => 0,
 			'disk_space_freed' => 0,
-			'errors' => 0
+			'errors' => 0,
+			'functional_stats' => array(
+				'deleted_properties' => 0,
+				'deleted_agencies' => 0,
+				'media_deleted_physical' => 0,
+			)
 		);
 
 		foreach ($deleted_agency_ids as $agency_id) {
 			try {
 				$result = $this->delete_agency($agency_id);
 
-				if ($result['success']) {
-					$stats['agencies_deleted']++;
-					$stats['featured_images_deleted'] += $result['featured_image_deleted'] ? 1 : 0;
-					$stats['disk_space_freed'] += $result['disk_space_freed'];
-				} elseif ($result['not_found']) {
+					if ($result['success']) {
+						$stats['agencies_deleted']++;
+						$stats['featured_images_deleted'] += $result['featured_image_deleted'] ? 1 : 0;
+						$stats['disk_space_freed'] += $result['disk_space_freed'];
+						$stats['functional_stats']['deleted_agencies']++;
+						$stats['functional_stats']['media_deleted_physical'] += $result['featured_image_deleted'] ? 1 : 0;
+					} elseif ($result['not_found']) {
 					$stats['agencies_not_found']++;
 				} else {
 					$stats['errors']++;

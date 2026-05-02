@@ -548,11 +548,33 @@ class RealEstate_Sync_Batch_Orchestrator {
 		) );
 
 		// Process first batch immediately (max 10 items)
-		$batch_processor   = new RealEstate_Sync_Batch_Processor( $session_id, $xml_file, $mark_as_test, $force_update );
-		$first_batch_result = $batch_processor->process_next_batch();
+			$batch_processor   = new RealEstate_Sync_Batch_Processor( $session_id, $xml_file, $mark_as_test, $force_update );
+			$first_batch_result = $batch_processor->process_next_batch();
 
-		$tracker->log_event('INFO', 'ORCHESTRATOR', 'First batch complete', array(
-			'processed' => $first_batch_result['processed'],
+			$current_progress = get_option( 'realestate_sync_background_import_progress', array() );
+			if ( ! is_array( $current_progress ) ) {
+				$current_progress = array();
+			}
+			$current_functional_stats = $current_progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+			$batch_functional_stats = $first_batch_result['functional_stats'] ?? array();
+			if ( ! empty( $batch_functional_stats ) ) {
+				$current_progress['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats( $current_functional_stats, $batch_functional_stats );
+			}
+			if ( ! empty( $deletion_stats ) ) {
+				foreach ( $deletion_stats as $delete_bucket ) {
+					if ( ! empty( $delete_bucket['functional_stats'] ) && is_array( $delete_bucket['functional_stats'] ) ) {
+						$current_progress['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+							$current_progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults(),
+							$delete_bucket['functional_stats']
+						);
+					}
+				}
+			}
+			$current_progress['deletion_stats'] = $deletion_stats;
+			update_option( 'realestate_sync_background_import_progress', $current_progress );
+
+			$tracker->log_event('INFO', 'ORCHESTRATOR', 'First batch complete', array(
+				'processed' => $first_batch_result['processed'],
 			'agencies' => $first_batch_result['agencies_processed'] ?? 0,
 			'properties' => $first_batch_result['properties_processed'] ?? 0,
 			'complete' => $first_batch_result['complete'],
@@ -605,20 +627,21 @@ class RealEstate_Sync_Batch_Orchestrator {
 		// and closed only when ALL batches are complete.
 
 		// Return results
-		return array(
-			'success'                => true,
-			'session_id'             => $session_id,
-			'total_queued'           => $total_queued,
-			'agencies_queued'        => $agencies_queued,
-			'properties_queued'      => $properties_queued,
-			'first_batch_processed'  => $first_batch_result['processed'],
-			'agencies_processed'     => $first_batch_result['agencies_processed'] ?? 0,
-			'properties_processed'   => $first_batch_result['properties_processed'] ?? 0,
-			'complete'               => $first_batch_result['complete'],
-			'remaining'              => $total_queued - $first_batch_result['processed'],
-			'deletion_stats'         => $deletion_stats, // ✨ v1.7.1: Deletion statistics
-		);
-	}
+			return array(
+				'success'                => true,
+				'session_id'             => $session_id,
+				'total_queued'           => $total_queued,
+				'agencies_queued'        => $agencies_queued,
+				'properties_queued'      => $properties_queued,
+				'first_batch_processed'  => $first_batch_result['processed'],
+				'agencies_processed'     => $first_batch_result['agencies_processed'] ?? 0,
+				'properties_processed'   => $first_batch_result['properties_processed'] ?? 0,
+				'complete'               => $first_batch_result['complete'],
+				'remaining'              => $total_queued - $first_batch_result['processed'],
+				'functional_stats'       => $current_progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults(),
+				'deletion_stats'         => $deletion_stats, // ✨ v1.7.1: Deletion statistics
+			);
+		}
 	/**
 	 * Get tracked property IDs eligible for missing_from_feed detection.
 	 *
@@ -703,6 +726,8 @@ class RealEstate_Sync_Batch_Orchestrator {
 			'total_items'    => $total_items,
 			'delete_runtime' => $delete_runtime_config,
 			'delete_state'   => self::build_delete_state_payload( $delete_queue_stats ),
+			'functional_stats' => RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults(),
+			'deletion_stats' => array(),
 		);
 	}
 

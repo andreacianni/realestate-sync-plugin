@@ -93,6 +93,8 @@ if (!defined('ABSPATH')) exit;
                 </tbody>
             </table>
 
+            <div id="queue-import-functional-stats" class="mt-4" style="display:none;"></div>
+
             <div class="d-grid">
                 <button type="button" class="btn btn-outline-primary" id="queue-refresh-import-status">
                     <span class="dashicons dashicons-update"></span>

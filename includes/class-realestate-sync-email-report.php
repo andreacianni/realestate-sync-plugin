@@ -37,6 +37,7 @@ class RealEstate_Sync_Email_Report {
         $prev_issue_ids = $prev_snapshot['verification']['issues']['property_ids'] ?? array();
         $issues_delta = self::build_issues_delta($prev_issue_ids, $issue_ids);
 
+        $functional_stats = self::get_functional_stats($progress);
         $business_counts = self::get_business_counts($progress);
 
         $report = array(
@@ -44,6 +45,8 @@ class RealEstate_Sync_Email_Report {
             'start_time' => $progress['start_time'] ?? null,
             'end_time' => $progress['end_time'] ?? null,
             'queue_stats' => $queue_stats,
+            'functional_stats' => $functional_stats,
+            'deletion_stats' => $progress['deletion_stats'] ?? array(),
             'verification' => array(
                 'verified_total' => $verified_total,
                 'total_issues' => $verification_total_issues,
@@ -211,6 +214,7 @@ class RealEstate_Sync_Email_Report {
         $lines = array();
         $processed = self::get_processed_total($report['queue_stats'] ?? array());
         $ok = max(0, (int) ($report['verification']['verified_total'] ?? 0) - (int) ($report['verification']['total_issues'] ?? 0));
+        $functional = self::get_functional_stats($report);
 
         $lines[] = 'Processo completato, ' . $processed . ' proprieta processate, ' . $ok . ' ok al 100%';
 
@@ -222,6 +226,22 @@ class RealEstate_Sync_Email_Report {
         if (!empty($queue)) {
             $lines[] = 'Queue: total=' . ($queue['total'] ?? 0) . ', done=' . ($queue['done'] ?? 0) . ', error=' . ($queue['error'] ?? 0) . ', processing=' . ($queue['processing'] ?? 0);
         }
+
+        $lines[] = '';
+        $lines[] = 'Catalogo:';
+        $lines[] = '- Nuovi annunci: ' . (int) ($functional['created_new'] ?? 0);
+        $lines[] = '- Aggiornamenti contenuto: ' . (int) ($functional['business_updates'] ?? 0);
+        $lines[] = '- Aggiornamenti tecnici: ' . (int) ($functional['technical_updates'] ?? 0);
+        $lines[] = '- Self-healing: ' . (int) ($functional['self_healing_updates'] ?? 0);
+        $lines[] = '- Annunci cancellati: ' . (int) ($functional['deleted_properties'] ?? 0);
+        $lines[] = '- Agenzie cancellate: ' . (int) ($functional['deleted_agencies'] ?? 0);
+        $lines[] = '';
+        $lines[] = 'Media:';
+        $lines[] = '- Media cancellati dal server: ' . (int) ($functional['media_deleted_physical'] ?? 0);
+        $lines[] = '';
+        $lines[] = 'Media sperimentale:';
+        $lines[] = '- Media aggiunti: ' . (int) ($functional['media_added'] ?? 0);
+        $lines[] = '- Media rimossi dalla galleria: ' . (int) ($functional['media_removed_from_gallery'] ?? 0);
 
         $issues = $report['verification']['issues']['properties'] ?? array();
         if (!empty($issues)) {
@@ -366,6 +386,7 @@ class RealEstate_Sync_Email_Report {
             'start_time' => $report['start_time'],
             'end_time' => $report['end_time'],
             'queue_stats' => $report['queue_stats'],
+            'functional_stats' => $report['functional_stats'] ?? array(),
             'verification' => array(
                 'total_issues' => $report['verification']['total_issues'] ?? 0,
                 'issues' => array(
@@ -385,6 +406,20 @@ class RealEstate_Sync_Email_Report {
             $sum += (int) ($queue_stats[$key] ?? 0);
         }
         return $sum;
+    }
+
+    private static function get_functional_stats($report) {
+        $functional = class_exists('RealEstate_Sync_Tracking_Manager')
+            ? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults()
+            : array();
+
+        if (!empty($report['functional_stats']) && is_array($report['functional_stats'])) {
+            $functional = class_exists('RealEstate_Sync_Tracking_Manager')
+                ? RealEstate_Sync_Tracking_Manager::merge_functional_stats($functional, $report['functional_stats'])
+                : array_merge($functional, $report['functional_stats']);
+        }
+
+        return $functional;
     }
 
     private static function get_report_for_test() {

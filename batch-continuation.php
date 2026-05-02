@@ -256,11 +256,16 @@ try {
         require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processor.php');
 
         $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test, $force_update);
-        $result = $batch_processor->process_next_batch();
+	        $result = $batch_processor->process_next_batch();
 
-        $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
-        $progress['last_batch_time'] = time();
-        update_option('realestate_sync_background_import_progress', $progress);
+	        $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
+	        $current_functional_stats = $progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+	        $batch_functional_stats = $result['functional_stats'] ?? array();
+	        if (!empty($batch_functional_stats)) {
+	            $progress['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats($current_functional_stats, $batch_functional_stats);
+	        }
+	        $progress['last_batch_time'] = time();
+	        update_option('realestate_sync_background_import_progress', $progress);
 
         if (!$result['complete']) {
             delete_transient('realestate_sync_processing_lock');
@@ -476,12 +481,17 @@ require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processo
 try {
     $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test, $force_update);
 
-    $result = $batch_processor->process_next_batch();
+	    $result = $batch_processor->process_next_batch();
 
-    // Update progress
-    $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
-    $progress['last_batch_time'] = time();
-    update_option('realestate_sync_background_import_progress', $progress);
+	    // Update progress
+	    $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
+	    $current_functional_stats = $progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+	    $batch_functional_stats = $result['functional_stats'] ?? array();
+	    if (!empty($batch_functional_stats)) {
+	        $progress['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats($current_functional_stats, $batch_functional_stats);
+	    }
+	    $progress['last_batch_time'] = time();
+	    update_option('realestate_sync_background_import_progress', $progress);
 
     // ✅ Release processing lock
     delete_transient('realestate_sync_processing_lock');

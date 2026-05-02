@@ -830,6 +830,55 @@ jQuery(document).ready(function($) {
         $(prefix + 'delete-state-counters').text(counters);
     }
 
+    function buildFunctionalStatsHtml(functionalStats) {
+        const value = function(key) {
+            return Number.parseInt(functionalStats[key] || 0, 10);
+        };
+
+        return '' +
+            '<div class="border-top pt-3 mt-3">' +
+                '<div class="fw-semibold mb-2">Metriche funzionali</div>' +
+                '<div class="small">' +
+                    '<div class="mb-3">' +
+                        '<div class="text-uppercase text-muted fw-semibold mb-1">Catalogo</div>' +
+                        '<div>Nuovi annunci: <strong>' + value('created_new') + '</strong></div>' +
+                        '<div>Aggiornamenti contenuto: <strong>' + value('business_updates') + '</strong></div>' +
+                        '<div>Aggiornamenti tecnici: <strong>' + value('technical_updates') + '</strong></div>' +
+                        '<div>Self-healing: <strong>' + value('self_healing_updates') + '</strong></div>' +
+                        '<div>Annunci cancellati: <strong>' + value('deleted_properties') + '</strong></div>' +
+                        '<div>Agenzie cancellate: <strong>' + value('deleted_agencies') + '</strong></div>' +
+                    '</div>' +
+                    '<div class="mb-3">' +
+                        '<div class="text-uppercase text-muted fw-semibold mb-1">Media</div>' +
+                        '<div>Media cancellati dal server: <strong>' + value('media_deleted_physical') + '</strong></div>' +
+                    '</div>' +
+                    '<div>' +
+                        '<div class="text-uppercase text-muted fw-semibold mb-1">Media sperimentale</div>' +
+                        '<div>Media aggiunti: <strong>' + value('media_added') + '</strong></div>' +
+                        '<div>Media rimossi dalla galleria: <strong>' + value('media_removed_from_gallery') + '</strong></div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>';
+    }
+
+    function updateFunctionalStatsFields(prefix, data) {
+        const $block = $(prefix + 'import-functional-stats');
+        if (!$block.length) {
+            return;
+        }
+
+        const functionalStats = data && data.functional_stats && typeof data.functional_stats === 'object'
+            ? data.functional_stats
+            : null;
+
+        if (!functionalStats) {
+            $block.hide().empty();
+            return;
+        }
+
+        $block.html(buildFunctionalStatsHtml(functionalStats)).show();
+    }
+
     function refreshImportStatus() {
         // Show loading indicator
         var $btn = $('#refresh-import-status');
@@ -854,6 +903,7 @@ jQuery(document).ready(function($) {
                         $('#import-start-time').text('-');
                         $('#import-process-status').html('<span style="color: #666;">Nessun import</span>');
                         resetDeleteMonitorFields('#');
+                        updateFunctionalStatsFields('#', null);
                         $('#import-total-items').text('0');
                         $('#import-completed-items').text('0');
                         $('#import-remaining-items').text('0');
@@ -870,6 +920,7 @@ jQuery(document).ready(function($) {
 
                     $('#import-process-status').html(getMonitorProcessStatus(data));
                     updateDeleteMonitorFields('#', data);
+                    updateFunctionalStatsFields('#', data);
                     $('#import-total-items').text(data.total);
                     $('#import-completed-items').text(data.completed);
                     $('#import-remaining-items').text(data.remaining);
@@ -933,6 +984,7 @@ jQuery(document).ready(function($) {
                         $('#queue-import-session-id').text('Nessuna sessione');
                         $('#queue-import-start-time').text('-');
                         $('#queue-import-process-status').html('<span style="color: #666;">Nessun import</span>');
+                        updateFunctionalStatsFields('#queue-', null);
                         $('#queue-import-total-items').text('0');
                         $('#queue-import-completed-items').text('0');
                         $('#queue-import-remaining-items').text('0');
@@ -948,6 +1000,7 @@ jQuery(document).ready(function($) {
                     $('#queue-import-start-time').text(data.start_time);
 
                     $('#queue-import-process-status').html(getMonitorProcessStatus(data));
+                    updateFunctionalStatsFields('#queue-', data);
                     $('#queue-import-total-items').text(data.total);
                     $('#queue-import-completed-items').text(data.completed);
                     $('#queue-import-remaining-items').text(data.remaining);

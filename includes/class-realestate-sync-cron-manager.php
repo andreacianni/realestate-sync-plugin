@@ -209,6 +209,7 @@ class RealEstate_Sync_Cron_Manager {
      */
     private function format_success_email($results) {
         $stats = $results['statistics'];
+        $functional = $results['functional_stats'] ?? ($stats['functional_stats'] ?? array());
         
         $message = "Import automatico completato con successo.\n\n";
         $message .= "Statistiche:\n";
@@ -216,6 +217,15 @@ class RealEstate_Sync_Cron_Manager {
         $message .= "- Nuove proprietà: " . $stats['new_properties'] . "\n";
         $message .= "- Proprietà aggiornate: " . $stats['updated_properties'] . "\n";
         $message .= "- Proprietà eliminate: " . $stats['deleted_properties'] . "\n";
+        $message .= "- Nuovi annunci: " . ($functional['created_new'] ?? 0) . "\n";
+        $message .= "- Aggiornamenti contenuto: " . ($functional['business_updates'] ?? 0) . "\n";
+        $message .= "- Aggiornamenti tecnici: " . ($functional['technical_updates'] ?? 0) . "\n";
+        $message .= "- Self-healing: " . ($functional['self_healing_updates'] ?? 0) . "\n";
+        $message .= "- Annunci cancellati: " . ($functional['deleted_properties'] ?? 0) . "\n";
+        $message .= "- Agenzie cancellate: " . ($functional['deleted_agencies'] ?? 0) . "\n";
+        $message .= "- Media cancellati dal server: " . ($functional['media_deleted_physical'] ?? 0) . "\n";
+        $message .= "- Media aggiunti (sperimentale): " . ($functional['media_added'] ?? 0) . "\n";
+        $message .= "- Media rimossi dalla galleria (sperimentale): " . ($functional['media_removed_from_gallery'] ?? 0) . "\n";
         $message .= "- Durata: " . $results['duration_formatted'] . "\n";
         $message .= "- Memoria picco: " . $results['memory_peak_mb'] . "MB\n\n";
         $message .= "Data/ora: " . current_time('mysql') . "\n";

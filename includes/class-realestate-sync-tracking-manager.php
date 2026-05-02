@@ -40,6 +40,66 @@ class RealEstate_Sync_Tracking_Manager {
      * WordPress database instance
      */
     private $wpdb;
+
+    /**
+     * Default functional session metrics.
+     *
+     * @return array
+     */
+    public static function get_functional_stats_defaults() {
+        return array(
+            'created_new' => 0,
+            'business_updates' => 0,
+            'technical_updates' => 0,
+            'self_healing_updates' => 0,
+            'media_updates' => 0,
+            'text_format_only_updates' => 0,
+            'last_editor_time_only_updates' => 0,
+            'deleted_properties' => 0,
+            'deleted_agencies' => 0,
+            'media_deleted_physical' => 0,
+            'media_added' => 0,
+            'media_removed_from_gallery' => 0,
+        );
+    }
+
+    /**
+     * Merge functional stats arrays safely.
+     *
+     * @param array $base Base stats.
+     * @param array $addition Stats to add.
+     * @return array
+     */
+    public static function merge_functional_stats(array $base, array $addition) {
+        $merged = self::get_functional_stats_defaults();
+
+        foreach (array($base, $addition) as $stats) {
+            foreach ($stats as $key => $value) {
+                if (!array_key_exists($key, $merged)) {
+                    continue;
+                }
+                $merged[$key] += (int) $value;
+            }
+        }
+
+        return $merged;
+    }
+
+    /**
+     * Increment a functional stat in place.
+     *
+     * @param array  $stats Stats array.
+     * @param string $key Stat key.
+     * @param int    $amount Increment amount.
+     * @return void
+     */
+    public static function increment_functional_stat(array &$stats, $key, $amount = 1) {
+        if (!array_key_exists($key, $stats)) {
+            $stats[$key] = 0;
+        }
+
+        $stats[$key] += (int) $amount;
+    }
     
     /**
      * Constructor
@@ -819,5 +879,367 @@ class RealEstate_Sync_Tracking_Manager {
 
         $this->logger->log("Agency tracking record updated for agency $agency_id (status: $status)", 'debug');
         return true;
+    }
+
+    /**
+     * Build functional stats for a property update by comparing tracking snapshot with current XML data.
+     *
+     * @param string|int $property_id Property import ID.
+     * @param array      $property_data Current raw XML data.
+     * @return array
+     */
+    public function classify_property_functional_update($property_id, array $property_data) {
+        return $this->classify_functional_update($property_id, $property_data, 'property');
+    }
+
+    /**
+     * Build functional stats for an agency update by comparing tracking snapshot with current XML data.
+     *
+     * @param string|int $agency_id Agency import ID.
+     * @param array      $agency_data Current agency data.
+     * @return array
+     */
+    public function classify_agency_functional_update($agency_id, array $agency_data) {
+        return $this->classify_functional_update($agency_id, $agency_data, 'agency');
+    }
+
+    /**
+     * Classify a functional update for a tracked entity.
+     *
+     * @param string|int $entity_id Entity import ID.
+     * @param array      $current_data Current source data.
+     * @param string     $entity_type property|agency.
+     * @return array
+     */
+    private function classify_functional_update($entity_id, array $current_data, $entity_type) {
+        $stats = self::get_functional_stats_defaults();
+        $record = ($entity_type === 'agency')
+            ? $this->get_agency_tracking_record($entity_id)
+            : $this->get_tracking_record($entity_id);
+
+        if (empty($record) || empty($record['data_snapshot'])) {
+            return $stats;
+        }
+
+        $old_data = json_decode($record['data_snapshot'], true);
+        if (!is_array($old_data)) {
+            return $stats;
+        }
+
+        $normalized_old = $this->normalize_entity_for_compare($old_data, $entity_type);
+        $normalized_new = $this->normalize_entity_for_compare($current_data, $entity_type);
+        $raw_diff_keys = $this->get_top_level_diff_keys($old_data, $current_data);
+        $semantic_changed = ($normalized_old !== $normalized_new);
+
+        $media_delta = $this->get_media_delta($old_data, $current_data, $entity_type);
+        if (!empty($media_delta['added']) || !empty($media_delta['removed'])) {
+            self::increment_functional_stat($stats, 'media_updates');
+            self::increment_functional_stat($stats, 'media_added', count($media_delta['added']));
+            self::increment_functional_stat($stats, 'media_removed_from_gallery', count($media_delta['removed']));
+        }
+
+        $whitespace_only_description = $this->has_whitespace_only_description_change($old_data, $current_data, $entity_type);
+        $last_editor_only = $this->has_last_editor_time_only_change($raw_diff_keys, $whitespace_only_description);
+
+        if ($semantic_changed) {
+            self::increment_functional_stat($stats, 'business_updates');
+        } else {
+            self::increment_functional_stat($stats, 'technical_updates');
+
+            if ($whitespace_only_description) {
+                self::increment_functional_stat($stats, 'text_format_only_updates');
+            }
+
+            if ($last_editor_only) {
+                self::increment_functional_stat($stats, 'last_editor_time_only_updates');
+            }
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Normalize an entity for semantic comparison.
+     *
+     * @param mixed  $value Value to normalize.
+     * @param string $entity_type property|agency.
+     * @param string|null $current_key Current key for special handling.
+     * @return mixed
+     */
+    private function normalize_entity_for_compare($value, $entity_type, $current_key = null) {
+        if (is_array($value)) {
+            $is_assoc = $this->is_assoc_array($value);
+
+            if (!$is_assoc && in_array((string) $current_key, array('media_files', 'file_allegati'), true)) {
+                $media = array();
+                foreach ($value as $item) {
+                    $normalized_media = $this->normalize_media_value($item);
+                    if ($normalized_media !== '') {
+                        $media[] = $normalized_media;
+                    }
+                }
+                sort($media);
+                return array_values(array_unique($media));
+            }
+
+            $normalized = array();
+            foreach ($value as $key => $item) {
+                if ((string) $key === 'last_editor_time') {
+                    continue;
+                }
+
+                $normalized[$key] = $this->normalize_entity_for_compare($item, $entity_type, (string) $key);
+            }
+
+            if ($is_assoc) {
+                ksort($normalized);
+            } else {
+                sort($normalized);
+            }
+
+            return $normalized;
+        }
+
+        if ($value === null) {
+            return '';
+        }
+
+        if (is_bool($value)) {
+            return $value ? '1' : '0';
+        }
+
+        if (is_scalar($value)) {
+            return $this->normalize_scalar_for_compare($value, $current_key, $entity_type);
+        }
+
+        return '';
+    }
+
+    /**
+     * Extract normalized media URLs from a payload.
+     *
+     * @param array  $old_data Old payload.
+     * @param array  $current_data Current payload.
+     * @param string $entity_type property|agency.
+     * @return array
+     */
+    private function get_media_delta(array $old_data, array $current_data, $entity_type) {
+        $old_media = $this->extract_media_urls($old_data, $entity_type);
+        $new_media = $this->extract_media_urls($current_data, $entity_type);
+
+        return array(
+            'added' => array_values(array_diff($new_media, $old_media)),
+            'removed' => array_values(array_diff($old_media, $new_media)),
+        );
+    }
+
+    /**
+     * Extract media URLs for property/agency payloads.
+     *
+     * @param array  $data Payload data.
+     * @param string $entity_type property|agency.
+     * @return array
+     */
+    private function extract_media_urls(array $data, $entity_type) {
+        $urls = array();
+
+        if ($entity_type === 'property') {
+            $media_sources = array();
+            if (!empty($data['media_files']) && is_array($data['media_files'])) {
+                $media_sources = $data['media_files'];
+            } elseif (!empty($data['file_allegati']) && is_array($data['file_allegati'])) {
+                $media_sources = $data['file_allegati'];
+            }
+
+            foreach ($media_sources as $item) {
+                if (is_array($item) && !empty($item['url'])) {
+                    $urls[] = $this->normalize_media_value($item['url']);
+                } elseif (is_string($item) && $item !== '') {
+                    $urls[] = $this->normalize_media_value($item);
+                }
+            }
+        }
+
+        $urls = array_values(array_unique(array_filter($urls)));
+        sort($urls);
+
+        return $urls;
+    }
+
+    /**
+     * Normalize media values to a stable token.
+     *
+     * @param mixed $value Media value.
+     * @return string
+     */
+    private function normalize_media_value($value) {
+        if (!is_string($value)) {
+            return '';
+        }
+
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $path = parse_url($value, PHP_URL_PATH);
+        if (!empty($path)) {
+            $value = basename($path);
+        }
+
+        return strtolower($value);
+    }
+
+    /**
+     * Detect whitespace-only changes on description fields.
+     *
+     * @param array  $old_data Old snapshot.
+     * @param array  $new_data Current payload.
+     * @param string $entity_type property|agency.
+     * @return bool
+     */
+    private function has_whitespace_only_description_change(array $old_data, array $new_data, $entity_type) {
+        if ($entity_type !== 'property') {
+            return false;
+        }
+
+        foreach (array('description', 'description_de') as $field) {
+            $old = isset($old_data[$field]) ? (string) $old_data[$field] : '';
+            $new = isset($new_data[$field]) ? (string) $new_data[$field] : '';
+
+            if ($old === $new) {
+                continue;
+            }
+
+            if ($this->normalize_text_for_compare($old) === $this->normalize_text_for_compare($new)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Detect whether the only raw change is last_editor_time.
+     *
+     * @param array $raw_diff_keys Top-level diff keys.
+     * @param bool  $description_whitespace_only Whether description changed only in whitespace.
+     * @return bool
+     */
+    private function has_last_editor_time_only_change(array $raw_diff_keys, $description_whitespace_only) {
+        if ($description_whitespace_only) {
+            return false;
+        }
+
+        return count($raw_diff_keys) === 1 && in_array('last_editor_time', $raw_diff_keys, true);
+    }
+
+    /**
+     * Collect top-level keys with raw differences.
+     *
+     * @param array $old_data Old payload.
+     * @param array $new_data New payload.
+     * @return array
+     */
+    private function get_top_level_diff_keys(array $old_data, array $new_data) {
+        $keys = array_unique(array_merge(array_keys($old_data), array_keys($new_data)));
+        $diff = array();
+
+        foreach ($keys as $key) {
+            $old_exists = array_key_exists($key, $old_data);
+            $new_exists = array_key_exists($key, $new_data);
+
+            if (!$old_exists || !$new_exists) {
+                $diff[] = $key;
+                continue;
+            }
+
+            if (serialize($old_data[$key]) !== serialize($new_data[$key])) {
+                $diff[] = $key;
+            }
+        }
+
+        return $diff;
+    }
+
+    /**
+     * Normalize a text value for whitespace-only comparisons.
+     *
+     * @param string $value Text value.
+     * @return string
+     */
+    private function normalize_text_for_compare($value) {
+        $value = (string) $value;
+        $value = preg_replace('/\s+/u', ' ', trim($value));
+
+        return $value;
+    }
+
+    /**
+     * Normalize a scalar for semantic comparison using key-aware rules.
+     *
+     * @param mixed  $value Scalar value.
+     * @param string|null $current_key Current key.
+     * @param string $entity_type property|agency.
+     * @return string
+     */
+    private function normalize_scalar_for_compare($value, $current_key = null, $entity_type = 'property') {
+        $value = (string) $value;
+        $value = trim($value);
+
+        if ($value === '') {
+            return '';
+        }
+
+        switch ((string) $current_key) {
+            case 'email':
+                return strtolower($value);
+
+            case 'phone':
+            case 'mobile':
+                return preg_replace('/\D+/', '', $value);
+
+            case 'website':
+            case 'url':
+                return $this->normalize_url_for_compare($value);
+
+            case 'logo_url':
+                return $this->normalize_media_value($value);
+
+            case 'description':
+            case 'description_de':
+                return $this->normalize_text_for_compare($value);
+
+            default:
+                return $this->normalize_text_for_compare($value);
+        }
+    }
+
+    /**
+     * Normalize URLs for semantic comparison.
+     *
+     * @param string $value URL value.
+     * @return string
+     */
+    private function normalize_url_for_compare($value) {
+        $value = strtolower(trim($value));
+        $value = preg_replace('#^https?://#', '', $value);
+        $value = rtrim($value, '/');
+
+        return $value;
+    }
+
+    /**
+     * Detect associative arrays.
+     *
+     * @param array $value Array to inspect.
+     * @return bool
+     */
+    private function is_assoc_array(array $value) {
+        if (array() === $value) {
+            return false;
+        }
+
+        return array_keys($value) !== range(0, count($value) - 1);
     }
 }

@@ -1418,6 +1418,8 @@ class RealEstate_Sync_Admin {
                     'remaining' => 0,
                     'progress_percent' => 0,
                     'minutes_since_activity' => null,
+                    'functional_stats' => $progress['functional_stats'] ?? array(),
+                    'deletion_stats' => $progress['deletion_stats'] ?? array(),
                     'delete_state' => $this->normalize_delete_state_for_monitor($delete_state),
                     'delete_runtime' => $this->normalize_delete_runtime_for_monitor($delete_runtime),
                 ));
@@ -1462,6 +1464,8 @@ class RealEstate_Sync_Admin {
             'remaining' => $remaining,
             'progress_percent' => $progress_percent,
             'minutes_since_activity' => round($minutes_since_activity, 1),
+            'functional_stats' => $progress['functional_stats'] ?? array(),
+            'deletion_stats' => $progress['deletion_stats'] ?? array(),
             'delete_state' => $this->normalize_delete_state_for_monitor($delete_state),
             'delete_runtime' => $this->normalize_delete_runtime_for_monitor($delete_runtime),
         ));
