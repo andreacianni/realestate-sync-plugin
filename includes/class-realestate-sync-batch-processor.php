@@ -34,6 +34,12 @@ class RealEstate_Sync_Batch_Processor {
     const STALE_PROCESSING_THRESHOLD = 900; // 15 minutes
 
     /**
+     * Maximum age (seconds) for automatic stale processing recovery.
+     * Older items are marked error for manual cleanup instead of being requeued.
+     */
+    const STALE_PROCESSING_RECOVERY_MAX_AGE = 604800; // 7 days
+
+    /**
      * Batch timeout (seconds)
      * DIAGNOSTIC: Increased to 600s (matches PHP max_execution_time)
      * to determine if timeouts are in batch or API layer
@@ -796,91 +802,109 @@ class RealEstate_Sync_Batch_Processor {
         );
 
         foreach ($processing_items as $processing_item) {
-            $updated_at_ts = isset($processing_item->updated_at) ? strtotime($processing_item->updated_at) : 0;
-            if ($updated_at_ts > 0 && ($now - $updated_at_ts) >= self::STALE_PROCESSING_THRESHOLD) {
-                if (($processing_item->item_type ?? 'property') !== 'property') {
-                    $message = "Auto-reset stale processing item after " . self::STALE_PROCESSING_THRESHOLD . "s";
-                    $stale_status_before = $processing_item->status ?? 'processing';
-                    $stale_retry_before = (int) ($processing_item->retry_count ?? 0);
-                    $this->queue_manager->mark_error($processing_item->id, $message);
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', $stale_status_before, $stale_retry_before, 'error', $message);
-                    $this->queue_manager->update_item_status($processing_item->id, 'pending');
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', 'error', $stale_retry_before + 1, 'pending');
-                    $recovery_stats['requeued']++;
-                    error_log("[BATCH-PROCESSOR] ƒo. Stale non-property item reset to pending: ID={$processing_item->id}, item_id={$processing_item->item_id}");
-                    continue;
-                }
-
-                $retry_count = (int) ($processing_item->retry_count ?? 0);
-                if ($retry_count >= RealEstate_Sync_Queue_Manager::MAX_RETRIES) {
-                    $message = "Auto-error stale processing item after {$retry_count} recovery attempts";
-                    $stale_status_before = $processing_item->status ?? 'processing';
-                    $this->queue_manager->mark_error($processing_item->id, $message);
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $stale_status_before, $retry_count, 'error', $message);
-                    $recovery_stats['terminal_errors']++;
-                    error_log("[BATCH-PROCESSOR] ƒ?O Stale property item exceeded recovery limit: ID={$processing_item->id}, item_id={$processing_item->item_id}, retry_count={$retry_count}");
-                    continue;
-                }
-
-                $property_id = (string) $processing_item->item_id;
-                $property_data = $this->get_batch_property_data($property_id);
-                if (empty($property_data)) {
-                    $this->queue_item_to_pending_or_error($processing_item, "Stale recovery pending: batch data not available for property {$property_id}", "Stale recovery pending: batch data not available for property {$property_id}");
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', "Stale recovery pending: batch data not available for property {$property_id}");
-                    $recovery_stats['requeued']++;
-                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - batch data missing: {$property_id}");
-                    continue;
-                }
-
-                $wp_post_id = $this->find_existing_property_post($property_id);
-                if (empty($wp_post_id)) {
-                    $this->queue_item_to_pending_or_error($processing_item, "Stale recovery pending: property post not found for {$property_id}", "Stale recovery pending: property post not found for {$property_id}");
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', "Stale recovery pending: property post not found for {$property_id}");
-                    $recovery_stats['requeued']++;
-                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - post missing: {$property_id}");
-                    continue;
-                }
-
-                $validation = $this->validate_recovery_candidate($property_id, $property_data, $wp_post_id);
-                if (empty($validation['success'])) {
-                    $reason = $validation['reason'] ?? "Stale recovery pending: property {$property_id} not yet coherent";
-                    $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
-                    $recovery_stats['requeued']++;
-                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - {$reason}");
-                    continue;
-                }
-
-                $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
-                $tracking_updated = $this->tracking_manager->update_tracking_record(
-                    intval($property_id),
-                    $property_hash,
-                    intval($wp_post_id),
-                    $property_data,
-                    'active'
-                );
-
-                if (!$tracking_updated) {
-                    $reason = "Stale recovery pending: tracking not updateable for property {$property_id}";
-                    $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
-                    $recovery_stats['requeued']++;
-                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - tracking update failed: {$property_id}");
-                    continue;
-                }
-
-                if (!$this->finalize_queue_item_success($processing_item, $wp_post_id)) {
-                    $reason = "Stale recovery pending: finalize failed for property {$property_id}";
-                    $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
-                    $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
-                    $recovery_stats['requeued']++;
-                    error_log("[BATCH-PROCESSOR] ƒo. Stale property item requeued - finalize failed: {$property_id}");
-                    continue;
-                }
-
-                $recovery_stats['done']++;
-                error_log("[BATCH-PROCESSOR] ƒo. Stale property item finalized: ID={$processing_item->id}, item_id={$processing_item->item_id}, wp_post_id={$wp_post_id}");
+            $created_at_ts = isset($processing_item->created_at) ? strtotime($processing_item->created_at) : 0;
+            if ($created_at_ts <= 0) {
+                continue;
             }
+
+            $age_seconds = $now - $created_at_ts;
+            if ($age_seconds < self::STALE_PROCESSING_THRESHOLD) {
+                continue;
+            }
+
+            if ($age_seconds > self::STALE_PROCESSING_RECOVERY_MAX_AGE) {
+                $message = 'Manual cleanup required: processing item older than 7 days excluded from auto-recovery';
+                $stale_status_before = $processing_item->status ?? 'processing';
+                $stale_retry_before = (int) ($processing_item->retry_count ?? 0);
+                $this->queue_manager->mark_error($processing_item->id, $message);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', $stale_status_before, $stale_retry_before, 'error', $message);
+                $recovery_stats['terminal_errors']++;
+                error_log("[BATCH-PROCESSOR] Stale item moved to error for manual cleanup: ID={$processing_item->id}, item_id={$processing_item->item_id}, age_seconds={$age_seconds}");
+                continue;
+            }
+
+            if (($processing_item->item_type ?? 'property') !== 'property') {
+                $message = "Auto-reset stale processing item after " . self::STALE_PROCESSING_THRESHOLD . "s";
+                $stale_status_before = $processing_item->status ?? 'processing';
+                $stale_retry_before = (int) ($processing_item->retry_count ?? 0);
+                $this->queue_manager->mark_error($processing_item->id, $message);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', $stale_status_before, $stale_retry_before, 'error', $message);
+                $this->queue_manager->update_item_status($processing_item->id, 'pending');
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, $processing_item->item_type ?? 'property', 'error', $stale_retry_before + 1, 'pending');
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale non-property item reset to pending: ID={$processing_item->id}, item_id={$processing_item->item_id}, age_seconds={$age_seconds}");
+                continue;
+            }
+
+            $retry_count = (int) ($processing_item->retry_count ?? 0);
+            if ($retry_count >= RealEstate_Sync_Queue_Manager::MAX_RETRIES) {
+                $message = "Auto-error stale processing item after {$retry_count} recovery attempts";
+                $stale_status_before = $processing_item->status ?? 'processing';
+                $this->queue_manager->mark_error($processing_item->id, $message);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $stale_status_before, $retry_count, 'error', $message);
+                $recovery_stats['terminal_errors']++;
+                error_log("[BATCH-PROCESSOR] Stale property item exceeded recovery limit: ID={$processing_item->id}, item_id={$processing_item->item_id}, retry_count={$retry_count}");
+                continue;
+            }
+
+            $property_id = (string) $processing_item->item_id;
+            $property_data = $this->get_batch_property_data($property_id);
+            if (empty($property_data)) {
+                $this->queue_item_to_pending_or_error($processing_item, "Stale recovery pending: batch data not available for property {$property_id}", "Stale recovery pending: batch data not available for property {$property_id}");
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', "Stale recovery pending: batch data not available for property {$property_id}");
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale property item requeued - batch data missing: {$property_id}");
+                continue;
+            }
+
+            $wp_post_id = $this->find_existing_property_post($property_id);
+            if (empty($wp_post_id)) {
+                $this->queue_item_to_pending_or_error($processing_item, "Stale recovery pending: property post not found for {$property_id}", "Stale recovery pending: property post not found for {$property_id}");
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', "Stale recovery pending: property post not found for {$property_id}");
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale property item requeued - post missing: {$property_id}");
+                continue;
+            }
+
+            $validation = $this->validate_recovery_candidate($property_id, $property_data, $wp_post_id);
+            if (empty($validation['success'])) {
+                $reason = $validation['reason'] ?? "Stale recovery pending: property {$property_id} not yet coherent";
+                $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale property item requeued - {$reason}");
+                continue;
+            }
+
+            $property_hash = $this->tracking_manager->calculate_property_hash($property_data);
+            $tracking_updated = $this->tracking_manager->update_tracking_record(
+                intval($property_id),
+                $property_hash,
+                intval($wp_post_id),
+                $property_data,
+                'active'
+            );
+
+            if (!$tracking_updated) {
+                $reason = "Stale recovery pending: tracking not updateable for property {$property_id}";
+                $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale property item requeued - tracking update failed: {$property_id}");
+                continue;
+            }
+
+            if (!$this->finalize_queue_item_success($processing_item, $wp_post_id)) {
+                $reason = "Stale recovery pending: finalize failed for property {$property_id}";
+                $this->queue_item_to_pending_or_error($processing_item, $reason, $reason);
+                $this->log_queue_status_change($processing_item->id, $processing_item->item_id, 'property', $processing_item->status ?? 'processing', $retry_count, 'pending', $reason);
+                $recovery_stats['requeued']++;
+                error_log("[BATCH-PROCESSOR] Stale property item requeued - finalize failed: {$property_id}");
+                continue;
+            }
+
+            $recovery_stats['done']++;
+            error_log("[BATCH-PROCESSOR] Stale property item finalized: ID={$processing_item->id}, item_id={$processing_item->item_id}, wp_post_id={$wp_post_id}");
         }
 
         return $recovery_stats;
