@@ -15,6 +15,8 @@ if (!defined('ABSPATH')) {
 	exit;
 }
 
+require_once dirname(__FILE__) . '/class-realestate-sync-jwt-auth-helper.php';
+
 class RealEstate_Sync_WPResidence_API_Writer {
 
 	/**
@@ -142,6 +144,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			$body_len = strlen($raw_body);
 			$body_preview = substr($raw_body, 0, 400);
 
+			$decoded = RealEstate_Sync_JWT_Auth_Helper::decode_body($raw_body);
 			$this->logger->log('JWT auth response received', 'DEBUG', array(
 				'endpoint' => $this->jwt_auth_url,
 				'http_code' => $status_code,
@@ -149,23 +152,15 @@ class RealEstate_Sync_WPResidence_API_Writer {
 				'server' => $headers['server'] ?? null,
 				'body_length' => $body_len,
 				'body_preview' => $body_preview,
+				'bom_removed' => $decoded['bom_removed'],
 				'attempt' => $attempt
 			));
 
-			// Tolerant decode: strip control/gzip bytes before JSON if present
-			$body = json_decode($raw_body, true);
-			if (!is_array($body)) {
-				$body_start = strpos($raw_body, '{');
-				if ($body_start !== false) {
-					$sanitized_body = preg_replace('/^[\x00-\x1F\x7F-\x9F]+/', '', substr($raw_body, $body_start));
-					$body = json_decode($sanitized_body, true);
-				}
-			}
-
-			if (!is_array($body)) {
-				$this->logger->log('JWT auth response parse failed: ' . json_last_error_msg(), 'ERROR', array(
+			if (!$decoded['success']) {
+				$this->logger->log('JWT auth response parse failed: ' . $decoded['json_error'], 'ERROR', array(
 					'http_code' => $status_code,
 					'body_length' => $body_len,
+					'bom_removed' => $decoded['bom_removed'],
 					'attempt' => $attempt
 				));
 
@@ -175,6 +170,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 				}
 				return false;
 			}
+			$body = $decoded['body'];
 
 			// Check response status
 			if ($status_code !== 200) {
@@ -190,13 +186,15 @@ class RealEstate_Sync_WPResidence_API_Writer {
 				return false;
 			}
 
-			// Extract token from response
-			// JWT plugin returns token in $body['data']['token'], not $body['token']
-			if (!isset($body['data']['token'])) {
+			$token_result = RealEstate_Sync_JWT_Auth_Helper::extract_token($body);
+			if (!$token_result['success']) {
 				$this->logger->log('JWT token not found in authentication response', 'ERROR', array(
 					'http_code' => $status_code,
 					'body_length' => $body_len,
 					'body_preview' => $body_preview,
+					'bom_removed' => $decoded['bom_removed'],
+					'top_level_keys' => $token_result['top_level_keys'],
+					'data_keys' => $token_result['data_keys'],
 					'attempt' => $attempt
 				));
 
@@ -208,7 +206,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 			}
 
 			// Store token and expiration (9 minutes from now for safety)
-			$this->jwt_token = $body['data']['token'];
+			$this->jwt_token = $token_result['token'];
 			$this->jwt_expiration = time() + (9 * 60);
 
 			$this->logger->log('JWT token generated successfully (expires in 9 minutes)', 'INFO');

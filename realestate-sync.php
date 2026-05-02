@@ -131,6 +131,7 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-agency-importer.php'; // 🏢 Agency Importer
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-deduplicator.php'; // 🖼️ Media Deduplicator
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-property-agent-linker.php'; // 🔗 Property-Agent Linker
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-jwt-auth-helper.php'; // 🔐 Shared JWT parser
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wpresidence-api-writer.php'; // 🚀 NEW: WPResidence Property API Writer v1.0 (v1.4.0)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wpresidence-agency-api-writer.php'; // 🏢 NEW: WPResidence Agency API Writer v1.0 (v1.4.0)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-wp-importer.php'; // Legacy importer (meta fields)
