@@ -213,7 +213,7 @@ $active_session = $wpdb->get_row("
         session_id,
         COUNT(*) as total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
+        SUM(CASE WHEN status = 'processing' AND created_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
         SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing
     FROM {$queue_table}
     GROUP BY session_id
@@ -426,7 +426,7 @@ $active_session = $wpdb->get_row("
         session_id,
         COUNT(*) as total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
+        SUM(CASE WHEN status = 'processing' AND created_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
         SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing
     FROM {$queue_table}
     GROUP BY session_id
