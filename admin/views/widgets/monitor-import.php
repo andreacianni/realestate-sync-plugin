@@ -30,75 +30,88 @@ if (!defined('ABSPATH')) exit;
         </p>
 
         <div id="last-import-status">
-            <table class="table table-sm">
-                <tbody>
-                    <tr>
-                        <td class="fw-semibold">Session ID:</td>
-                        <td id="import-session-id" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Data Inizio:</td>
-                        <td id="import-start-time" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Stato Processo:</td>
-                        <td id="import-process-status" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Fase Sessione:</td>
-                        <td id="import-session-phase" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Stato Delete:</td>
-                        <td id="delete-state-status" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Modalita Delete:</td>
-                        <td id="delete-runtime-mode" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Kill Switch:</td>
-                        <td id="delete-runtime-kill-switch" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Cap Delete:</td>
-                        <td id="delete-runtime-cap" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Contatori Delete:</td>
-                        <td id="delete-state-counters" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Totale Elementi:</td>
-                        <td id="import-total-items" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Completati:</td>
-                        <td id="import-completed-items" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Rimanenti:</td>
-                        <td id="import-remaining-items" class="text-muted">-</td>
-                    </tr>
-                    <tr>
-                        <td class="fw-semibold">Progressione:</td>
-                        <td id="import-progress-bar">
-                            <div class="progress" style="height: 25px;">
-                                <div id="import-progress-fill" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
-                            </div>
-                            <span id="import-progress-text" class="small text-muted d-block mt-1">0%</span>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+            <div class="row g-4 align-items-start rs-monitor-columns">
+                <div class="col-12 col-xl-7">
+                    <div class="rs-monitor-panel rs-monitor-panel--technical">
+                        <div class="rs-monitor-panel__eyebrow">Stato tecnico processo</div>
+                        <p class="text-muted mb-3">
+                            <?php _e('Stato dell\'ultimo processo di import in esecuzione o completato.', 'realestate-sync'); ?>
+                        </p>
 
-            <div id="import-functional-stats" class="mt-4" style="display:none;"></div>
+                        <table class="table table-sm mb-0 rs-monitor-table rs-monitor-table--technical">
+                            <tbody>
+                                <tr>
+                                    <th scope="row">Session ID</th>
+                                    <td id="import-session-id" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Data inizio</th>
+                                    <td id="import-start-time" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Stato processo</th>
+                                    <td id="import-process-status" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Fase sessione</th>
+                                    <td id="import-session-phase" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Stato delete</th>
+                                    <td id="delete-state-status" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Modalita delete</th>
+                                    <td id="delete-runtime-mode" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Kill switch</th>
+                                    <td id="delete-runtime-kill-switch" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Cap delete</th>
+                                    <td id="delete-runtime-cap" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Contatori delete</th>
+                                    <td id="delete-state-counters" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Totale elementi</th>
+                                    <td id="import-total-items" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Completati</th>
+                                    <td id="import-completed-items" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Rimanenti</th>
+                                    <td id="import-remaining-items" class="text-muted">-</td>
+                                </tr>
+                                <tr>
+                                    <th scope="row">Progressione</th>
+                                    <td id="import-progress-bar">
+                                        <div class="progress" style="height: 25px;">
+                                            <div id="import-progress-fill" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%"></div>
+                                        </div>
+                                        <span id="import-progress-text" class="small text-muted d-block mt-1">0%</span>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
 
-            <div class="d-grid mt-3">
-                <button type="button" class="btn btn-outline-primary" id="refresh-import-status">
-                    <span class="dashicons dashicons-update"></span>
-                    <?php _e('Visualizza Stato', 'realestate-sync'); ?>
-                </button>
+                        <div class="d-grid mt-3">
+                            <button type="button" class="btn btn-outline-primary" id="refresh-import-status">
+                                <span class="dashicons dashicons-update"></span>
+                                <?php _e('Visualizza Stato', 'realestate-sync'); ?>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-xl-5">
+                    <div id="import-functional-stats" class="rs-monitor-panel rs-monitor-panel--functional rs-hidden"></div>
+                </div>
             </div>
         </div>
     </div>

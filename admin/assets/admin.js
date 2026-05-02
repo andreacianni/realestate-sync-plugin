@@ -830,35 +830,33 @@ jQuery(document).ready(function($) {
         $(prefix + 'delete-state-counters').text(counters);
     }
 
-    function buildFunctionalStatsHtml(functionalStats) {
+    function buildFunctionalStatsHtml(data, functionalStats) {
         const value = function(key) {
             return Number.parseInt(functionalStats[key] || 0, 10);
         };
+        const activeAnnouncements = Number.parseInt((data && (data.total ?? data.total_items)) || 0, 10);
 
         return '' +
-            '<div class="border-top pt-3 mt-3">' +
-                '<div class="fw-semibold mb-2">Metriche funzionali</div>' +
-                '<div class="small">' +
-                    '<div class="mb-3">' +
-                        '<div class="text-uppercase text-muted fw-semibold mb-1">Catalogo</div>' +
-                        '<div>Nuovi annunci: <strong>' + value('created_new') + '</strong></div>' +
-                        '<div>Aggiornamenti contenuto: <strong>' + value('business_updates') + '</strong></div>' +
-                        '<div>Aggiornamenti tecnici: <strong>' + value('technical_updates') + '</strong></div>' +
-                        '<div>Self-healing: <strong>' + value('self_healing_updates') + '</strong></div>' +
-                        '<div>Annunci cancellati: <strong>' + value('deleted_properties') + '</strong></div>' +
-                        '<div>Agenzie cancellate: <strong>' + value('deleted_agencies') + '</strong></div>' +
-                    '</div>' +
-                    '<div class="mb-3">' +
-                        '<div class="text-uppercase text-muted fw-semibold mb-1">Media</div>' +
-                        '<div>Media cancellati dal server: <strong>' + value('media_deleted_physical') + '</strong></div>' +
-                    '</div>' +
-                    '<div>' +
-                        '<div class="text-uppercase text-muted fw-semibold mb-1">Media sperimentale</div>' +
-                        '<div>Media aggiunti: <strong>' + value('media_added') + '</strong></div>' +
-                        '<div>Media rimossi dalla galleria: <strong>' + value('media_removed_from_gallery') + '</strong></div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>';
+            '<div class="rs-monitor-panel__eyebrow">Metriche funzionali</div>' +
+            '<h6 class="rs-monitor-panel__title">Sintesi di sessione</h6>' +
+            '<table class="table table-sm mb-0 rs-functional-table">' +
+                '<tbody>' +
+                    '<tr class="rs-functional-section"><th colspan="2">Catalogo</th></tr>' +
+                    '<tr><th scope="row">Annunci attivi</th><td>' + activeAnnouncements + '</td></tr>' +
+                    '<tr><th scope="row">Nuovi annunci</th><td>' + value('created_new') + '</td></tr>' +
+                    '<tr><th scope="row">Aggiornamenti contenuto</th><td>' + value('business_updates') + '</td></tr>' +
+                    '<tr><th scope="row">Aggiornamenti tecnici</th><td>' + value('technical_updates') + '</td></tr>' +
+                    '<tr><th scope="row">Self-healing</th><td>' + value('self_healing_updates') + '</td></tr>' +
+                    '<tr><th scope="row">Annunci cancellati</th><td>' + value('deleted_properties') + '</td></tr>' +
+                    '<tr><th scope="row">Agenzie cancellate</th><td>' + value('deleted_agencies') + '</td></tr>' +
+                    '<tr class="rs-functional-section"><th colspan="2">Media</th></tr>' +
+                    '<tr><th scope="row">Media cancellati dal server</th><td>' + value('media_deleted_physical') + '</td></tr>' +
+                    '<tr class="rs-functional-section rs-functional-section--experimental"><th colspan="2">Media sperimentale</th></tr>' +
+                    '<tr><th scope="row">Media aggiunti</th><td>' + value('media_added') + '</td></tr>' +
+                    '<tr><th scope="row">Media rimossi dalla galleria</th><td>' + value('media_removed_from_gallery') + '</td></tr>' +
+                '</tbody>' +
+            '</table>' +
+            '<div class="rs-functional-note">Le metriche sperimentali sono calcolate solo a fini di monitoraggio.</div>';
     }
 
     function updateFunctionalStatsFields(prefix, data) {
@@ -872,11 +870,11 @@ jQuery(document).ready(function($) {
             : null;
 
         if (!functionalStats) {
-            $block.hide().empty();
+            $block.addClass('rs-hidden').hide().empty();
             return;
         }
 
-        $block.html(buildFunctionalStatsHtml(functionalStats)).show();
+        $block.removeClass('rs-hidden').html(buildFunctionalStatsHtml(data, functionalStats)).show();
     }
 
     function refreshImportStatus() {
