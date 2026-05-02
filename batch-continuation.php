@@ -213,21 +213,22 @@ $active_session = $wpdb->get_row("
         session_id,
         COUNT(*) as total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
+        SUM(CASE WHEN status = 'processing' AND created_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as stale_processing_recent,
+        SUM(CASE WHEN status = 'processing' AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as stale_processing_expired,
         SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing
     FROM {$queue_table}
     GROUP BY session_id
-    HAVING pending > 0 OR stale_processing > 0
+    HAVING pending > 0 OR stale_processing_recent > 0
     ORDER BY MIN(created_at) ASC
     LIMIT 1
 ");
 
-if ((!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing ?? 0) === 0)) && null === $delete_phase_status) {
+if ((!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing_recent ?? 0) === 0)) && null === $delete_phase_status) {
     echo "OK - No pending work\n";
     exit;
 }
 
-$session_id = $active_session && (((int) ($active_session->pending ?? 0) > 0) || ((int) ($active_session->stale_processing ?? 0) > 0))
+$session_id = $active_session && (((int) ($active_session->pending ?? 0) > 0) || ((int) ($active_session->stale_processing_recent ?? 0) > 0))
     ? $active_session->session_id
     : ($progress['session_id'] ?? '');
 
@@ -239,7 +240,7 @@ if (empty($session_id)) {
 set_transient('realestate_sync_processing_lock', $session_id, 120);
 
 try {
-    if ($active_session && (((int) ($active_session->pending ?? 0) > 0) || ((int) ($active_session->stale_processing ?? 0) > 0))) {
+    if ($active_session && (((int) ($active_session->pending ?? 0) > 0) || ((int) ($active_session->stale_processing_recent ?? 0) > 0))) {
         if (($progress['session_id'] ?? '') !== $session_id) {
             // Session mismatch is tolerated; queue remains source of truth.
         }
@@ -259,6 +260,11 @@ try {
         $result = $batch_processor->process_next_batch();
 
         $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
+        $current_functional_stats = $progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+        $batch_functional_stats = $result['functional_stats'] ?? array();
+        if (!empty($batch_functional_stats)) {
+            $progress['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats($current_functional_stats, $batch_functional_stats);
+        }
         $progress['last_batch_time'] = time();
         update_option('realestate_sync_background_import_progress', $progress);
 
@@ -421,16 +427,17 @@ $active_session = $wpdb->get_row("
         session_id,
         COUNT(*) as total,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN status = 'processing' AND updated_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) THEN 1 ELSE 0 END) as stale_processing,
+        SUM(CASE WHEN status = 'processing' AND created_at < DATE_SUB(NOW(), INTERVAL 900 SECOND) AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as stale_processing_recent,
+        SUM(CASE WHEN status = 'processing' AND created_at < DATE_SUB(NOW(), INTERVAL 7 DAY) THEN 1 ELSE 0 END) as stale_processing_expired,
         SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END) as processing
     FROM {$queue_table}
     GROUP BY session_id
-    HAVING pending > 0 OR stale_processing > 0
+    HAVING pending > 0 OR stale_processing_recent > 0
     ORDER BY MIN(created_at) ASC
     LIMIT 1
 ");
 
-if (!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing ?? 0) === 0)) {
+if (!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing_recent ?? 0) === 0)) {
     echo "OK - No pending work\n";
     exit;
 }
@@ -476,12 +483,17 @@ require_once(dirname(__FILE__) . '/includes/class-realestate-sync-batch-processo
 try {
     $batch_processor = new RealEstate_Sync_Batch_Processor($session_id, $xml_file_path, $mark_as_test, $force_update);
 
-    $result = $batch_processor->process_next_batch();
+	    $result = $batch_processor->process_next_batch();
 
-    // Update progress
-    $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
-    $progress['last_batch_time'] = time();
-    update_option('realestate_sync_background_import_progress', $progress);
+	    // Update progress
+	    $progress['processed_items'] = ($progress['processed_items'] ?? 0) + ($result['processed'] ?? 0);
+	    $current_functional_stats = $progress['functional_stats'] ?? RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults();
+	    $batch_functional_stats = $result['functional_stats'] ?? array();
+	    if (!empty($batch_functional_stats)) {
+	        $progress['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats($current_functional_stats, $batch_functional_stats);
+	    }
+	    $progress['last_batch_time'] = time();
+	    update_option('realestate_sync_background_import_progress', $progress);
 
     // ✅ Release processing lock
     delete_transient('realestate_sync_processing_lock');

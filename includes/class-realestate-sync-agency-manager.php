@@ -53,7 +53,8 @@ class RealEstate_Sync_Agency_Manager {
         'updated' => 0,
         'skipped' => 0,
         'errors' => 0,
-        'with_logo' => 0
+        'with_logo' => 0,
+        'functional_stats' => array()
     );
 
     /**
@@ -89,7 +90,8 @@ class RealEstate_Sync_Agency_Manager {
             'skipped' => 0,
             'errors' => 0,
             'with_logo' => 0,
-            'agency_ids' => array()
+            'agency_ids' => array(),
+            'functional_stats' => RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults()
         );
 
         foreach ($agencies as $agency_data) {
@@ -119,6 +121,7 @@ class RealEstate_Sync_Agency_Manager {
                     if ($new_id) {
                         $this->import_stats['imported']++;
                         $this->import_stats['agency_ids'][] = $new_id;
+                        RealEstate_Sync_Tracking_Manager::increment_functional_stat($this->import_stats['functional_stats'], 'created_new');
                     } else {
                         $this->import_stats['errors']++;
                     }
@@ -382,6 +385,17 @@ class RealEstate_Sync_Agency_Manager {
             'xml_id' => $agency_data['xml_agency_id']
         ));
 
+        $tracking_record = $this->tracking_manager->get_agency_tracking_record($agency_data['xml_agency_id']);
+        if (empty($tracking_record)) {
+            RealEstate_Sync_Tracking_Manager::increment_functional_stat($this->import_stats['functional_stats'], 'self_healing_updates');
+        } else {
+            $update_functional_stats = $this->tracking_manager->classify_agency_functional_update($agency_data['xml_agency_id'], $agency_data);
+            $this->import_stats['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+                $this->import_stats['functional_stats'],
+                $update_functional_stats
+            );
+        }
+
         // Update XML ID (in case it changed)
         // NOTE: Using 'agency_xml_id' (not 'xml_agency_id') to match lookup query
         $tracker->log_meta_operation('AGENCY_MANAGER', 'update', $agency_id, 'agency_xml_id', $agency_data['xml_agency_id']);
@@ -427,6 +441,15 @@ class RealEstate_Sync_Agency_Manager {
         return array(
             'agents_with_logo' => $this->import_stats['with_logo']
         );
+    }
+
+    /**
+     * Get cumulative stats for the current session.
+     *
+     * @return array
+     */
+    public function get_session_stats() {
+        return $this->import_stats;
     }
     
     /**

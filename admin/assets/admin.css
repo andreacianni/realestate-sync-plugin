@@ -206,6 +206,96 @@
     border-top: 1px solid #c3c4c7;
 }
 
+.rs-monitor-columns {
+    margin-top: 4px;
+}
+
+.rs-monitor-panel {
+    background: linear-gradient(180deg, #ffffff 0%, #fbfcfe 100%);
+    border: 1px solid #dcdcde;
+    border-radius: 10px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+    height: 100%;
+}
+
+.rs-monitor-panel--technical {
+    border-left: 4px solid #2271b1;
+}
+
+.rs-monitor-panel--functional {
+    border-left: 4px solid #7e57c2;
+}
+
+.rs-monitor-panel__eyebrow {
+    color: #646970;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.rs-monitor-panel__title {
+    color: #1d2327;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin: 0 0 12px;
+}
+
+.rs-monitor-table th {
+    color: #1d2327;
+    font-weight: 600;
+    white-space: nowrap;
+    width: 42%;
+}
+
+.rs-monitor-table td {
+    color: #50575e;
+}
+
+.rs-monitor-table--technical td,
+.rs-functional-table td {
+    font-variant-numeric: tabular-nums;
+}
+
+.rs-functional-table {
+    margin-top: 8px;
+    width: 100%;
+}
+
+.rs-functional-table th {
+    color: #1d2327;
+    font-weight: 600;
+    width: 70%;
+}
+
+.rs-functional-table td {
+    color: #1d2327;
+    font-weight: 600;
+    text-align: right;
+    width: 30%;
+}
+
+.rs-functional-section th {
+    color: #6c757d;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    padding-top: 14px;
+    text-transform: uppercase;
+}
+
+.rs-functional-section--experimental th {
+    color: #8c4f00;
+}
+
+.rs-functional-note {
+    color: #6c757d;
+    font-size: 12px;
+    margin-top: 12px;
+}
+
 .rs-import-stats {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));

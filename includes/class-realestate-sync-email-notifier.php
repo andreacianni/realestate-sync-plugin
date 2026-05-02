@@ -26,6 +26,7 @@ class RealEstate_Sync_Email_Notifier {
         $start_time = $stats['start_time'] ?? time();
         $end_time = $stats['end_time'] ?? time();
         $duration = $end_time - $start_time;
+        $functional_stats = $stats['functional_stats'] ?? ($stats['statistics']['functional_stats'] ?? array());
 
         // Calculate stats
         $agencies_inserted = $stats['agencies_inserted'] ?? 0;
@@ -59,7 +60,8 @@ class RealEstate_Sync_Email_Notifier {
                 'updated' => $properties_updated,
                 'skipped' => $properties_skipped,
                 'total' => $properties_total
-            ]
+            ],
+            $functional_stats
         );
 
         // Send email
@@ -127,7 +129,7 @@ class RealEstate_Sync_Email_Notifier {
     /**
      * Build success email body
      */
-    private static function build_success_email($session_id, $start_time, $end_time, $duration, $batch_count, $agencies, $properties) {
+    private static function build_success_email($session_id, $start_time, $end_time, $duration, $batch_count, $agencies, $properties, $functional_stats = array()) {
 
         $start_str = gmdate('d/m/Y H:i:s', $start_time) . ' UTC';
         $end_str = gmdate('d/m/Y H:i:s', $end_time) . ' UTC';
@@ -179,6 +181,20 @@ class RealEstate_Sync_Email_Notifier {
             $email .= "│ TOTALE:                               " . str_pad($properties['total'], 4, ' ', STR_PAD_LEFT) . "                        │\n";
             $email .= "└──────────────────────────────────────────────────────────────────┘\n\n";
         }
+
+        $email .= "┌──────────────────────────────────────────────────────────────────┐\n";
+        $email .= "│ 📦 METRICHE FUNZIONALI                                            │\n";
+        $email .= "├──────────────────────────────────────────────────────────────────┤\n";
+        $email .= "│ Nuovi annunci:                " . str_pad((int) ($functional_stats['created_new'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Aggiornamenti contenuto:      " . str_pad((int) ($functional_stats['business_updates'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Aggiornamenti tecnici:        " . str_pad((int) ($functional_stats['technical_updates'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Self-healing:                 " . str_pad((int) ($functional_stats['self_healing_updates'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Annunci cancellati:           " . str_pad((int) ($functional_stats['deleted_properties'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Agenzie cancellate:           " . str_pad((int) ($functional_stats['deleted_agencies'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Media cancellati dal server:  " . str_pad((int) ($functional_stats['media_deleted_physical'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Media aggiunti (sperimentale):" . str_pad((int) ($functional_stats['media_added'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "│ Media rimossi (sperimentale): " . str_pad((int) ($functional_stats['media_removed_from_gallery'] ?? 0), 6, ' ', STR_PAD_LEFT) . "                         │\n";
+        $email .= "└──────────────────────────────────────────────────────────────────┘\n\n";
 
         $email .= "┌──────────────────────────────────────────────────────────────────┐\n";
         $email .= "│ ⚡ PERFORMANCE                                                    │\n";

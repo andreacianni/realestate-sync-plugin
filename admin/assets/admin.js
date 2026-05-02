@@ -830,6 +830,53 @@ jQuery(document).ready(function($) {
         $(prefix + 'delete-state-counters').text(counters);
     }
 
+    function buildFunctionalStatsHtml(data, functionalStats) {
+        const value = function(key) {
+            return Number.parseInt(functionalStats[key] || 0, 10);
+        };
+        const activeAnnouncements = Number.parseInt((data && (data.total ?? data.total_items)) || 0, 10);
+
+        return '' +
+            '<div class="rs-monitor-panel__eyebrow">Metriche funzionali</div>' +
+            '<h6 class="rs-monitor-panel__title">Sintesi di sessione</h6>' +
+            '<table class="table table-sm mb-0 rs-functional-table">' +
+                '<tbody>' +
+                    '<tr class="rs-functional-section"><th colspan="2">Catalogo</th></tr>' +
+                    '<tr><th scope="row">Annunci attivi</th><td>' + activeAnnouncements + '</td></tr>' +
+                    '<tr><th scope="row">Nuovi annunci</th><td>' + value('created_new') + '</td></tr>' +
+                    '<tr><th scope="row">Aggiornamenti contenuto</th><td>' + value('business_updates') + '</td></tr>' +
+                    '<tr><th scope="row">Aggiornamenti tecnici</th><td>' + value('technical_updates') + '</td></tr>' +
+                    '<tr><th scope="row">Self-healing</th><td>' + value('self_healing_updates') + '</td></tr>' +
+                    '<tr><th scope="row">Annunci cancellati</th><td>' + value('deleted_properties') + '</td></tr>' +
+                    '<tr><th scope="row">Agenzie cancellate</th><td>' + value('deleted_agencies') + '</td></tr>' +
+                    '<tr class="rs-functional-section"><th colspan="2">Media</th></tr>' +
+                    '<tr><th scope="row">Media cancellati dal server</th><td>' + value('media_deleted_physical') + '</td></tr>' +
+                    '<tr class="rs-functional-section rs-functional-section--experimental"><th colspan="2">Media sperimentale</th></tr>' +
+                    '<tr><th scope="row">Media aggiunti</th><td>' + value('media_added') + '</td></tr>' +
+                    '<tr><th scope="row">Media rimossi dalla galleria</th><td>' + value('media_removed_from_gallery') + '</td></tr>' +
+                '</tbody>' +
+            '</table>' +
+            '<div class="rs-functional-note">Le metriche sperimentali sono calcolate solo a fini di monitoraggio.</div>';
+    }
+
+    function updateFunctionalStatsFields(prefix, data) {
+        const $block = $(prefix + 'import-functional-stats');
+        if (!$block.length) {
+            return;
+        }
+
+        const functionalStats = data && data.functional_stats && typeof data.functional_stats === 'object'
+            ? data.functional_stats
+            : null;
+
+        if (!functionalStats) {
+            $block.addClass('rs-hidden').hide().empty();
+            return;
+        }
+
+        $block.removeClass('rs-hidden').html(buildFunctionalStatsHtml(data, functionalStats)).show();
+    }
+
     function refreshImportStatus() {
         // Show loading indicator
         var $btn = $('#refresh-import-status');
@@ -854,6 +901,7 @@ jQuery(document).ready(function($) {
                         $('#import-start-time').text('-');
                         $('#import-process-status').html('<span style="color: #666;">Nessun import</span>');
                         resetDeleteMonitorFields('#');
+                        updateFunctionalStatsFields('#', null);
                         $('#import-total-items').text('0');
                         $('#import-completed-items').text('0');
                         $('#import-remaining-items').text('0');
@@ -870,6 +918,7 @@ jQuery(document).ready(function($) {
 
                     $('#import-process-status').html(getMonitorProcessStatus(data));
                     updateDeleteMonitorFields('#', data);
+                    updateFunctionalStatsFields('#', data);
                     $('#import-total-items').text(data.total);
                     $('#import-completed-items').text(data.completed);
                     $('#import-remaining-items').text(data.remaining);
@@ -933,6 +982,7 @@ jQuery(document).ready(function($) {
                         $('#queue-import-session-id').text('Nessuna sessione');
                         $('#queue-import-start-time').text('-');
                         $('#queue-import-process-status').html('<span style="color: #666;">Nessun import</span>');
+                        updateFunctionalStatsFields('#queue-', null);
                         $('#queue-import-total-items').text('0');
                         $('#queue-import-completed-items').text('0');
                         $('#queue-import-remaining-items').text('0');
@@ -948,6 +998,7 @@ jQuery(document).ready(function($) {
                     $('#queue-import-start-time').text(data.start_time);
 
                     $('#queue-import-process-status').html(getMonitorProcessStatus(data));
+                    updateFunctionalStatsFields('#queue-', data);
                     $('#queue-import-total-items').text(data.total);
                     $('#queue-import-completed-items').text(data.completed);
                     $('#queue-import-remaining-items').text(data.remaining);

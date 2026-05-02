@@ -521,6 +521,7 @@ class RealEstate_Sync_Import_Engine {
             'chunks_processed' => 0,
             'duration' => 0,
             'memory_peak_mb' => 0,
+            'functional_stats' => RealEstate_Sync_Tracking_Manager::get_functional_stats_defaults(),
             'provinces_found' => array(),
             'categories_found' => array(),
             // 🆕 Agency statistics
@@ -717,6 +718,7 @@ class RealEstate_Sync_Import_Engine {
             // Skip properties deleted
             if (isset($property_data['deleted']) && $property_data['deleted'] == '1') {
                 $this->stats['deleted_properties']++;
+                RealEstate_Sync_Tracking_Manager::increment_functional_stat($this->stats['functional_stats'], 'deleted_properties');
                 $this->logger->log("❌ STEP 1a: Property {$property_id} SKIPPED - marked as deleted", 'debug');
                 $this->tracker->log_event('DEBUG', 'IMPORT_ENGINE', 'Property skipped', array(
                     'property_id' => $property_id,
@@ -1043,6 +1045,7 @@ class RealEstate_Sync_Import_Engine {
                 $this->store_property_agency_data($property_data, $result['post_id']);
 
                 $this->stats['new_properties']++;
+                RealEstate_Sync_Tracking_Manager::increment_functional_stat($this->stats['functional_stats'], 'created_new');
 
                 $this->logger->log("✅ STEP 6: TRACKING - Record updated in database", 'debug');
 
@@ -1080,23 +1083,33 @@ class RealEstate_Sync_Import_Engine {
                 'error' => $result['error'] ?? null
             ));
 
-            if ($result['success']) {
-                if ($result['action'] === 'updated') {
-                    $this->logger->log("✅ STEP 5a: Property updated successfully", 'debug', [
-                        'property_id' => $property_id,
-                        'post_id' => $result['post_id']
-                    ]);
-                    $this->stats['updated_properties']++;
-                } else {
-                    $this->logger->log("✅ STEP 5a: Property unchanged (skipped)", 'debug', [
-                        'property_id' => $property_id,
-                        'post_id' => $result['post_id']
-                    ]);
-                    $this->stats['skipped_properties']++;
-                }
+                if ($result['success']) {
+                    if ($result['action'] === 'updated') {
+                        $this->logger->log("✅ STEP 5a: Property updated successfully", 'debug', [
+                            'property_id' => $property_id,
+                            'post_id' => $result['post_id']
+                        ]);
+                        $this->stats['updated_properties']++;
+                    } else {
+                        $this->logger->log("✅ STEP 5a: Property unchanged (skipped)", 'debug', [
+                            'property_id' => $property_id,
+                            'post_id' => $result['post_id']
+                        ]);
+                        $this->stats['skipped_properties']++;
+                    }
 
-                // 🔖 Mark as test if flag is enabled (for both new and updated properties)
-                if (!empty($this->session_data['mark_as_test']) && !empty($result['post_id'])) {
+                    if (($change_status['reason'] ?? '') === 'tracking_missing_force_update') {
+                        RealEstate_Sync_Tracking_Manager::increment_functional_stat($this->stats['functional_stats'], 'self_healing_updates');
+                    } else {
+                        $update_functional_stats = $this->tracking_manager->classify_property_functional_update($property_id, $property_data);
+                        $this->stats['functional_stats'] = RealEstate_Sync_Tracking_Manager::merge_functional_stats(
+                            $this->stats['functional_stats'],
+                            $update_functional_stats
+                        );
+                    }
+
+                    // 🔖 Mark as test if flag is enabled (for both new and updated properties)
+                    if (!empty($this->session_data['mark_as_test']) && !empty($result['post_id'])) {
                     update_post_meta($result['post_id'], '_test_import', '1');
                     $this->logger->log("🔖 Property marked as test import", 'debug');
                 }
@@ -1182,6 +1195,7 @@ class RealEstate_Sync_Import_Engine {
                 $this->session_data['imported_property_ids']
             );
             $this->stats['deleted_properties'] += $deleted_count;
+            RealEstate_Sync_Tracking_Manager::increment_functional_stat($this->stats['functional_stats'], 'deleted_properties', (int) $deleted_count);
         }
         
         // Cleanup deleted posts da WordPress se richiesto
@@ -1222,6 +1236,7 @@ class RealEstate_Sync_Import_Engine {
             'duration_formatted' => $this->format_duration($this->stats['duration']),
             'memory_peak_mb' => $this->stats['memory_peak_mb'],
             'statistics' => $this->stats,
+            'functional_stats' => $this->stats['functional_stats'],
             'agency_stats' => $real_agency_stats, // 🏢 Use real stats from Agency Manager
             'parser_results' => $parse_results,
             'config_used' => $this->config,
@@ -1247,6 +1262,7 @@ class RealEstate_Sync_Import_Engine {
             'skipped' => $this->stats['skipped_properties'],
             'deleted' => $this->stats['deleted_properties'],
             'errors' => $this->stats['error_properties'],
+            'functional_stats' => $this->stats['functional_stats'],
         );
     }
     
