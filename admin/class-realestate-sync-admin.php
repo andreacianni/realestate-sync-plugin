@@ -69,10 +69,8 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_cleanup_properties', array($this, 'handle_cleanup_properties'));
         add_action('wp_ajax_realestate_sync_reset_tracking', array($this, 'handle_reset_tracking'));
         add_action('wp_ajax_realestate_sync_get_property_stats', array($this, 'handle_get_property_stats'));
-        add_action('wp_ajax_realestate_sync_import_test_file', array($this, 'handle_import_test_file'));
         add_action('wp_ajax_realestate_sync_create_sample_xml', array($this, 'handle_create_sample_xml'));
         add_action('wp_ajax_realestate_sync_validate_mapping', array($this, 'handle_validate_mapping'));
-        add_action('wp_ajax_realestate_sync_create_properties_from_sample', array($this, 'handle_create_properties_from_sample'));
         
         // 🎯 NEW UPLOAD WORKFLOW AJAX ACTIONS
         add_action('wp_ajax_realestate_sync_process_test_file', array($this, 'handle_process_test_file'));
@@ -465,91 +463,6 @@ class RealEstate_Sync_Admin {
         } catch (Exception $e) {
             $this->logger->log('🚨 FIELD POPULATION TEST ERROR: ' . $e->getMessage(), 'error');
             wp_send_json_error('Error testing field population: ' . $e->getMessage());
-        }
-    }
-    
-    /**
-     * Handle create properties from sample AJAX - UPGRADED TO v3.0
-     * TESTING COMPLETO CON PROPERTY MAPPER v3.0 + WP IMPORTER v3.0
-     */
-    public function handle_create_properties_from_sample() {
-        check_ajax_referer('realestate_sync_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
-        }
-        
-        try {
-            $this->logger->log('🧪 SAMPLE v3.0: Starting Property Mapper v3.0 + WP Importer v3.0 test', 'info');
-            
-            // 🧪 SAMPLE XML v3.0: Complete structure with all sections
-            $sample_xml_data = $this->generate_sample_v3_data();
-            
-            // 🔥 PROPERTY MAPPER v3.0: Use enhanced mapping
-            $property_mapper = new RealEstate_Sync_Property_Mapper();
-            $mapped_result = $property_mapper->map_properties($sample_xml_data);
-            
-            if (!$mapped_result['success'] || empty($mapped_result['properties'])) {
-                throw new Exception('Property Mapper v3.0 failed: ' . print_r($mapped_result, true));
-            }
-            
-            $this->logger->log('✅ PROPERTY MAPPER v3.0: Successfully mapped ' . count($mapped_result['properties']) . ' properties', 'info');
-            
-            // 🚀 WP IMPORTER v3.0: Use enhanced importer
-            $wp_importer = new RealEstate_Sync_WP_Importer();
-            
-            $created_count = 0;
-            $updated_count = 0;
-            $skipped_count = 0;
-            $features_created = 0;
-            $processing_details = [];
-            
-            foreach ($mapped_result['properties'] as $mapped_property) {
-                // 🎯 PROCESS WITH v3.0: Complete structure processing
-                $result = $wp_importer->process_property_v3($mapped_property);
-                
-                if ($result['success']) {
-                    $processing_details[] = [
-                        'import_id' => $mapped_property['source_data']['id'],
-                        'post_id' => $result['post_id'],
-                        'action' => $result['action'],
-                        'title' => $mapped_property['post_data']['post_title']
-                    ];
-                    
-                    if ($result['action'] === 'created') {
-                        $created_count++;
-                    } elseif ($result['action'] === 'updated') {
-                        $updated_count++;
-                    } else {
-                        $skipped_count++;
-                    }
-                    
-                    $this->logger->log('✅ WP IMPORTER v3.0: ' . ucfirst($result['action']) . ' property ' . $mapped_property['source_data']['id'] . ' → Post ' . $result['post_id'], 'info');
-                } else {
-                    $this->logger->log('❌ WP IMPORTER v3.0: Failed property ' . $mapped_property['source_data']['id'] . ': ' . $result['error'], 'error');
-                }
-            }
-            
-            // 📊 GET STATS FROM WP IMPORTER
-            $importer_stats = $wp_importer->get_stats();
-            $features_created = $importer_stats['created_terms'] ?? 0;
-            
-            $this->logger->log('🎆 SAMPLE v3.0 COMPLETE: Created=' . $created_count . ', Updated=' . $updated_count . ', Features=' . $features_created, 'info');
-            
-            wp_send_json_success([
-                'created_count' => $created_count,
-                'updated_count' => $updated_count,
-                'skipped_count' => $skipped_count,
-                'features_created' => $features_created,
-                'total_processed' => count($mapped_result['properties']),
-                'mapping_version' => '3.0',
-                'processing_details' => $processing_details,
-                'message' => "Property Mapper v3.0 Test Completato!🎉 Created: {$created_count}, Updated: {$updated_count}, Features: {$features_created}"
-            ]);
-            
-        } catch (Exception $e) {
-            $this->logger->log('🚨 SAMPLE v3.0 ERROR: ' . $e->getMessage(), 'error');
-            wp_send_json_error('Property Mapper v3.0 Test Failed: ' . $e->getMessage());
         }
     }
     
@@ -2279,69 +2192,6 @@ class RealEstate_Sync_Admin {
         } catch (Exception $e) {
             $this->logger->log("STATS ERROR: " . $e->getMessage(), 'error');
             wp_send_json_error('Errore nel recupero statistiche: ' . $e->getMessage());
-        }
-    }
-    
-    /**
-     * Handle import test file AJAX
-     */
-    public function handle_import_test_file() {
-        check_ajax_referer('realestate_sync_nonce', 'nonce');
-        
-        if (!current_user_can('manage_options')) {
-            wp_die('Unauthorized');
-        }
-        
-        try {
-            // Check file upload
-            $uploaded_file = null;
-            if (isset($_FILES['test_xml_file'])) {
-                $uploaded_file = $_FILES['test_xml_file'];
-            } elseif (isset($_FILES['xml_file'])) {
-                $uploaded_file = $_FILES['xml_file'];
-            }
-
-            if (!$uploaded_file || $uploaded_file['error'] !== UPLOAD_ERR_OK) {
-                throw new Exception('Errore nell\'upload del file XML');
-            }
-            
-            // Validate file type
-            if (!in_array($uploaded_file['type'], array('text/xml', 'application/xml')) && 
-                !preg_match('/\.xml$/i', $uploaded_file['name'])) {
-                throw new Exception('File deve essere XML valido');
-            }
-            
-            // Move uploaded file to temp location
-            $temp_file = wp_upload_dir()['basedir'] . '/realestate-test-' . time() . '.xml';
-            
-            if (!move_uploaded_file($uploaded_file['tmp_name'], $temp_file)) {
-                throw new Exception('Errore nel salvataggio file temporaneo');
-            }
-            
-            // Import the test file
-            $import_engine = new RealEstate_Sync_Import_Engine();
-            $settings = get_option('realestate_sync_settings', array());
-            $import_engine->configure($settings);
-            
-            $results = $import_engine->execute_chunked_import($temp_file);
-            
-            // Cleanup temp file
-            if (file_exists($temp_file)) {
-                unlink($temp_file);
-            }
-            
-            $this->logger->log("TEST IMPORT: Imported {$results['properties_processed']} test properties", 'info');
-            
-            wp_send_json_success(array(
-                'imported_count' => $results['properties_processed'],
-                'created_count' => $results['properties_created'] ?? 0,
-                'updated_count' => $results['properties_updated'] ?? 0,
-                'message' => "Test import completato: {$results['properties_processed']} properties processate"
-            ));
-            
-        } catch (Exception $e) {
-            $this->logger->log("TEST IMPORT ERROR: " . $e->getMessage(), 'error');
-            wp_send_json_error('Errore test import: ' . $e->getMessage());
         }
     }
     

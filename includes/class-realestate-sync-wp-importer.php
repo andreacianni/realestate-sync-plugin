@@ -17,26 +17,21 @@ if (!defined('ABSPATH')) {
 }
 
 /**
+ * @deprecated LEGACY-RSYNC-NON_RUNTIME since 2026-05-03
+ *
+ * Runtime contract:
+ * RealEstate_Sync_WP_Importer_API is the only supported importer for:
+ * - scheduled import
+ * - immediate/manual import from gestionale
+ * - admin uploaded XML import
+ *
+ * This legacy branch is retained only as historical fallback/test residue.
+ * Do not follow this branch in normal import-flow investigations.
+ * Do not disable `realestate_sync_use_api_importer`.
+ *
+ * Removal candidate: yes, only after final zero-reference verification.
+ *
  * RealEstate_Sync_WP_Importer Class (Legacy)
- *
- * @deprecated 2.0.0 Use RealEstate_Sync_WP_Importer_API instead
- * @see RealEstate_Sync_WP_Importer_API
- *
- * This class is deprecated and will be removed in version 3.0.0.
- * It has been replaced by WP_Importer_API which provides:
- * - WPResidence REST API integration (proper WordPress/theme compatibility)
- * - 60% less code (300 vs 1700 lines)
- * - Better gallery handling (4 gallery systems compatibility)
- * - Hash-based duplicate detection
- * - Proper error handling and logging
- *
- * Manages WordPress import operations including:
- * - Post creation and updates
- * - Meta fields assignment
- * - Taxonomy terms creation and assignment
- * - Property features handling
- * - Duplicate detection and management
- * - Import statistics and reporting
  */
 class RealEstate_Sync_WP_Importer {
     
@@ -733,13 +728,19 @@ class RealEstate_Sync_WP_Importer {
      */
     
     /**
-     * ❌ LEGACY IMPORTER - DISABLED
+     * @deprecated LEGACY-RSYNC-NON_RUNTIME since 2026-05-03
      *
-     * This method is DISABLED to force the use of API-based importer.
-     * If you see this error, it means the API importer is not being used.
+     * Runtime contract:
+     * RealEstate_Sync_WP_Importer_API is the only supported importer for:
+     * - scheduled import
+     * - immediate/manual import from gestionale
+     * - admin uploaded XML import
      *
-     * Check: get_option('realestate_sync_use_api_importer') should be TRUE
-     * Check: API credentials should be configured in database
+     * This legacy branch is retained only as historical fallback/test residue.
+     * Do not follow this branch in normal import-flow investigations.
+     * Do not disable `realestate_sync_use_api_importer`.
+     *
+     * Removal candidate: yes, only after final zero-reference verification.
      *
      * @param array $mapped_property Complete mapped property from v3.0
      * @return array Processing result

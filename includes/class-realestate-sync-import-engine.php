@@ -79,6 +79,21 @@ class RealEstate_Sync_Import_Engine {
             if ($use_api_importer) {
                 $this->wp_importer = new RealEstate_Sync_WP_Importer_API($this->logger);
             } else {
+                /**
+                 * @deprecated LEGACY-RSYNC-NON_RUNTIME since 2026-05-03
+                 *
+                 * Runtime contract:
+                 * RealEstate_Sync_WP_Importer_API is the only supported importer for:
+                 * - scheduled import
+                 * - immediate/manual import from gestionale
+                 * - admin uploaded XML import
+                 *
+                 * This legacy branch is retained only as historical fallback/test residue.
+                 * Do not follow this branch in normal import-flow investigations.
+                 * Do not disable `realestate_sync_use_api_importer`.
+                 *
+                 * Removal candidate: yes, only after final zero-reference verification.
+                 */
                 $this->wp_importer = new RealEstate_Sync_WP_Importer();
             }
         }
