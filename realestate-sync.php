@@ -110,6 +110,10 @@ class RealEstate_Sync {
         // NOTE: Manual import and clear logs handlers are in Admin class
         add_action('wp_ajax_realestate_sync_get_import_status', [$this, 'get_import_status']);
         add_action('wp_ajax_realestate_sync_test_sample_xml', [$this, 'handle_test_sample_xml']); // 🆕 NEW: Test with sample XML
+
+        if (defined('WP_CLI') && WP_CLI) {
+            add_action('cli_init', [$this, 'register_cli_commands']);
+        }
         
         // Cron hooks
         add_action('realestate_sync_daily_import', [$this, 'run_scheduled_import']);
@@ -150,6 +154,7 @@ class RealEstate_Sync {
         // Deletion System classes (v1.7.1+)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-deletion-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-attachment-cleanup.php'; // 🗑️ Auto-cleanup attachments on delete
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-command.php'; // WP-CLI media cleanup command
 
         // require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php'; // DISABLED: Using external Git Updater plugin instead
 
@@ -759,6 +764,15 @@ class RealEstate_Sync {
      */
     public function get_instance_by_name($name) {
         return $this->instances[$name] ?? null;
+    }
+
+    /**
+     * Register WP-CLI commands.
+     */
+    public function register_cli_commands() {
+        if (class_exists('WP_CLI')) {
+            WP_CLI::add_command('realestate-sync media-cleanup', 'RealEstate_Sync_Media_Cleanup_Command');
+        }
     }
 }
 
