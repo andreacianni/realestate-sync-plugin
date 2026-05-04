@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * Batch Processor Class
  *
