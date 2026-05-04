@@ -27,6 +27,9 @@ jQuery(document).ready(function($) {
 
             // Media cleanup monitor refresh
             $(document).on('click', '#refresh-media-cleanup-status', this.handleRefreshMediaCleanupStatus.bind(this));
+
+            // Media cleanup settings shortcut
+            $(document).on('click', '#open-media-cleanup-settings', this.handleOpenMediaCleanupSettings.bind(this));
             
             // Form validation
             $('.rs-input[required]').on('blur', this.validateField);
@@ -344,6 +347,7 @@ jQuery(document).ready(function($) {
                     const status = data.status || 'unknown';
                     const statusLabel = data.status_label || status;
                     const statusVariant = data.status_variant || 'neutral';
+                    const runtime = data.runtime || {};
                     const badgeColorMap = {
                         running: '#16a34a',
                         ready: '#0ea5e9',
@@ -375,6 +379,11 @@ jQuery(document).ready(function($) {
                     const summaryLines = [];
                     summaryLines.push('<div class="mb-2"><strong>Stato:</strong> ' + statusLabel + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Motivo:</strong> ' + (data.status_note || 'n/d') + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Configurazione attiva:</strong> ' + (data.enabled ? 'sì' : 'no') + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Finestra:</strong> ' + (runtime.window_start || 'n/d') + ' - ' + (runtime.window_end || 'n/d') + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Limit per ciclo:</strong> ' + (runtime.limit ?? 'n/d') + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Runtime max:</strong> ' + (runtime.max_runtime ?? 'n/d') + 's</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Pausa import:</strong> ' + ((runtime.pause_on_import) ? 'sì' : 'no') + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Remaining:</strong> ' + (data.remaining ?? 0) + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Processed:</strong> ' + (data.processed ?? 0) + '</div>');
 
@@ -391,6 +400,23 @@ jQuery(document).ready(function($) {
                     $button.prop('disabled', false).html(originalHtml);
                 }
             });
+        },
+
+        handleOpenMediaCleanupSettings: function(e) {
+            e.preventDefault();
+
+            const $settingTab = $('#setting-tab');
+            const $targetCard = $('#media-cleanup-settings-card');
+
+            if ($settingTab.length) {
+                $settingTab.trigger('click');
+            }
+
+            setTimeout(function() {
+                if ($targetCard.length && typeof $targetCard[0].scrollIntoView === 'function') {
+                    $targetCard[0].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            }, 120);
         },
         
         startProgressPolling: function() {

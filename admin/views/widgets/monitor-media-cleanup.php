@@ -88,6 +88,9 @@ if (!defined('ABSPATH')) exit;
                                 <span class="dashicons dashicons-update"></span>
                                 <?php _e('Visualizza Stato', 'realestate-sync'); ?>
                             </button>
+                            <button type="button" class="btn btn-link text-decoration-none mt-2" id="open-media-cleanup-settings">
+                                <?php _e('Modifica configurazione', 'realestate-sync'); ?>
+                            </button>
                         </div>
                     </div>
                 </div>

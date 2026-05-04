@@ -14,7 +14,7 @@ $cleanup_max_runtime = min(60, max(5, (int) get_option('realestate_cleanup_max_r
 $cleanup_pause_on_import = (bool) get_option('realestate_cleanup_pause_on_import', true);
 ?>
 
-<div class="card shadow-sm rounded-3 border-1 p-0">
+<div class="card shadow-sm rounded-3 border-1 p-0" id="media-cleanup-settings-card">
     <div class="card-header bg-primary bg-opacity-10 border-0 py-3">
         <h5 class="card-title mb-0 d-flex align-items-center">
             <span class="dashicons dashicons-images-alt2 me-2"></span>
