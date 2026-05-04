@@ -26,7 +26,7 @@ jQuery(document).ready(function($) {
             $('#save-media-cleanup-settings').on('click', this.handleSaveMediaCleanupSettings.bind(this));
 
             // Media cleanup monitor refresh
-            $('#refresh-media-cleanup-status').on('click', this.handleRefreshMediaCleanupStatus.bind(this));
+            $(document).on('click', '#refresh-media-cleanup-status', this.handleRefreshMediaCleanupStatus.bind(this));
             
             // Form validation
             $('.rs-input[required]').on('blur', this.validateField);
