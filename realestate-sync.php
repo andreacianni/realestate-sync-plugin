@@ -147,6 +147,7 @@ class RealEstate_Sync {
         // Batch System classes
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-queue-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-delete-queue-manager.php';
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-queue-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-processor.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-delete-batch-processor.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-batch-orchestrator.php';
@@ -154,6 +155,7 @@ class RealEstate_Sync {
         // Deletion System classes (v1.7.1+)
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-deletion-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-attachment-cleanup.php'; // 🗑️ Auto-cleanup attachments on delete
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-scanner.php'; // media cleanup scanner
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-command.php'; // WP-CLI media cleanup command
 
         // require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php'; // DISABLED: Using external Git Updater plugin instead

@@ -62,6 +62,90 @@ class RealEstate_Sync_Media_Cleanup_Queue_Manager {
     }
 
     /**
+     * Insert a queue item if it does not already exist for the session.
+     *
+     * @param string $session_id Session ID.
+     * @param int    $attachment_id Attachment ID.
+     * @return array{inserted:bool,duplicate:bool,item_id:int|false}
+     */
+    public function insert_item($session_id, $attachment_id) {
+        global $wpdb;
+
+        $result = $wpdb->insert(
+            $this->table_name,
+            array(
+                'session_id' => $session_id,
+                'attachment_id' => (int) $attachment_id,
+                'status' => 'pending',
+            ),
+            array('%s', '%d', '%s')
+        );
+
+        if ($result === 1) {
+            return array(
+                'inserted' => true,
+                'duplicate' => false,
+                'item_id' => (int) $wpdb->insert_id,
+            );
+        }
+
+        $last_error = (string) $wpdb->last_error;
+        if ($last_error !== '' && (
+            strpos($last_error, 'Duplicate entry') !== false ||
+            strpos($last_error, '1062') !== false ||
+            strpos(strtolower($last_error), 'duplicate') !== false
+        )) {
+            return array(
+                'inserted' => false,
+                'duplicate' => true,
+                'item_id' => $this->get_item_id($session_id, $attachment_id),
+            );
+        }
+
+        return array(
+            'inserted' => false,
+            'duplicate' => false,
+            'item_id' => false,
+        );
+    }
+
+    /**
+     * Fetch pending attachment IDs.
+     *
+     * @param int $limit Maximum rows to return.
+     * @return array<int, array{id:int,attachment_id:int}>
+     */
+    public function get_pending_items($limit) {
+        global $wpdb;
+
+        $limit = max(1, (int) $limit);
+
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT id, attachment_id
+             FROM {$this->table_name}
+             WHERE status = %s
+             ORDER BY id ASC
+             LIMIT %d",
+            'pending',
+            $limit
+        ), ARRAY_A);
+
+        if (!is_array($rows)) {
+            return array();
+        }
+
+        $items = array();
+        foreach ($rows as $row) {
+            $items[] = array(
+                'id' => isset($row['id']) ? (int) $row['id'] : 0,
+                'attachment_id' => isset($row['attachment_id']) ? (int) $row['attachment_id'] : 0,
+            );
+        }
+
+        return $items;
+    }
+
+    /**
      * Get queue totals.
      *
      * @return array
@@ -74,27 +158,42 @@ class RealEstate_Sync_Media_Cleanup_Queue_Manager {
             'pending' => 0,
         );
 
-        $rows = $wpdb->get_results(
-            "SELECT status, COUNT(*) AS count_items
-             FROM {$this->table_name}
-             GROUP BY status"
+        $row = $wpdb->get_row(
+            "SELECT
+                COUNT(*) AS total_count,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) AS pending_count
+             FROM {$this->table_name}"
         );
 
-        if (!is_array($rows)) {
+        if (!is_object($row)) {
             return $counts;
         }
 
-        foreach ($rows as $row) {
-            $count = isset($row->count_items) ? (int) $row->count_items : 0;
-            $status = isset($row->status) ? (string) $row->status : '';
-
-            $counts['total'] += $count;
-
-            if ($status === 'pending') {
-                $counts['pending'] = $count;
-            }
-        }
+        $counts['total'] = isset($row->total_count) ? (int) $row->total_count : 0;
+        $counts['pending'] = isset($row->pending_count) ? (int) $row->pending_count : 0;
 
         return $counts;
+    }
+
+    /**
+     * Resolve an item ID from session and attachment.
+     *
+     * @param string $session_id Session ID.
+     * @param int    $attachment_id Attachment ID.
+     * @return int|false
+     */
+    private function get_item_id($session_id, $attachment_id) {
+        global $wpdb;
+
+        $item_id = $wpdb->get_var($wpdb->prepare(
+            "SELECT id FROM {$this->table_name}
+             WHERE session_id = %s
+             AND attachment_id = %d
+             LIMIT 1",
+            $session_id,
+            (int) $attachment_id
+        ));
+
+        return $item_id ? (int) $item_id : false;
     }
 }

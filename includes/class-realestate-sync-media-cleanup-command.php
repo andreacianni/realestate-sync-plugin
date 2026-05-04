@@ -71,6 +71,21 @@ class RealEstate_Sync_Media_Cleanup_Command {
      */
     public function __invoke($args, $assoc_args) {
         try {
+            if (!empty($args) && !empty($args[0]) && $args[0] === 'add') {
+                $this->add_item($assoc_args);
+                return;
+            }
+
+            if (!empty($args) && !empty($args[0]) && $args[0] === 'scan') {
+                $this->scan($assoc_args);
+                return;
+            }
+
+            if (!empty($args) && !empty($args[0]) && $args[0] === 'status') {
+                $this->output_status();
+                return;
+            }
+
             $this->options = $this->parse_options($assoc_args);
             $this->prepare_output_files();
 
@@ -126,6 +141,101 @@ class RealEstate_Sync_Media_Cleanup_Command {
             $this->close_handles();
             $this->cli_error($e->getMessage());
         }
+    }
+
+    /**
+     * WP-CLI subcommand handler for status.
+     *
+     * @param array $args Positional args.
+     * @param array $assoc_args Associative args.
+     * @return void
+     */
+    public function status($args, $assoc_args) {
+        $this->output_status();
+    }
+
+    /**
+     * Add one attachment to the cleanup queue manually.
+     *
+     * @param array $assoc_args Associative args.
+     * @return void
+     */
+    private function add_item($assoc_args) {
+        if (empty($assoc_args['attachment-id']) || !is_numeric($assoc_args['attachment-id'])) {
+            $this->cli_error('Missing required --attachment-id flag.');
+        }
+
+        $attachment_id = (int) $assoc_args['attachment-id'];
+        $session_id = !empty($assoc_args['session-id']) ? (string) $assoc_args['session-id'] : 'manual';
+
+        // TODO: validate attachment ownership/eligibility before queue insertion.
+        $queue_manager = new RealEstate_Sync_Media_Cleanup_Queue_Manager();
+        $result = $queue_manager->insert_item($session_id, $attachment_id);
+
+        if (!empty($result['duplicate'])) {
+            $this->cli_log('duplicate');
+            return;
+        }
+
+        if (!empty($result['inserted'])) {
+            $this->cli_log('inserted');
+            return;
+        }
+
+        $this->cli_error('Unable to insert attachment into cleanup queue.');
+    }
+
+    /**
+     * Output queue status.
+     *
+     * @return void
+     */
+    private function output_status() {
+        $queue_manager = new RealEstate_Sync_Media_Cleanup_Queue_Manager();
+        $counts = $queue_manager->get_status_counts();
+
+        if ((int) $counts['total'] === 0) {
+            $this->cli_log('Media cleanup queue is empty.');
+            $this->cli_log('Total: 0');
+            $this->cli_log('Pending: 0');
+            return;
+        }
+
+        $this->cli_log('Total: ' . (int) $counts['total']);
+        $this->cli_log('Pending: ' . (int) $counts['pending']);
+    }
+
+    /**
+     * Run the cleanup scanner.
+     *
+     * @param array $assoc_args CLI args.
+     * @return void
+     */
+    private function scan($assoc_args) {
+        $scanner = new RealEstate_Sync_Media_Cleanup_Scanner($this, new RealEstate_Sync_Media_Cleanup_Queue_Manager());
+        $scanner->scan($assoc_args);
+    }
+
+    /**
+     * Prepare scan options.
+     *
+     * @param array $assoc_args Raw assoc args.
+     * @return array
+     */
+    public function prepare_scan_options($assoc_args) {
+        $options = array(
+            'execute' => !empty($assoc_args['execute']),
+            'limit' => isset($assoc_args['limit']) && is_numeric($assoc_args['limit']) ? (int) $assoc_args['limit'] : 1000000,
+            'offset' => isset($assoc_args['offset']) && is_numeric($assoc_args['offset']) ? (int) $assoc_args['offset'] : 0,
+            'session_id' => !empty($assoc_args['session-id']) ? (string) $assoc_args['session-id'] : 'scan',
+            'post_id' => isset($assoc_args['post-id']) && is_numeric($assoc_args['post-id']) ? (int) $assoc_args['post-id'] : 0,
+            'attachment_id' => isset($assoc_args['attachment-id']) && is_numeric($assoc_args['attachment-id']) ? (int) $assoc_args['attachment-id'] : 0,
+            'after_id' => isset($assoc_args['after-id']) && is_numeric($assoc_args['after-id']) ? (int) $assoc_args['after-id'] : 0,
+        );
+
+        $this->options = array_merge($this->options, $options);
+
+        return $this->options;
     }
 
     /**
@@ -205,7 +315,7 @@ class RealEstate_Sync_Media_Cleanup_Command {
      *
      * @return void
      */
-    private function build_global_sets() {
+    public function build_global_sets() {
         global $wpdb;
 
         $gallery_ids = array();
@@ -258,7 +368,7 @@ class RealEstate_Sync_Media_Cleanup_Command {
      *
      * @return array<int>
      */
-    private function resolve_target_attachments() {
+    public function resolve_target_attachments() {
         if ($this->options['attachment_id']) {
             return array($this->options['attachment_id']);
         }
@@ -298,7 +408,7 @@ class RealEstate_Sync_Media_Cleanup_Command {
      * @param int $attachment_id Attachment ID.
      * @return array
      */
-    private function process_attachment($attachment_id) {
+    public function evaluate_attachment($attachment_id) {
         $post = get_post($attachment_id);
 
         if (!$post || $post->post_type !== 'attachment') {
@@ -378,8 +488,20 @@ class RealEstate_Sync_Media_Cleanup_Command {
             return $this->with_action($row, 'skipped', 'soft_path');
         }
 
-        if ($this->options['dry_run']) {
-            return $this->with_action($row, 'dry_run', 'eligible');
+        return $this->with_action($row, 'dry_run', 'eligible');
+    }
+
+    /**
+     * Process a single attachment.
+     *
+     * @param int $attachment_id Attachment ID.
+     * @return array
+     */
+    private function process_attachment($attachment_id) {
+        $row = $this->evaluate_attachment($attachment_id);
+
+        if (($row['action'] ?? '') !== 'dry_run' || empty($this->options['execute'])) {
+            return $row;
         }
 
         $deleted = wp_delete_attachment($attachment_id, true);
