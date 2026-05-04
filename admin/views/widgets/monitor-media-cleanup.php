@@ -77,20 +77,8 @@ if (!defined('ABSPATH')) exit;
                                     <td id="media-cleanup-error" class="text-muted">-</td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Spazio liberato stimato</th>
-                                    <td id="media-cleanup-space-freed" class="text-muted">n/d</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Spazio residuo stimato</th>
-                                    <td id="media-cleanup-space-remaining" class="text-muted">n/d</td>
-                                </tr>
-                                <tr>
                                     <th scope="row">Ultima attività</th>
                                     <td id="media-cleanup-last-run" class="text-muted">n/d</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">ETA stimata</th>
-                                    <td id="media-cleanup-eta" class="text-muted">n/d</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -113,7 +101,7 @@ if (!defined('ABSPATH')) exit;
             </div>
 
             <div id="media-cleanup-note" class="mt-3 small text-muted">
-                <?php _e('Nessun refresh automatico. Usa il pulsante per aggiornare i dati.', 'realestate-sync'); ?>
+                <?php _e('Ultimo aggiornamento manuale completato.', 'realestate-sync'); ?>
             </div>
         </div>
     </div>

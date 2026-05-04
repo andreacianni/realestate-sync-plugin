@@ -346,6 +346,7 @@ jQuery(document).ready(function($) {
                     const statusVariant = data.status_variant || 'neutral';
                     const badgeColorMap = {
                         running: '#16a34a',
+                        ready: '#0ea5e9',
                         idle: '#6b7280',
                         disabled: '#6b7280',
                         locked: '#d97706',
@@ -369,26 +370,18 @@ jQuery(document).ready(function($) {
                     $('#media-cleanup-done').text(data.done ?? '0');
                     $('#media-cleanup-skipped').text(data.skipped ?? '0');
                     $('#media-cleanup-error').text(data.error ?? '0');
-                    $('#media-cleanup-space-freed').text(data.space_freed_label || 'n/d');
-                    $('#media-cleanup-space-remaining').text(data.space_remaining_label || 'n/d');
                     $('#media-cleanup-last-run').text(data.last_run_label || 'n/d');
-                    $('#media-cleanup-eta').text(data.eta_label || 'n/d');
 
                     const summaryLines = [];
                     summaryLines.push('<div class="mb-2"><strong>Stato:</strong> ' + statusLabel + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Motivo:</strong> ' + (data.status_note || 'n/d') + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Remaining:</strong> ' + (data.remaining ?? 0) + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Processed:</strong> ' + (data.processed ?? 0) + '</div>');
-                    summaryLines.push('<div class="mb-0"><strong>Spazio:</strong> ' + (data.space_note || 'n/d') + '</div>');
 
                     $summaryBody.html(summaryLines.join(''));
                     $summary.removeClass('rs-hidden').show();
 
-                    if (data.note_html) {
-                        $('#media-cleanup-note').html(data.note_html);
-                    } else {
-                        $('#media-cleanup-note').text(data.note || 'Nessun dettaglio aggiuntivo.');
-                    }
+                    $('#media-cleanup-note').text('Ultimo aggiornamento manuale completato.');
                 },
                 error: function() {
                     $('#media-cleanup-process-status').html('<span class="text-danger">unknown</span>');

@@ -1564,6 +1564,11 @@ class RealEstate_Sync_Admin {
             $status_label = 'Errore';
             $status_note = 'La queue contiene errori ma nessun item attivo.';
             $status_variant = 'error';
+        } elseif ($enabled && $counts['pending'] > 0 && $counts['processing'] === 0 && !$lock_active && $inside_window && !$import_active) {
+            $status_key = 'ready';
+            $status_label = 'In attesa del prossimo ciclo';
+            $status_note = 'Cleanup attivo. Il cron processa la queue a intervalli regolari.';
+            $status_variant = 'ready';
         } elseif ($remaining === 0 && $counts['total'] > 0) {
             $status_key = 'idle';
             $status_label = 'Inattivo';
