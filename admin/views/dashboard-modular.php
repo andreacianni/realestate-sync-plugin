@@ -25,8 +25,8 @@ if (!defined('ABSPATH')) {
         <!--TAB 1: DASHBOARD - Informational Only -->
         <div id="dashboard" class="tab-pane fade show active" role="tabpanel" aria-labelledby="dashboard-tab">
             <div class="row g-3">
-                <!-- <div class="col-md-6"><?php /* include __DIR__ . '/widgets/stato-attuale.php'; */ ?></div> -->
-                <div class="col"><?php include __DIR__ . '/widgets/monitor-import.php'; ?></div>
+                <div class="col-12 col-xl-6"><?php include __DIR__ . '/widgets/monitor-import.php'; ?></div>
+                <div class="col-12 col-xl-6"><?php include __DIR__ . '/widgets/monitor-media-cleanup.php'; ?></div>
                 <!-- <div class="col-md-6"><?php /* include __DIR__ . '/widgets/storico-import.php'; */ ?></div> -->
                 <!-- <div class="col-md-6"><?php /* include __DIR__ . '/widgets/log-monitoraggio.php'; */ ?></div> -->
             </div>
@@ -46,6 +46,7 @@ if (!defined('ABSPATH')) {
         <div id="setting" class="tab-pane fade" role="tabpanel" aria-labelledby="setting-tab">
             <div class="row g-3">
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/config-delete-guardrails.php'; ?></div>
+                <div class="col-md-6"><?php include __DIR__ . '/widgets/config-media-cleanup.php'; ?></div>
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/config-automatico.php'; ?></div>
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/config-email.php'; ?></div>
                 <div class="col-md-6"><?php include __DIR__ . '/widgets/config-credenziali.php'; ?></div>

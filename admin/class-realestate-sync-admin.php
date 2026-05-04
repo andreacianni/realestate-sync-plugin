@@ -38,6 +38,7 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_test_connection', array($this, 'handle_test_connection'));
         add_action('wp_ajax_realestate_sync_save_settings', array($this, 'handle_save_settings'));
         add_action('wp_ajax_realestate_sync_save_email_settings', array($this, 'handle_save_email_settings'));
+        add_action('wp_ajax_realestate_sync_save_media_cleanup_settings', array($this, 'handle_save_media_cleanup_settings'));
         add_action('wp_ajax_realestate_sync_save_credential_source', array($this, 'handle_save_credential_source'));
         add_action('wp_ajax_realestate_sync_save_xml_credentials', array($this, 'handle_save_xml_credentials'));
         add_action('wp_ajax_realestate_sync_ignore_verification', array($this, 'handle_ignore_verification'));
@@ -58,6 +59,7 @@ class RealEstate_Sync_Admin {
         add_action('wp_ajax_realestate_sync_delete_single_item', array($this, 'handle_delete_single_item'));
         add_action('wp_ajax_realestate_sync_mark_single_done', array($this, 'handle_mark_single_done'));
         add_action('wp_ajax_realestate_sync_get_progress', array($this, 'handle_get_progress'));
+        add_action('wp_ajax_realestate_sync_get_media_cleanup_status', array($this, 'handle_get_media_cleanup_status'));
         add_action('wp_ajax_realestate_sync_get_logs', array($this, 'handle_get_logs'));
         add_action('wp_ajax_realestate_sync_download_logs', array($this, 'handle_download_logs'));
         add_action('wp_ajax_realestate_sync_clear_logs', array($this, 'handle_clear_logs'));
@@ -908,6 +910,52 @@ class RealEstate_Sync_Admin {
     }
 
     /**
+     * Handle save media cleanup settings AJAX
+     */
+    public function handle_save_media_cleanup_settings() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        $enabled = !empty($_POST['enabled']) && in_array((string) $_POST['enabled'], array('1', 'true', 'on'), true);
+        $pause_on_import = !empty($_POST['pause_on_import']) && in_array((string) $_POST['pause_on_import'], array('1', 'true', 'on'), true);
+
+        $current_window_start = $this->normalize_media_cleanup_time_value((string) get_option('realestate_cleanup_window_start', '08:00'), '08:00');
+        $current_window_end = $this->normalize_media_cleanup_time_value((string) get_option('realestate_cleanup_window_end', '23:59'), '23:59');
+        $window_start_raw = isset($_POST['window_start']) ? sanitize_text_field($_POST['window_start']) : '';
+        $window_end_raw = isset($_POST['window_end']) ? sanitize_text_field($_POST['window_end']) : '';
+        $window_start = $this->normalize_media_cleanup_time_value($window_start_raw, $current_window_start ?: '08:00');
+        $window_end = $this->normalize_media_cleanup_time_value($window_end_raw, $current_window_end ?: '23:59');
+
+        $limit_raw = isset($_POST['limit']) ? (int) $_POST['limit'] : 5;
+        $max_runtime_raw = isset($_POST['max_runtime']) ? (int) $_POST['max_runtime'] : 30;
+        $limit = max(1, min(20, $limit_raw));
+        $max_runtime = max(5, min(60, $max_runtime_raw));
+
+        update_option('realestate_cleanup_enabled', $enabled);
+        update_option('realestate_cleanup_window_start', $window_start);
+        update_option('realestate_cleanup_window_end', $window_end);
+        update_option('realestate_cleanup_limit', $limit);
+        update_option('realestate_cleanup_max_runtime', $max_runtime);
+        update_option('realestate_cleanup_pause_on_import', $pause_on_import);
+
+        wp_send_json_success(array(
+            'message' => 'Configurazione Media Cleanup salvata',
+            'data' => array(
+                'enabled' => $enabled,
+                'window_start' => $window_start,
+                'window_end' => $window_end,
+                'limit' => $limit,
+                'max_runtime' => $max_runtime,
+                'pause_on_import' => $pause_on_import,
+            )
+        ));
+    }
+
+    /**
      * Handle save credential source AJAX
      */
     public function handle_save_credential_source() {
@@ -1111,6 +1159,21 @@ class RealEstate_Sync_Admin {
                 'next_run' => 'Non programmato'
             ));
         }
+    }
+
+    /**
+     * Normalize a HH:MM value for media cleanup settings.
+     *
+     * @param string $value Raw value.
+     * @param string $fallback Fallback value.
+     * @return string
+     */
+    private function normalize_media_cleanup_time_value($value, $fallback) {
+        if (preg_match('/^([01]?[0-9]|2[0-3]):([0-5][0-9])$/', (string) $value)) {
+            return $value;
+        }
+
+        return $fallback;
     }
 
     /**
@@ -1382,6 +1445,235 @@ class RealEstate_Sync_Admin {
             'delete_state' => $this->normalize_delete_state_for_monitor($delete_state),
             'delete_runtime' => $this->normalize_delete_runtime_for_monitor($delete_runtime),
         ));
+    }
+
+    /**
+     * Handle get media cleanup status AJAX - read-only monitor.
+     */
+    public function handle_get_media_cleanup_status() {
+        check_ajax_referer('realestate_sync_nonce', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error('Unauthorized');
+            return;
+        }
+
+        try {
+            wp_send_json_success($this->build_media_cleanup_monitor_payload());
+        } catch (Exception $e) {
+            $this->logger->log('MEDIA CLEANUP MONITOR ERROR: ' . $e->getMessage(), 'error');
+            wp_send_json_error('Errore nel recupero stato Media Cleanup: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Build read-only Media Cleanup monitor payload.
+     *
+     * @return array
+     */
+    private function build_media_cleanup_monitor_payload() {
+        global $wpdb;
+
+        $table_name = $wpdb->prefix . RealEstate_Sync_Media_Cleanup_Queue_Manager::TABLE_NAME;
+        $table_exists = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table_name))) === $table_name;
+
+        $enabled = (bool) get_option('realestate_cleanup_enabled', false);
+        $window_start = (string) get_option('realestate_cleanup_window_start', '08:00');
+        $window_end = (string) get_option('realestate_cleanup_window_end', '23:59');
+        $pause_on_import = (bool) get_option('realestate_cleanup_pause_on_import', true);
+        $limit = max(1, (int) get_option('realestate_cleanup_limit', 5));
+        $max_runtime = max(1, (int) get_option('realestate_cleanup_max_runtime', 30));
+
+        $lock = get_option(RealEstate_Sync_Media_Cleanup_Worker::LOCK_OPTION, array());
+        $lock_active = is_array($lock) && !empty($lock['expires_at']) && (int) $lock['expires_at'] > time();
+
+        $import_active = $pause_on_import && $this->is_media_cleanup_import_active();
+        $inside_window = $this->is_media_cleanup_inside_window($window_start, $window_end);
+
+        $counts = array(
+            'total' => 0,
+            'pending' => 0,
+            'processing' => 0,
+            'done' => 0,
+            'skipped' => 0,
+            'error' => 0,
+            'last_activity' => null,
+        );
+
+        if ($table_exists) {
+            $row = $wpdb->get_row("
+                SELECT
+                    COUNT(*) AS total_count,
+                    COALESCE(SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END), 0) AS pending_count,
+                    COALESCE(SUM(CASE WHEN status = 'processing' THEN 1 ELSE 0 END), 0) AS processing_count,
+                    COALESCE(SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END), 0) AS done_count,
+                    COALESCE(SUM(CASE WHEN status = 'skipped' THEN 1 ELSE 0 END), 0) AS skipped_count,
+                    COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END), 0) AS error_count,
+                    MAX(updated_at) AS last_activity
+                FROM {$table_name}
+            ", ARRAY_A);
+
+            if (is_array($row)) {
+                $counts['total'] = isset($row['total_count']) ? (int) $row['total_count'] : 0;
+                $counts['pending'] = isset($row['pending_count']) ? (int) $row['pending_count'] : 0;
+                $counts['processing'] = isset($row['processing_count']) ? (int) $row['processing_count'] : 0;
+                $counts['done'] = isset($row['done_count']) ? (int) $row['done_count'] : 0;
+                $counts['skipped'] = isset($row['skipped_count']) ? (int) $row['skipped_count'] : 0;
+                $counts['error'] = isset($row['error_count']) ? (int) $row['error_count'] : 0;
+                $counts['last_activity'] = !empty($row['last_activity']) ? (string) $row['last_activity'] : null;
+            }
+        }
+
+        $remaining = $counts['pending'] + $counts['processing'];
+        $processed = $counts['done'] + $counts['skipped'] + $counts['error'];
+        $last_run_label = !empty($counts['last_activity'])
+            ? date_i18n('d/m/Y H:i:s', strtotime($counts['last_activity']))
+            : 'n/d';
+
+        $status_key = 'unknown';
+        $status_label = 'Non disponibile';
+        $status_note = 'Stato non determinabile con certezza dai dati disponibili.';
+        $status_variant = 'unknown';
+
+        if (!$table_exists) {
+            $status_note = 'Tabella queue non presente.';
+        } elseif (!$enabled) {
+            $status_key = 'disabled';
+            $status_label = 'Disabilitato';
+            $status_note = 'Cleanup disattivato dalle impostazioni.';
+            $status_variant = 'disabled';
+        } elseif (!$inside_window) {
+            $status_key = 'outside_work_window';
+            $status_label = 'Fuori orario';
+            $status_note = 'Fuori dalla finestra operativa configurata.';
+            $status_variant = 'outside_work_window';
+        } elseif ($import_active) {
+            $status_key = 'import_active';
+            $status_label = 'In pausa (import attivo)';
+            $status_note = 'Cleanup in pausa perché l’import è attivo.';
+            $status_variant = 'import_active';
+        } elseif ($counts['processing'] > 0 || $lock_active) {
+            $status_key = 'running';
+            $status_label = 'In esecuzione';
+            $status_note = $counts['processing'] > 0
+                ? 'Cleanup in esecuzione con item in processing.'
+                : 'Lock attivo: il worker sta probabilmente lavorando.';
+            $status_variant = 'running';
+        } elseif ($counts['error'] > 0 && $counts['pending'] === 0 && $counts['processing'] === 0) {
+            $status_key = 'error';
+            $status_label = 'Errore';
+            $status_note = 'La queue contiene errori ma nessun item attivo.';
+            $status_variant = 'error';
+        } elseif ($remaining === 0 && $counts['total'] > 0) {
+            $status_key = 'idle';
+            $status_label = 'Inattivo';
+            $status_note = 'Queue chiusa e senza item pending o processing.';
+            $status_variant = 'idle';
+        } elseif ($counts['total'] === 0) {
+            $status_key = 'idle';
+            $status_label = 'Inattivo';
+            $status_note = 'Queue vuota.';
+            $status_variant = 'idle';
+        } else {
+            $status_key = 'idle';
+            $status_label = 'Inattivo';
+            $status_note = 'Cleanup pronto, ma non in esecuzione.';
+            $status_variant = 'idle';
+        }
+
+        return array(
+            'status' => $status_key,
+            'status_label' => $status_label,
+            'status_note' => $status_note,
+            'status_variant' => $status_variant,
+            'enabled' => $enabled,
+            'table_exists' => $table_exists,
+            'total' => $counts['total'],
+            'pending' => $counts['pending'],
+            'processing' => $counts['processing'],
+            'done' => $counts['done'],
+            'skipped' => $counts['skipped'],
+            'error' => $counts['error'],
+            'remaining' => $remaining,
+            'processed' => $processed,
+            'space_freed_label' => 'n/d',
+            'space_remaining_label' => 'n/d',
+            'space_note' => 'La queue attuale non persiste file_size_bytes, quindi lo spazio non è calcolabile senza nuova logica.',
+            'last_run_label' => $last_run_label,
+            'eta_label' => 'n/d',
+            'note' => $status_note,
+            'note_html' => esc_html($status_note),
+            'runtime' => array(
+                'window_start' => $window_start,
+                'window_end' => $window_end,
+                'pause_on_import' => $pause_on_import,
+                'limit' => $limit,
+                'max_runtime' => $max_runtime,
+                'lock_active' => $lock_active,
+                'import_active' => $import_active,
+                'inside_window' => $inside_window,
+            ),
+        );
+    }
+
+    /**
+     * Check whether the media cleanup tick is inside the configured work window.
+     *
+     * @param string $start HH:MM.
+     * @param string $end HH:MM.
+     * @return bool
+     */
+    private function is_media_cleanup_inside_window($start, $end) {
+        $start_minutes = $this->hhmm_to_minutes($start);
+        $end_minutes = $this->hhmm_to_minutes($end);
+        $now_minutes = ((int) current_time('H') * 60) + (int) current_time('i');
+
+        if ($start_minutes === null || $end_minutes === null) {
+            return true;
+        }
+
+        if ($start_minutes <= $end_minutes) {
+            return ($now_minutes >= $start_minutes && $now_minutes <= $end_minutes);
+        }
+
+        return ($now_minutes >= $start_minutes || $now_minutes <= $end_minutes);
+    }
+
+    /**
+     * Convert HH:MM to minutes from midnight.
+     *
+     * @param string $value Time string.
+     * @return int|null
+     */
+    private function hhmm_to_minutes($value) {
+        if (!preg_match('/^([01]?[0-9]|2[0-3]):([0-5][0-9])$/', (string) $value, $matches)) {
+            return null;
+        }
+
+        return ((int) $matches[1] * 60) + (int) $matches[2];
+    }
+
+    /**
+     * Detect whether a media cleanup safe pause is required because an import is active.
+     *
+     * @return bool
+     */
+    private function is_media_cleanup_import_active() {
+        if (!empty(get_option('realestate_sync_current_trace_id', ''))) {
+            return true;
+        }
+
+        if (get_transient('realestate_sync_import_progress')) {
+            return true;
+        }
+
+        $progress = get_option('realestate_sync_background_import_progress', array());
+        if (!is_array($progress) || empty($progress)) {
+            return false;
+        }
+
+        $status = isset($progress['status']) ? (string) $progress['status'] : '';
+        return in_array($status, array('processing', 'delete_pending', 'delete_processing', 'delete_paused'), true);
     }
 
     /**

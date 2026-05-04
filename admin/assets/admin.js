@@ -21,6 +21,12 @@ jQuery(document).ready(function($) {
 
             // Save email settings button
             $('#save-email-config').on('click', this.handleSaveEmailSettings.bind(this));
+
+            // Save media cleanup settings button
+            $('#save-media-cleanup-settings').on('click', this.handleSaveMediaCleanupSettings.bind(this));
+
+            // Media cleanup monitor refresh
+            $('#refresh-media-cleanup-status').on('click', this.handleRefreshMediaCleanupStatus.bind(this));
             
             // Form validation
             $('.rs-input[required]').on('blur', this.validateField);
@@ -263,6 +269,133 @@ jQuery(document).ready(function($) {
                     setTimeout(function() {
                         $status.fadeOut();
                     }, 3000);
+                }
+            });
+        },
+
+        handleSaveMediaCleanupSettings: function(e) {
+            e.preventDefault();
+
+            const $button = $(e.target).closest('button');
+            const $status = $('#media-cleanup-config-status');
+
+            const data = {
+                action: 'realestate_sync_save_media_cleanup_settings',
+                nonce: realestateSync.nonce,
+                enabled: $('#media-cleanup-enabled').is(':checked') ? '1' : '0',
+                window_start: $('#media-cleanup-window-start').val(),
+                window_end: $('#media-cleanup-window-end').val(),
+                limit: $('#media-cleanup-limit').val(),
+                max_runtime: $('#media-cleanup-max-runtime').val(),
+                pause_on_import: $('#media-cleanup-pause-on-import').is(':checked') ? '1' : '0'
+            };
+
+            $button.prop('disabled', true).html('<span class="rs-spinner"></span>Salvataggio...');
+            $status.empty();
+
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: data,
+                success: function(response) {
+                    if (response.success) {
+                        $status.html('<div class="rs-alert rs-alert-success">Configurazione Media Cleanup salvata</div>');
+                    } else {
+                        $status.html('<div class="rs-alert rs-alert-error">Errore nel salvataggio: ' + (response.data || 'Errore sconosciuto') + '</div>');
+                    }
+                },
+                error: function() {
+                    $status.html('<div class="rs-alert rs-alert-error">Errore durante il salvataggio</div>');
+                },
+                complete: function() {
+                    $button.prop('disabled', false).text('Salva Configurazione Media Cleanup');
+                    setTimeout(function() {
+                        $status.fadeOut();
+                    }, 3000);
+                }
+            });
+        },
+
+        handleRefreshMediaCleanupStatus: function(e) {
+            e.preventDefault();
+
+            const $button = $(e.target).closest('button');
+            const originalHtml = $button.html();
+            const $summary = $('#media-cleanup-summary');
+            const $summaryBody = $('#media-cleanup-summary-body');
+
+            $button.prop('disabled', true).html('<span class="dashicons dashicons-update"></span> Aggiornamento...');
+
+            $.ajax({
+                url: realestateSync.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'realestate_sync_get_media_cleanup_status',
+                    nonce: realestateSync.nonce
+                },
+                success: function(response) {
+                    if (!response.success) {
+                        $('#media-cleanup-process-status').html('<span class="text-danger">unknown</span>');
+                        $('#media-cleanup-note').text(response.data || 'Errore nel recupero dello stato.');
+                        return;
+                    }
+
+                    const data = response.data || {};
+                    const status = data.status || 'unknown';
+                    const statusLabel = data.status_label || status;
+                    const statusVariant = data.status_variant || 'neutral';
+                    const badgeColorMap = {
+                        running: '#16a34a',
+                        idle: '#6b7280',
+                        disabled: '#6b7280',
+                        locked: '#d97706',
+                        outside_work_window: '#d97706',
+                        import_active: '#0ea5e9',
+                        error: '#dc2626',
+                        unknown: '#6b7280'
+                    };
+                    const badgeColor = badgeColorMap[statusVariant] || badgeColorMap.unknown;
+
+                    $('#media-cleanup-process-status').html(
+                        '<span style="padding: 4px 8px; background: ' + badgeColor + '; color: #fff; border-radius: 4px; font-weight: 500;">' +
+                            statusLabel +
+                        '</span>'
+                    );
+                    $('#media-cleanup-monitor-enabled').text(data.enabled ? 'sì' : 'no');
+                    $('#media-cleanup-total').text(data.total ?? '0');
+                    $('#media-cleanup-pending').text(data.pending ?? '0');
+                    $('#media-cleanup-processing').text(data.processing ?? '0');
+                    $('#media-cleanup-remaining').text(data.remaining ?? '0');
+                    $('#media-cleanup-done').text(data.done ?? '0');
+                    $('#media-cleanup-skipped').text(data.skipped ?? '0');
+                    $('#media-cleanup-error').text(data.error ?? '0');
+                    $('#media-cleanup-space-freed').text(data.space_freed_label || 'n/d');
+                    $('#media-cleanup-space-remaining').text(data.space_remaining_label || 'n/d');
+                    $('#media-cleanup-last-run').text(data.last_run_label || 'n/d');
+                    $('#media-cleanup-eta').text(data.eta_label || 'n/d');
+
+                    const summaryLines = [];
+                    summaryLines.push('<div class="mb-2"><strong>Stato:</strong> ' + statusLabel + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Motivo:</strong> ' + (data.status_note || 'n/d') + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Remaining:</strong> ' + (data.remaining ?? 0) + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Processed:</strong> ' + (data.processed ?? 0) + '</div>');
+                    summaryLines.push('<div class="mb-0"><strong>Spazio:</strong> ' + (data.space_note || 'n/d') + '</div>');
+
+                    $summaryBody.html(summaryLines.join(''));
+                    $summary.removeClass('rs-hidden').show();
+
+                    if (data.note_html) {
+                        $('#media-cleanup-note').html(data.note_html);
+                    } else {
+                        $('#media-cleanup-note').text(data.note || 'Nessun dettaglio aggiuntivo.');
+                    }
+                },
+                error: function() {
+                    $('#media-cleanup-process-status').html('<span class="text-danger">unknown</span>');
+                    $('#media-cleanup-note').text('Errore di comunicazione con il server.');
+                },
+                complete: function() {
+                    $button.prop('disabled', false).html(originalHtml);
                 }
             });
         },
