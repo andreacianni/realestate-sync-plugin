@@ -86,6 +86,16 @@ class RealEstate_Sync_Media_Cleanup_Command {
                 return;
             }
 
+            if (!empty($args) && !empty($args[0]) && $args[0] === 'reset-queue') {
+                $this->reset_queue_command($assoc_args);
+                return;
+            }
+
+            if (!empty($args) && !empty($args[0]) && $args[0] === 'run') {
+                $this->run_command($assoc_args);
+                return;
+            }
+
             $this->options = $this->parse_options($assoc_args);
             $this->prepare_output_files();
 
@@ -155,6 +165,17 @@ class RealEstate_Sync_Media_Cleanup_Command {
     }
 
     /**
+     * WP-CLI subcommand handler for run.
+     *
+     * @param array $args Positional args.
+     * @param array $assoc_args Associative args.
+     * @return void
+     */
+    public function run($args, $assoc_args) {
+        $this->run_command($assoc_args);
+    }
+
+    /**
      * Add one attachment to the cleanup queue manually.
      *
      * @param array $assoc_args Associative args.
@@ -206,6 +227,37 @@ class RealEstate_Sync_Media_Cleanup_Command {
     }
 
     /**
+     * Reset the queue safely.
+     *
+     * @param array $assoc_args Associative args.
+     * @return void
+     */
+    public function reset_queue($args, $assoc_args) {
+        $this->reset_queue_command($assoc_args);
+    }
+
+    /**
+     * Reset the queue safely.
+     *
+     * @param array $assoc_args Associative args.
+     * @return void
+     */
+    private function reset_queue_command($assoc_args) {
+        if (empty($assoc_args['confirm'])) {
+            $this->cli_error('Missing --confirm. This command only resets the media cleanup queue.');
+        }
+
+        $queue_manager = new RealEstate_Sync_Media_Cleanup_Queue_Manager();
+        $deleted = $queue_manager->reset_queue();
+
+        if ($deleted === false) {
+            $this->cli_error('Unable to reset the media cleanup queue.');
+        }
+
+        $this->cli_log('Queue reset complete. Deleted rows: ' . (int) $deleted);
+    }
+
+    /**
      * Run the cleanup scanner.
      *
      * @param array $assoc_args CLI args.
@@ -214,6 +266,27 @@ class RealEstate_Sync_Media_Cleanup_Command {
     private function scan($assoc_args) {
         $scanner = new RealEstate_Sync_Media_Cleanup_Scanner($this, new RealEstate_Sync_Media_Cleanup_Queue_Manager());
         $scanner->scan($assoc_args);
+    }
+
+    /**
+     * Run the media cleanup worker in dry-run mode.
+     *
+     * @param array $assoc_args Associative args.
+     * @return void
+     */
+    private function run_command($assoc_args) {
+        $options = $this->prepare_run_options($assoc_args);
+        $worker = new RealEstate_Sync_Media_Cleanup_Worker(new RealEstate_Sync_Media_Cleanup_Queue_Manager(), $this);
+        $stats = $worker->run($options);
+
+        $this->cli_log('Processed: ' . (int) $stats['processed']);
+        if (!empty($options['execute'])) {
+            $this->cli_log('Deleted: ' . (int) $stats['deleted']);
+        } else {
+            $this->cli_log('Would delete: ' . (int) $stats['would_delete']);
+        }
+        $this->cli_log('Skipped: ' . (int) $stats['skipped']);
+        $this->cli_log('Errors: ' . (int) $stats['errors']);
     }
 
     /**
@@ -236,6 +309,46 @@ class RealEstate_Sync_Media_Cleanup_Command {
         $this->options = array_merge($this->options, $options);
 
         return $this->options;
+    }
+
+    /**
+     * Prepare run options.
+     *
+     * @param array $assoc_args Raw assoc args.
+     * @return array
+     */
+    public function prepare_run_options($assoc_args) {
+        $options = array(
+            'limit' => isset($assoc_args['limit']) && is_numeric($assoc_args['limit']) ? (int) $assoc_args['limit'] : 5,
+            'dry_run' => true,
+            'execute' => !empty($assoc_args['execute']),
+            'session_id' => !empty($assoc_args['session-id']) ? (string) $assoc_args['session-id'] : 'run',
+        );
+
+        if ($options['limit'] <= 0) {
+            $this->cli_error('--limit must be a positive integer.');
+        }
+
+        $this->options = array_merge($this->options, $options);
+
+        return $this->options;
+    }
+
+    /**
+     * Execute the existing delete flow for one attachment.
+     *
+     * @param int $attachment_id Attachment ID.
+     * @return array
+     */
+    public function execute_attachment($attachment_id) {
+        $previous_options = $this->options;
+        $this->options['execute'] = true;
+
+        $result = $this->process_attachment((int) $attachment_id);
+
+        $this->options = $previous_options;
+
+        return $result;
     }
 
     /**

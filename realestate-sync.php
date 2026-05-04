@@ -156,6 +156,7 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-deletion-manager.php';
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-attachment-cleanup.php'; // 🗑️ Auto-cleanup attachments on delete
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-scanner.php'; // media cleanup scanner
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-worker.php'; // media cleanup worker
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-command.php'; // WP-CLI media cleanup command
 
         // require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php'; // DISABLED: Using external Git Updater plugin instead
@@ -474,6 +475,7 @@ class RealEstate_Sync {
         if (!wp_next_scheduled('realestate_sync_cleanup_logs')) {
             wp_schedule_event(time(), 'weekly', 'realestate_sync_cleanup_logs');
         }
+
     }
     
     /**
@@ -482,6 +484,7 @@ class RealEstate_Sync {
     private function clear_cron_events() {
         wp_clear_scheduled_hook('realestate_sync_daily_import');
         wp_clear_scheduled_hook('realestate_sync_cleanup_logs');
+        wp_clear_scheduled_hook('realestate_sync_media_cleanup_tick');
     }
     
     /**
@@ -776,6 +779,151 @@ class RealEstate_Sync {
             WP_CLI::add_command('realestate-sync media-cleanup', 'RealEstate_Sync_Media_Cleanup_Command');
         }
     }
+
+    /**
+     * Run the media cleanup cron tick with full gating.
+     *
+     * @return void
+     */
+    public function run_media_cleanup_tick() {
+        $this->media_cleanup_log('media cleanup tick start');
+
+        $enabled = (bool) get_option('realestate_cleanup_enabled', false);
+        if (!$enabled) {
+            $this->media_cleanup_log('skip: disabled');
+            return;
+        }
+
+        $window_start = (string) get_option('realestate_cleanup_window_start', '08:00');
+        $window_end = (string) get_option('realestate_cleanup_window_end', '23:59');
+        if (!$this->is_media_cleanup_inside_window($window_start, $window_end)) {
+            $this->media_cleanup_log('skip: outside window');
+            return;
+        }
+
+        $pause_on_import = (bool) get_option('realestate_cleanup_pause_on_import', true);
+        if ($pause_on_import && $this->is_media_cleanup_import_active()) {
+            $this->media_cleanup_log('skip: import active');
+            return;
+        }
+
+        if ($this->is_media_cleanup_locked()) {
+            $this->media_cleanup_log('skip: lock present');
+            return;
+        }
+
+        $queue_manager = new RealEstate_Sync_Media_Cleanup_Queue_Manager();
+        $counts = $queue_manager->get_status_counts();
+        if ((int) $counts['pending'] <= 0) {
+            $this->media_cleanup_log('skip: no pending');
+            return;
+        }
+
+        $limit = max(1, (int) get_option('realestate_cleanup_limit', 5));
+        $max_runtime = max(1, (int) get_option('realestate_cleanup_max_runtime', 30));
+
+        $worker = new RealEstate_Sync_Media_Cleanup_Worker($queue_manager, new RealEstate_Sync_Media_Cleanup_Command());
+        $stats = $worker->run(array(
+            'execute' => true,
+            'limit' => $limit,
+            'max_runtime_seconds' => $max_runtime,
+            'session_id' => 'cron',
+        ));
+
+        $this->media_cleanup_log('media cleanup tick done: processed=' . (int) $stats['processed'] . ' deleted=' . (int) $stats['deleted'] . ' errors=' . (int) $stats['errors']);
+    }
+
+    /**
+     * Check whether the cleanup tick is inside the configured work window.
+     *
+     * @param string $start HH:MM.
+     * @param string $end HH:MM.
+     * @return bool
+     */
+    private function is_media_cleanup_inside_window($start, $end) {
+        $start_minutes = $this->hhmm_to_minutes($start);
+        $end_minutes = $this->hhmm_to_minutes($end);
+        $now_minutes = ((int) current_time('H') * 60) + (int) current_time('i');
+
+        if ($start_minutes === null || $end_minutes === null) {
+            return true;
+        }
+
+        if ($start_minutes <= $end_minutes) {
+            return ($now_minutes >= $start_minutes && $now_minutes <= $end_minutes);
+        }
+
+        return ($now_minutes >= $start_minutes || $now_minutes <= $end_minutes);
+    }
+
+    /**
+     * Convert HH:MM to minutes from midnight.
+     *
+     * @param string $value Time string.
+     * @return int|null
+     */
+    private function hhmm_to_minutes($value) {
+        if (!preg_match('/^([01]?[0-9]|2[0-3]):([0-5][0-9])$/', (string) $value, $matches)) {
+            return null;
+        }
+
+        return ((int) $matches[1] * 60) + (int) $matches[2];
+    }
+
+    /**
+     * Detect whether a media cleanup safe pause is required because an import is active.
+     *
+     * @return bool
+     */
+    private function is_media_cleanup_import_active() {
+        if (!empty(get_option('realestate_sync_current_trace_id', ''))) {
+            return true;
+        }
+
+        if (get_transient('realestate_sync_import_progress')) {
+            return true;
+        }
+
+        $progress = get_option('realestate_sync_background_import_progress', array());
+        if (!is_array($progress) || empty($progress)) {
+            return false;
+        }
+
+        $status = isset($progress['status']) ? (string) $progress['status'] : '';
+        return in_array($status, array('processing', 'delete_pending', 'delete_processing', 'delete_paused'), true);
+    }
+
+    /**
+     * Check whether the media cleanup worker lock is active.
+     *
+     * @return bool
+     */
+    private function is_media_cleanup_locked() {
+        $lock = get_option(RealEstate_Sync_Media_Cleanup_Worker::LOCK_OPTION, array());
+
+        return is_array($lock) && !empty($lock['expires_at']) && (int) $lock['expires_at'] > time();
+    }
+
+    /**
+     * Log a minimal media cleanup tick message.
+     *
+     * @param string $message Message.
+     * @return void
+     */
+    private function media_cleanup_log($message) {
+        $line = '[MEDIA-CLEANUP] ' . $message;
+
+        if (class_exists('RealEstate_Sync_Logger')) {
+            try {
+                RealEstate_Sync_Logger::get_instance()->log($line, 'info');
+                return;
+            } catch (Exception $e) {
+                // Fall back to error_log below.
+            }
+        }
+
+        error_log($line);
+    }
 }
 
 /**
@@ -828,6 +976,19 @@ add_action('wp_loaded', function() {
  */
 function realestate_sync() {
     return RealEstate_Sync::get_instance();
+}
+
+/**
+ * Media cleanup cron tick entry point.
+ *
+ * @return void
+ */
+function run_media_cleanup_tick() {
+    $plugin = realestate_sync();
+
+    if (method_exists($plugin, 'run_media_cleanup_tick')) {
+        $plugin->run_media_cleanup_tick();
+    }
 }
 
 // 🚀 PROFESSIONAL ACTIVATION DEBUG - For monitoring wp_loaded activation system

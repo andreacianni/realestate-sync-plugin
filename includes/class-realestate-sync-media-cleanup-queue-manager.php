@@ -146,6 +146,31 @@ class RealEstate_Sync_Media_Cleanup_Queue_Manager {
     }
 
     /**
+     * Update a queue item's status.
+     *
+     * @param int    $item_id Item ID.
+     * @param string $status New status.
+     * @return bool
+     */
+    public function update_item_status($item_id, $status) {
+        global $wpdb;
+
+        $updated = $wpdb->update(
+            $this->table_name,
+            array(
+                'status' => (string) $status,
+            ),
+            array(
+                'id' => (int) $item_id,
+            ),
+            array('%s'),
+            array('%d')
+        );
+
+        return $updated !== false;
+    }
+
+    /**
      * Get queue totals.
      *
      * @return array
@@ -173,6 +198,19 @@ class RealEstate_Sync_Media_Cleanup_Queue_Manager {
         $counts['pending'] = isset($row->pending_count) ? (int) $row->pending_count : 0;
 
         return $counts;
+    }
+
+    /**
+     * Reset the cleanup queue without touching attachments or posts.
+     *
+     * @return int|false Number of deleted rows or false on failure.
+     */
+    public function reset_queue() {
+        global $wpdb;
+
+        $result = $wpdb->query("DELETE FROM {$this->table_name}");
+
+        return $result === false ? false : (int) $result;
     }
 
     /**
