@@ -386,6 +386,14 @@ jQuery(document).ready(function($) {
                     summaryLines.push('<div class="mb-2"><strong>Pausa import:</strong> ' + ((runtime.pause_on_import) ? 'sì' : 'no') + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Remaining:</strong> ' + (data.remaining ?? 0) + '</div>');
                     summaryLines.push('<div class="mb-2"><strong>Processed:</strong> ' + (data.processed ?? 0) + '</div>');
+                    summaryLines.push(
+                        '<div class="d-grid mt-3">' +
+                            '<button type="button" class="btn btn-outline-primary w-100" id="open-media-cleanup-settings">' +
+                                '<span class="dashicons dashicons-admin-generic"></span> ' +
+                                'Modifica configurazione' +
+                            '</button>' +
+                        '</div>'
+                    );
 
                     $summaryBody.html(summaryLines.join(''));
                     $summary.removeClass('rs-hidden').show();
