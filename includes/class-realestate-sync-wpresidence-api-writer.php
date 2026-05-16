@@ -223,10 +223,11 @@ class RealEstate_Sync_WPResidence_API_Writer {
 	 * Converts internal mapped property structure to WPResidence API format.
 	 * Handles core fields, meta fields, taxonomies, features, gallery, and custom fields.
 	 *
-	 * @param array $mapped_property Mapped property data from Property Mapper
+	 * @param array  $mapped_property Mapped property data from Property Mapper
+	 * @param string $operation       Operation context: 'create' or 'update'
 	 * @return array API-formatted body ready for create/update requests
 	 */
-	public function format_api_body($mapped_property) {
+	public function format_api_body($mapped_property, $operation = 'create') {
 		$api_body = array();
 
 		$this->logger->log('Formatting property data for API', 'DEBUG');
@@ -269,7 +270,7 @@ class RealEstate_Sync_WPResidence_API_Writer {
 		}
 
 		// 5. Gallery images (convert to API format)
-		if (!empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
+		if ($operation === 'create' && !empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
 			$api_body['images'] = $this->format_gallery_for_api($mapped_property['gallery']);
 			$this->logger->log('Formatted ' . count($api_body['images']) . ' gallery images for API', 'DEBUG');
 		}

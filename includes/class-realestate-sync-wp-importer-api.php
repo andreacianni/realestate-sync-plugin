@@ -172,6 +172,7 @@ class RealEstate_Sync_WP_Importer_API {
 			// 1. Check for existing property (duplicate detection)
 			$existing_post_id = $this->find_existing_property_strict($import_id);
 			$converted_from_create = false;
+			$operation = $existing_post_id ? 'update' : 'create';
 
 			if ($existing_post_id) {
 			$this->logger->log("Existing property found (ID: {$existing_post_id}) - will UPDATE", 'DEBUG');
@@ -188,7 +189,7 @@ class RealEstate_Sync_WP_Importer_API {
 			$this->ensure_features_exist($mapped_property);
 
 			// 3. Format data for API
-			$api_body = $this->api_writer->format_api_body($mapped_property);
+			$api_body = $this->api_writer->format_api_body($mapped_property, $operation);
 
 			// 4. Create or update property via API
 			if ($existing_post_id) {
@@ -200,7 +201,7 @@ class RealEstate_Sync_WP_Importer_API {
 					if (count($filtered_gallery) < $original_count) {
 						// Re-format API body with filtered gallery
 						$mapped_property['gallery'] = $filtered_gallery;
-						$api_body = $this->api_writer->format_api_body($mapped_property);
+						$api_body = $this->api_writer->format_api_body($mapped_property, $operation);
 
 				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'Gallery filtered for UPDATE', array(
 							'import_id' => $import_id,
