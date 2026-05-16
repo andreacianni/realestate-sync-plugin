@@ -71,6 +71,12 @@ $update_delete_phase_progress = static function (array $progress, array $delete_
     return $progress;
 };
 
+$run_media_cleanup_tick_if_ready = static function () {
+    if (function_exists('run_media_cleanup_tick')) {
+        run_media_cleanup_tick();
+    }
+};
+
 // ========================================================================
 // ✅ STEP 1: Check if scheduled import should start
 // ========================================================================
@@ -224,6 +230,7 @@ $active_session = $wpdb->get_row("
 ");
 
 if ((!$active_session || ((int) ($active_session->pending ?? 0) === 0 && (int) ($active_session->stale_processing_recent ?? 0) === 0)) && null === $delete_phase_status) {
+    $run_media_cleanup_tick_if_ready();
     echo "OK - No pending work\n";
     exit;
 }
@@ -233,6 +240,7 @@ $session_id = $active_session && (((int) ($active_session->pending ?? 0) > 0) ||
     : ($progress['session_id'] ?? '');
 
 if (empty($session_id)) {
+    $run_media_cleanup_tick_if_ready();
     echo "OK - No pending work\n";
     exit;
 }
@@ -322,6 +330,7 @@ try {
         }
 
         delete_transient('realestate_sync_processing_lock');
+        $run_media_cleanup_tick_if_ready();
         echo "OK - All batches complete!\n";
         exit;
     }
@@ -342,6 +351,7 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
+        $run_media_cleanup_tick_if_ready();
         echo "OK - Delete phase complete\n";
         exit;
     }
@@ -390,6 +400,7 @@ try {
         update_option('realestate_sync_background_import_progress', $progress);
 
         delete_transient('realestate_sync_processing_lock');
+        $run_media_cleanup_tick_if_ready();
         echo "OK - Delete phase complete\n";
         exit;
     }
@@ -527,6 +538,7 @@ try {
             error_log('[EMAIL-REPORT] ERROR: ' . $e->getMessage());
         }
 
+        $run_media_cleanup_tick_if_ready();
         echo "OK - All batches complete!\n";
     }
 
