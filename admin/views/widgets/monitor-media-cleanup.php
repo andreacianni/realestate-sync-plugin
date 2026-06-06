@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) exit;
 ╔═══════════════════════════════════════════════════════════════════╗
 ║ WIDGET: MONITOR MEDIA CLEANUP                                     ║
 ╠═══════════════════════════════════════════════════════════════════╣
-║ SCOPO: Visualizza stato read-only della cleanup queue media       ║
+║ SCOPO: Mostra stato operativo cleanup media                      ║
 ║ FONTE: realestate_media_cleanup_queue + option/lock di runtime    ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
@@ -26,16 +26,16 @@ if (!defined('ABSPATH')) exit;
 
     <div class="card-body">
         <p class="text-muted mb-4">
-            <?php _e('Stato read-only della queue di media cleanup. Nessuna azione distruttiva da questa card.', 'realestate-sync'); ?>
+            <?php _e('Stato operativo della queue media. Nessuna azione distruttiva da questa card.', 'realestate-sync'); ?>
         </p>
 
         <div id="media-cleanup-status">
             <div class="row g-4 align-items-start rs-monitor-columns">
                 <div class="col-12 col-xl-7">
                     <div class="rs-monitor-panel rs-monitor-panel--technical">
-                        <div class="rs-monitor-panel__eyebrow">Stato tecnico processo</div>
+                        <div class="rs-monitor-panel__eyebrow">Stato cleanup</div>
                         <p class="text-muted mb-3">
-                            <?php _e('Stato sintetico derivato dalla queue, dalle option di runtime e dal lock worker.', 'realestate-sync'); ?>
+                            <?php _e('Stato sintetico della queue attiva e della sua ultima attività.', 'realestate-sync'); ?>
                         </p>
 
                         <table class="table table-sm mb-0 rs-monitor-table rs-monitor-table--technical">
@@ -45,12 +45,8 @@ if (!defined('ABSPATH')) exit;
                                     <td id="media-cleanup-process-status" class="text-muted">-</td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Enabled</th>
-                                    <td id="media-cleanup-monitor-enabled" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Total queue</th>
-                                    <td id="media-cleanup-total" class="text-muted">-</td>
+                                    <th scope="row">Queue attiva</th>
+                                    <td id="media-cleanup-queue-active" class="text-muted">-</td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Pending</th>
@@ -59,22 +55,6 @@ if (!defined('ABSPATH')) exit;
                                 <tr>
                                     <th scope="row">Processing</th>
                                     <td id="media-cleanup-processing" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Remaining</th>
-                                    <td id="media-cleanup-remaining" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Done</th>
-                                    <td id="media-cleanup-done" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Skipped</th>
-                                    <td id="media-cleanup-skipped" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Error</th>
-                                    <td id="media-cleanup-error" class="text-muted">-</td>
                                 </tr>
                                 <tr>
                                     <th scope="row">Ultima attività</th>
@@ -101,7 +81,7 @@ if (!defined('ABSPATH')) exit;
             </div>
 
             <div id="media-cleanup-note" class="mt-3 small text-muted">
-                <?php _e('Ultimo aggiornamento manuale completato.', 'realestate-sync'); ?>
+                <?php _e('Monitor operativo della queue media.', 'realestate-sync'); ?>
             </div>
         </div>
     </div>

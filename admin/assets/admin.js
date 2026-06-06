@@ -345,9 +345,11 @@ jQuery(document).ready(function($) {
 
                     const data = response.data || {};
                     const status = data.status || 'unknown';
-                    const statusLabel = data.status_label || status;
-                    const statusVariant = data.status_variant || 'neutral';
-                    const runtime = data.runtime || {};
+                    const pending = Number.parseInt(data.pending || 0, 10);
+                    const processing = Number.parseInt(data.processing || 0, 10);
+                    const queueActive = (pending + processing) > 0;
+                    const statusLabel = queueActive ? (data.status_label || status) : 'Cleanup completato';
+                    const statusVariant = queueActive ? (data.status_variant || 'neutral') : 'idle';
                     const badgeColorMap = {
                         running: '#16a34a',
                         ready: '#0ea5e9',
@@ -366,39 +368,23 @@ jQuery(document).ready(function($) {
                             statusLabel +
                         '</span>'
                     );
-                    $('#media-cleanup-monitor-enabled').text(data.enabled ? 'sì' : 'no');
-                    $('#media-cleanup-total').text(data.total ?? '0');
-                    $('#media-cleanup-pending').text(data.pending ?? '0');
-                    $('#media-cleanup-processing').text(data.processing ?? '0');
-                    $('#media-cleanup-remaining').text(data.remaining ?? '0');
-                    $('#media-cleanup-done').text(data.done ?? '0');
-                    $('#media-cleanup-skipped').text(data.skipped ?? '0');
-                    $('#media-cleanup-error').text(data.error ?? '0');
+                    $('#media-cleanup-queue-active').text(queueActive ? 'sì' : 'no');
+                    $('#media-cleanup-pending').text(pending);
+                    $('#media-cleanup-processing').text(processing);
                     $('#media-cleanup-last-run').text(data.last_run_label || 'n/d');
 
                     const summaryLines = [];
                     summaryLines.push('<div class="mb-2"><strong>Stato:</strong> ' + statusLabel + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Motivo:</strong> ' + (data.status_note || 'n/d') + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Configurazione attiva:</strong> ' + (data.enabled ? 'sì' : 'no') + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Finestra:</strong> ' + (runtime.window_start || 'n/d') + ' - ' + (runtime.window_end || 'n/d') + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Limit per ciclo:</strong> ' + (runtime.limit ?? 'n/d') + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Runtime max:</strong> ' + (runtime.max_runtime ?? 'n/d') + 's</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Pausa import:</strong> ' + ((runtime.pause_on_import) ? 'sì' : 'no') + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Remaining:</strong> ' + (data.remaining ?? 0) + '</div>');
-                    summaryLines.push('<div class="mb-2"><strong>Processed:</strong> ' + (data.processed ?? 0) + '</div>');
-                    summaryLines.push(
-                        '<div class="d-grid mt-3">' +
-                            '<button type="button" class="btn btn-outline-primary w-100" id="open-media-cleanup-settings">' +
-                                '<span class="dashicons dashicons-admin-generic"></span> ' +
-                                'Modifica configurazione' +
-                            '</button>' +
-                        '</div>'
-                    );
+                    summaryLines.push('<div class="mb-2"><strong>Queue attiva:</strong> ' + (queueActive ? 'sì' : 'no') + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Pending:</strong> ' + pending + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Processing:</strong> ' + processing + '</div>');
+                    summaryLines.push('<div class="mb-2"><strong>Ultima attività:</strong> ' + (data.last_run_label || 'n/d') + '</div>');
+                    summaryLines.push('<div class="small text-muted">' + (queueActive ? 'Cleanup in esecuzione o in attesa del prossimo ciclo.' : 'Queue completamente processata.') + '</div>');
 
                     $summaryBody.html(summaryLines.join(''));
                     $summary.removeClass('rs-hidden').show();
 
-                    $('#media-cleanup-note').text('Ultimo aggiornamento manuale completato.');
+                    $('#media-cleanup-note').text(queueActive ? 'Cleanup operativo.' : 'Queue completamente processata.');
                 },
                 error: function() {
                     $('#media-cleanup-process-status').html('<span class="text-danger">unknown</span>');
@@ -953,41 +939,13 @@ jQuery(document).ready(function($) {
     }
 
     function resetDeleteMonitorFields(prefix) {
-        $(prefix + 'import-session-phase').text('-');
         $(prefix + 'delete-state-status').text('-');
-        $(prefix + 'delete-runtime-mode').text('-');
-        $(prefix + 'delete-runtime-kill-switch').text('-');
-        $(prefix + 'delete-runtime-cap').text('-');
-        $(prefix + 'delete-state-counters').text('-');
     }
 
     function updateDeleteMonitorFields(prefix, data) {
         const deleteState = data.delete_state || {};
-        const deleteRuntime = data.delete_runtime || {};
         const hasDeleteState = Object.keys(deleteState).length > 0 && Object.values(deleteState).some(value => value !== '' && value !== 0 && value !== false);
-        const hasDeleteRuntime = Object.keys(deleteRuntime).length > 0 && (
-            deleteRuntime.mode ||
-            typeof deleteRuntime.kill_switch === 'boolean' ||
-            deleteRuntime.cap
-        );
-        const killSwitch = typeof deleteRuntime.kill_switch === 'boolean'
-            ? (deleteRuntime.kill_switch ? 'attivo' : 'non attivo')
-            : '-';
-        const counters = hasDeleteState
-            ? 'pending ' + (deleteState.pending ?? '-') +
-                ' / processing ' + (deleteState.processing ?? '-') +
-                ' / done ' + (deleteState.done ?? '-') +
-                ' / error ' + (deleteState.error ?? '-') +
-                ' / skipped ' + (deleteState.skipped ?? '-') +
-                ' / total ' + (deleteState.total ?? '-')
-            : '-';
-
-        $(prefix + 'import-session-phase').text(data.session_phase || '-');
         $(prefix + 'delete-state-status').text(deleteState.status || '-');
-        $(prefix + 'delete-runtime-mode').text(deleteRuntime.mode || '-');
-        $(prefix + 'delete-runtime-kill-switch').text(hasDeleteRuntime ? killSwitch : '-');
-        $(prefix + 'delete-runtime-cap').text(deleteRuntime.cap !== undefined && deleteRuntime.cap !== null && deleteRuntime.cap !== '' ? deleteRuntime.cap : '-');
-        $(prefix + 'delete-state-counters').text(counters);
     }
 
     function buildFunctionalStatsHtml(data, functionalStats) {
@@ -997,12 +955,12 @@ jQuery(document).ready(function($) {
         const activeAnnouncements = Number.parseInt((data && (data.total ?? data.total_items)) || 0, 10);
 
         return '' +
-            '<div class="rs-monitor-panel__eyebrow">Metriche funzionali</div>' +
-            '<h6 class="rs-monitor-panel__title">Sintesi di sessione</h6>' +
+            '<div class="rs-monitor-panel__eyebrow">KPI sessione</div>' +
+            '<h6 class="rs-monitor-panel__title">Sintesi import</h6>' +
             '<table class="table table-sm mb-0 rs-functional-table">' +
                 '<tbody>' +
                     '<tr class="rs-functional-section"><th colspan="2">Catalogo</th></tr>' +
-                    '<tr><th scope="row">Annunci attivi</th><td>' + activeAnnouncements + '</td></tr>' +
+                    '<tr><th scope="row">Totale annunci feed</th><td>' + activeAnnouncements + '</td></tr>' +
                     '<tr><th scope="row">Nuovi annunci</th><td>' + value('created_new') + '</td></tr>' +
                     '<tr><th scope="row">Aggiornamenti contenuto</th><td>' + value('business_updates') + '</td></tr>' +
                     '<tr><th scope="row">Aggiornamenti tecnici</th><td>' + value('technical_updates') + '</td></tr>' +
