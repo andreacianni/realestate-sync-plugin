@@ -1354,7 +1354,7 @@ class RealEstate_Sync_Property_Mapper {
     /**
      * Generate deterministic gallery signature v3.0
      *
-     * Order-insensitive. Same gallery set -> same signature.
+     * Order-sensitive. Same gallery order -> same signature.
      *
      * @param array $gallery Gallery array from map_gallery_v3()
      * @return string MD5 signature
@@ -1377,8 +1377,6 @@ class RealEstate_Sync_Property_Mapper {
 
             $normalized_items[] = $type . '|' . $url;
         }
-
-        sort($normalized_items, SORT_STRING);
 
         return md5(wp_json_encode($normalized_items));
     }
