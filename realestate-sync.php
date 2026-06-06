@@ -158,6 +158,7 @@ class RealEstate_Sync {
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-scanner.php'; // media cleanup scanner
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-worker.php'; // media cleanup worker
         require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-media-cleanup-command.php'; // WP-CLI media cleanup command
+        require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-gallery-pending-command.php'; // WP-CLI gallery pending command
 
         // require_once REALESTATE_SYNC_PLUGIN_DIR . 'includes/class-realestate-sync-github-updater.php'; // DISABLED: Using external Git Updater plugin instead
 
@@ -777,6 +778,7 @@ class RealEstate_Sync {
     public function register_cli_commands() {
         if (class_exists('WP_CLI')) {
             WP_CLI::add_command('realestate-sync media-cleanup', 'RealEstate_Sync_Media_Cleanup_Command');
+            WP_CLI::add_command('realestate-sync gallery-pending', 'RealEstate_Sync_Gallery_Pending_Command');
         }
     }
 

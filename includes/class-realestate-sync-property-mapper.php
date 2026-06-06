@@ -427,13 +427,16 @@ class RealEstate_Sync_Property_Mapper {
                 'property_id' => $xml_property['id'] ?? 'unknown'
             ]);
         }
-        
+
+        $gallery = $this->map_gallery_v3($xml_property);
+
         return [
             'post_data' => $this->map_post_data_v3($xml_property),
             'meta_fields' => $this->map_meta_fields_v3($xml_property, $agency_id),
             'taxonomies' => $this->map_taxonomies_v3($xml_property),
             'features' => $this->map_features_v3($xml_property),
-            'gallery' => $this->map_gallery_v3($xml_property),
+            'gallery' => $gallery,
+            'gallery_signature' => $this->generate_gallery_signature_v3($gallery),
             'catasto' => $this->map_catasto_v3($xml_property),
             'source_data' => $source_data,
             'content_hash_v3' => $this->generate_content_hash_v3($xml_property)
@@ -1346,6 +1349,36 @@ class RealEstate_Sync_Property_Mapper {
         }
         
         return md5(serialize($hash_data));
+    }
+
+    /**
+     * Generate deterministic gallery signature v3.0
+     *
+     * Order-sensitive. Same gallery order -> same signature.
+     *
+     * @param array $gallery Gallery array from map_gallery_v3()
+     * @return string MD5 signature
+     */
+    private function generate_gallery_signature_v3($gallery) {
+        if (empty($gallery) || !is_array($gallery)) {
+            return md5('');
+        }
+
+        $normalized_items = [];
+
+        foreach ($gallery as $item) {
+            if (empty($item['url'])) {
+                continue;
+            }
+
+            $url = trim((string) $item['url']);
+            $url = preg_replace('#^http://#', 'https://', $url);
+            $type = isset($item['type']) ? trim((string) $item['type']) : 'image';
+
+            $normalized_items[] = $type . '|' . $url;
+        }
+
+        return md5(wp_json_encode($normalized_items));
     }
     
     /**

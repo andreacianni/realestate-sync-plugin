@@ -193,6 +193,36 @@ class RealEstate_Sync_WP_Importer_API {
 
 			// 4. Create or update property via API
 			if ($existing_post_id) {
+				$old_gallery_signature = (string) get_post_meta($existing_post_id, 'property_gallery_signature', true);
+				$new_gallery_signature = (string) ($mapped_property['gallery_signature'] ?? '');
+				$comparison_result = 'missing_current';
+
+				if ($old_gallery_signature === '') {
+					$comparison_result = 'missing_baseline';
+				} elseif ($new_gallery_signature === '') {
+					$comparison_result = 'missing_current';
+				} elseif ($old_gallery_signature === $new_gallery_signature) {
+					$comparison_result = 'unchanged';
+				} else {
+					$comparison_result = 'changed';
+				}
+
+				$gallery_changed_pending = ($comparison_result === 'changed') ? 1 : 0;
+
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'GALLERY-SIGNATURE-COMPARE', array(
+					'property_import_id' => $import_id,
+					'post_id' => $existing_post_id,
+					'old_signature' => $old_gallery_signature,
+					'new_signature' => $new_gallery_signature,
+					'comparison_result' => $comparison_result,
+					'gallery_changed_pending' => $gallery_changed_pending,
+				));
+
+				if ($comparison_result === 'changed') {
+					update_post_meta($existing_post_id, 'property_gallery_changed_pending', 1);
+					update_post_meta($existing_post_id, 'property_gallery_signature_pending', $new_gallery_signature);
+				}
+
 				// 🔧 FIX IMAGE DUPLICATION: Filter unchanged gallery images for UPDATE
 				if (!empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
 					$original_count = count($mapped_property['gallery']);
@@ -269,6 +299,10 @@ class RealEstate_Sync_WP_Importer_API {
 			// 6. Update tracking metadata (only if API call succeeded)
 			if ($result['success']) {
 				$this->update_tracking_metadata($result['post_id'], $mapped_property, $import_id);
+
+				if ($operation === 'create' && !empty($mapped_property['gallery_signature'])) {
+					update_post_meta($result['post_id'], 'property_gallery_signature', $mapped_property['gallery_signature']);
+				}
 
 					$this->logger->log("Property {$import_id} processed successfully via API", 'DEBUG', array(
 					'action'  => $result['action'],
@@ -359,19 +393,31 @@ class RealEstate_Sync_WP_Importer_API {
 			)
 		);
 
-		if ($existing_post_id) {
-			$this->tracker->log_event('WARNING', 'WP_IMPORTER_API', 'CREATE failure -> switching to UPDATE', array(
-				'import_id' => $import_id,
-				'wp_post_id' => $existing_post_id,
-				'error' => $error_msg,
-				'session_id' => $this->session_id,
-			));
+			if ($existing_post_id) {
+				$this->tracker->log_event('WARNING', 'WP_IMPORTER_API', 'CREATE failure -> switching to UPDATE', array(
+					'import_id' => $import_id,
+					'wp_post_id' => $existing_post_id,
+					'error' => $error_msg,
+					'session_id' => $this->session_id,
+				));
 
-			$update_result = $this->api_writer->update_property($existing_post_id, $api_body);
+				$recovery_body = $api_body;
+				$images_removed = !empty($recovery_body['images']);
+				if ($images_removed) {
+					unset($recovery_body['images']);
+				}
 
-			if ($update_result['success']) {
-				$update_result['action'] = 'updated';
-			}
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'CREATE recovery payload sanitized', array(
+					'import_id' => $import_id,
+					'wp_post_id' => $existing_post_id,
+					'images_removed' => $images_removed ? 1 : 0,
+				));
+
+				$update_result = $this->api_writer->update_property($existing_post_id, $recovery_body);
+
+				if ($update_result['success']) {
+					$update_result['action'] = 'updated';
+				}
 
 			return $update_result;
 		}
