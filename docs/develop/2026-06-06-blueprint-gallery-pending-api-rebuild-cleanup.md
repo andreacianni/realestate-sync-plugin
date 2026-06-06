@@ -142,8 +142,19 @@
 - Verifica umana: output property e payload previsto
 - Stop condition: dry-run affidabile
 - Rischio principale: preview non uguale a rebuild reale
-- Stato: completato
+- Stato: validated in production
 - Nota validazione: worker dry-run isolato, nessun side effect, preview via `property_gallery_payload_pending_json`, no fallback `wpestate_property_gallery`
+- Validazione produzione:
+  - `post_id = 214741`
+  - `property_import_id = 9999996`
+  - `property_gallery_signature = db21d6fa4cc2313dd714fed53adc31fe`
+  - `property_gallery_signature_pending = 5fe88aa263405f79e09481913109ab6c`
+  - `property_gallery_changed_pending = 1`
+  - `property_gallery_payload_pending_json` presente e valido
+  - dry-run `status = ok`
+  - `images_count = 11`
+  - `images_preview` valorizzato con `images[]` corretta
+- Prossimo step: Step 3 - Rebuild API reale su singola property pending
 - prerequisito: `property_gallery_payload_pending_json` scritto da import su `comparison_result = changed`
 
 ### Step 3 - Rebuild API su singola property pending
@@ -154,7 +165,29 @@
 - Verifica umana: gallery visibile aggiornata
 - Stop condition: rebuild singolo corretto
 - Rischio principale: doppio upload attachment
-- Stato: da fare
+- Stato: validated
+- Nota validazione: rebuild reale singola property OK, scanner scoped OK, pending chiuso
+
+## Validazione produzione Step 3
+
+1. property test:
+   - `post_id = 214741`
+   - `property_import_id = 9999996`
+2. esito rebuild:
+   - `api_success = 1`
+   - `images_count = 11`
+3. esito cleanup:
+   - scanner scoped eseguito
+   - queue popolata
+   - worker cleanup consumato queue
+   - queue finale: `done = 38128`, `error = 283`, `pending = 0`
+4. chiusura pending:
+   - `property_gallery_signature` aggiornata a `5fe88aa263405f79e09481913109ab6c`
+   - `property_gallery_signature_pending` rimossa
+   - `property_gallery_payload_pending_json` rimossa
+   - `property_gallery_changed_pending` rimossa
+5. aggiornamento signature:
+   - baseline aggiornata con pending signature
 
 ### Step 4 - Trigger cleanup scoped post-id
 
@@ -164,7 +197,7 @@
 - Verifica umana: queue popolata solo per property target
 - Stop condition: cleanup scoped funziona
 - Rischio principale: scope troppo ampio
-- Stato: da fare
+- Stato: validated
 
 ### Step 5 - Chiusura pending e aggiornamento signature
 
@@ -174,7 +207,7 @@
 - Verifica umana: pending rimosso, signature aggiornata
 - Stop condition: stato property pulito
 - Rischio principale: pending chiuso prima scan scoped/queue trigger corretto
-- Stato: da fare
+- Stato: validated
 
 ### Step 6 - Batch limitato su piu' pending
 
@@ -216,6 +249,38 @@
 - Rischio principale: includere codice non validato
 - Stato: da fare
 
+## 13. Architettura finale validata
+
+`gallery_changed_pending`
+→ `property_gallery_payload_pending_json`
+→ rebuild API
+→ scanner scoped
+→ cleanup queue
+→ update signature
+→ clear pending
+→ cleanup worker elimina media
+
+## 14. Stato finale step
+
+1. Step 1: validated
+2. Step 2: validated
+3. Step 3: validated
+
+## 15. Residui per passare da manual singola property a worker automatico
+
+1. aggancio runtime controllato del worker rebuild
+2. selezione batch limitato su piu' pending
+3. eventuale orchestration minimale fuori import ordinario
+
+## 16. Discovery Step 4 validata
+
+- Opzione scelta: C, fase separata post-import
+- Motivazioni: no rebuild durante UPDATE ordinario, rebuild isolato dal flusso import, meno race su import notturno
+- Lock model: lock batch esistente + lock dedicato gallery rebuild + session-id stabile `gallery-rebuild`
+- Failure model: API fail/timeout lascia pending intatto; scanner fail lascia pending intatto; retry naturale sul tick successivo
+- Strategia una property per tick: prima iterazione automatica limita rischio e rende retry facile
+- Stato: GO per implementazione futura Step 4
+
 ## 10. Test plan umano
 
 1. property pending singola
@@ -256,10 +321,10 @@
 | Data | Step | Stato | Commit | Note validazione |
 |---|---|---|---|---|
 | 2026-06-06 | 1 | completed | - | discovery API + scanner scoped completata |
-| 2026-06-06 | 2 | completed | - | Gallery Rebuild Worker dry-run/read-only |
-| 2026-06-06 | 3 | da fare | - | Rebuild API su singola property pending |
-| 2026-06-06 | 4 | da fare | - | Trigger cleanup scoped post-id |
-| 2026-06-06 | 5 | da fare | - | Chiusura pending e aggiornamento signature |
+| 2026-06-06 | 2 | validated in production | - | Gallery Rebuild Worker dry-run/read-only |
+| 2026-06-06 | 3 | validated in production | - | Rebuild API su singola property pending |
+| 2026-06-06 | 4 | validated in production | - | Trigger cleanup scoped post-id |
+| 2026-06-06 | 5 | validated in production | - | Chiusura pending e aggiornamento signature |
 | 2026-06-06 | 6 | da fare | - | Batch limitato su piu' pending |
 | 2026-06-06 | 7 | da fare | - | Integrazione runtime controllata |
 | 2026-06-06 | 8 | da fare | - | Validazione produzione |
