@@ -193,6 +193,28 @@ class RealEstate_Sync_WP_Importer_API {
 
 			// 4. Create or update property via API
 			if ($existing_post_id) {
+				$old_gallery_signature = (string) get_post_meta($existing_post_id, 'property_gallery_signature', true);
+				$new_gallery_signature = (string) ($mapped_property['gallery_signature'] ?? '');
+				$comparison_result = 'missing_current';
+
+				if ($old_gallery_signature === '') {
+					$comparison_result = 'missing_baseline';
+				} elseif ($new_gallery_signature === '') {
+					$comparison_result = 'missing_current';
+				} elseif ($old_gallery_signature === $new_gallery_signature) {
+					$comparison_result = 'unchanged';
+				} else {
+					$comparison_result = 'changed';
+				}
+
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'GALLERY-SIGNATURE-COMPARE', array(
+					'import_id' => $import_id,
+					'post_id' => $existing_post_id,
+					'old_signature' => $old_gallery_signature,
+					'new_signature' => $new_gallery_signature,
+					'comparison_result' => $comparison_result,
+				));
+
 				// 🔧 FIX IMAGE DUPLICATION: Filter unchanged gallery images for UPDATE
 				if (!empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
 					$original_count = count($mapped_property['gallery']);
