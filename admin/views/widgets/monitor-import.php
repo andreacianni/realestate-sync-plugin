@@ -57,7 +57,7 @@ if (!defined('ABSPATH')) exit;
                                     <td id="delete-state-status" class="text-muted">-</td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Totale annunci feed</th>
+                                    <th scope="row">Totale annunci feed sessione</th>
                                     <td id="import-total-items" class="text-muted">-</td>
                                 </tr>
                                 <tr>

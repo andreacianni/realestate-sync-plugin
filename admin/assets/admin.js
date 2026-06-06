@@ -960,7 +960,7 @@ jQuery(document).ready(function($) {
             '<table class="table table-sm mb-0 rs-functional-table">' +
                 '<tbody>' +
                     '<tr class="rs-functional-section"><th colspan="2">Catalogo</th></tr>' +
-                    '<tr><th scope="row">Totale annunci feed</th><td>' + activeAnnouncements + '</td></tr>' +
+                    '<tr><th scope="row">Totale annunci feed sessione</th><td>' + activeAnnouncements + '</td></tr>' +
                     '<tr><th scope="row">Nuovi annunci</th><td>' + value('created_new') + '</td></tr>' +
                     '<tr><th scope="row">Aggiornamenti contenuto</th><td>' + value('business_updates') + '</td></tr>' +
                     '<tr><th scope="row">Aggiornamenti tecnici</th><td>' + value('technical_updates') + '</td></tr>' +
@@ -970,8 +970,8 @@ jQuery(document).ready(function($) {
                     '<tr class="rs-functional-section"><th colspan="2">Media</th></tr>' +
                     '<tr><th scope="row">Media cancellati dal server</th><td>' + value('media_deleted_physical') + '</td></tr>' +
                     '<tr class="rs-functional-section rs-functional-section--experimental"><th colspan="2">Media sperimentale</th></tr>' +
-                    '<tr><th scope="row">Media aggiunti</th><td>' + value('media_added') + '</td></tr>' +
-                    '<tr><th scope="row">Media rimossi dalla galleria</th><td>' + value('media_removed_from_gallery') + '</td></tr>' +
+                    '<tr><th scope="row">Media aggiunti da feed</th><td>' + value('media_added') + '</td></tr>' +
+                    '<tr><th scope="row">Media rimossi da feed</th><td>' + value('media_removed_from_gallery') + '</td></tr>' +
                 '</tbody>' +
             '</table>' +
             '<div class="rs-functional-note">Le metriche sperimentali sono calcolate solo a fini di monitoraggio.</div>';
