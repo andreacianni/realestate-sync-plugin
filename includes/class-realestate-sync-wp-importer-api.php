@@ -218,10 +218,15 @@ class RealEstate_Sync_WP_Importer_API {
 					'gallery_changed_pending' => $gallery_changed_pending,
 				));
 
-				if ($comparison_result === 'changed') {
-					update_post_meta($existing_post_id, 'property_gallery_changed_pending', 1);
-					update_post_meta($existing_post_id, 'property_gallery_signature_pending', $new_gallery_signature);
-				}
+					if ($comparison_result === 'changed') {
+						update_post_meta($existing_post_id, 'property_gallery_changed_pending', 1);
+						update_post_meta($existing_post_id, 'property_gallery_signature_pending', $new_gallery_signature);
+						update_post_meta($existing_post_id, 'property_gallery_payload_pending_json', wp_json_encode(array(
+							'property_import_id' => $import_id,
+							'property_gallery_signature' => $new_gallery_signature,
+							'gallery' => $mapped_property['gallery'] ?? array(),
+						)));
+					}
 
 				// 🔧 FIX IMAGE DUPLICATION: Filter unchanged gallery images for UPDATE
 				if (!empty($mapped_property['gallery']) && is_array($mapped_property['gallery'])) {
