@@ -270,6 +270,10 @@ class RealEstate_Sync_WP_Importer_API {
 			if ($result['success']) {
 				$this->update_tracking_metadata($result['post_id'], $mapped_property, $import_id);
 
+				if (($result['action'] ?? '') === 'created' && !empty($mapped_property['gallery_signature'])) {
+					update_post_meta($result['post_id'], 'property_gallery_signature', $mapped_property['gallery_signature']);
+				}
+
 					$this->logger->log("Property {$import_id} processed successfully via API", 'DEBUG', array(
 					'action'  => $result['action'],
 					'post_id' => $result['post_id'],
