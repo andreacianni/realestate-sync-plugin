@@ -227,7 +227,8 @@
 - Verifica umana: flusso attivato solo quando previsto
 - Stop condition: integrazione runtime limitata e stabile
 - Rischio principale: trigger involontario su import normale
-- Stato: da fare
+- Stato: validated in production
+- Nota validazione: hook in `batch-continuation.php` post-import complete, prima di cleanup tick, lock `realestate_sync_gallery_rebuild_lock`, una property per tick, retry naturale se fallisce
 
 ### Step 8 - Validazione produzione
 
@@ -237,7 +238,8 @@
 - Verifica umana: gallery, attachment, cleanup, meta
 - Stop condition: comportamento confermato in prod
 - Rischio principale: caso test non rappresentativo
-- Stato: da fare
+- Stato: validated in production
+- Nota validazione: `post_id = 214741`, `property_import_id = 9999996`, pending marcato e chiuso, signature stabile dopo smoke test
 
 ### Step 9 - Commit/deploy dopo validazione
 
@@ -279,6 +281,7 @@
 - Lock model: lock batch esistente + lock dedicato gallery rebuild + session-id stabile `gallery-rebuild`
 - Failure model: API fail/timeout lascia pending intatto; scanner fail lascia pending intatto; retry naturale sul tick successivo
 - Strategia una property per tick: prima iterazione automatica limita rischio e rende retry facile
+- Validazione produzione Step 4: `batch-continuation.php` hook post-import complete esegue rebuild prima cleanup tick; pending chiuso solo dopo successo completo
 - Stato: GO per implementazione futura Step 4
 
 ## 10. Test plan umano
@@ -326,6 +329,6 @@
 | 2026-06-06 | 4 | validated in production | - | Trigger cleanup scoped post-id |
 | 2026-06-06 | 5 | validated in production | - | Chiusura pending e aggiornamento signature |
 | 2026-06-06 | 6 | da fare | - | Batch limitato su piu' pending |
-| 2026-06-06 | 7 | da fare | - | Integrazione runtime controllata |
-| 2026-06-06 | 8 | da fare | - | Validazione produzione |
+| 2026-06-06 | 7 | validated in production | e3ba736 | Integrazione runtime controllata |
+| 2026-06-06 | 8 | validated in production | e3ba736 | Validazione produzione |
 | 2026-06-06 | 9 | da fare | - | Commit/deploy dopo validazione |
