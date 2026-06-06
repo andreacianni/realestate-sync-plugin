@@ -12,7 +12,7 @@ if (!defined('ABSPATH')) exit;
 ╔═══════════════════════════════════════════════════════════════════╗
 ║ WIDGET: MONITOR ULTIMO IMPORT                                     ║
 ╠═══════════════════════════════════════════════════════════════════╣
-║ SCOPO: Visualizza stato real-time ultimo import in esecuzione     ║
+║ SCOPO: Mostra risultato ultima sessione import                    ║
 ║ FONTE: wp_realestate_import_queue (status, progressione)          ║
 ╚═══════════════════════════════════════════════════════════════════╝
 -->
@@ -26,16 +26,16 @@ if (!defined('ABSPATH')) exit;
 
     <div class="card-body">
         <p class="text-muted mb-4">
-            <?php _e('Stato dell\'ultimo processo di import in esecuzione o completato.', 'realestate-sync'); ?>
+            <?php _e('Sintesi dell\'ultima sessione import completata o in corso.', 'realestate-sync'); ?>
         </p>
 
         <div id="last-import-status">
             <div class="row g-4 align-items-start rs-monitor-columns">
                 <div class="col-12 col-xl-7">
                     <div class="rs-monitor-panel rs-monitor-panel--technical">
-                        <div class="rs-monitor-panel__eyebrow">Stato tecnico processo</div>
+                        <div class="rs-monitor-panel__eyebrow">Stato</div>
                         <p class="text-muted mb-3">
-                            <?php _e('Stato dell\'ultimo processo di import in esecuzione o completato.', 'realestate-sync'); ?>
+                            <?php _e('Stato sintetico dell\'ultima sessione import.', 'realestate-sync'); ?>
                         </p>
 
                         <table class="table table-sm mb-0 rs-monitor-table rs-monitor-table--technical">
@@ -53,31 +53,11 @@ if (!defined('ABSPATH')) exit;
                                     <td id="import-process-status" class="text-muted">-</td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Fase sessione</th>
-                                    <td id="import-session-phase" class="text-muted">-</td>
-                                </tr>
-                                <tr>
                                     <th scope="row">Stato delete</th>
                                     <td id="delete-state-status" class="text-muted">-</td>
                                 </tr>
                                 <tr>
-                                    <th scope="row">Modalita delete</th>
-                                    <td id="delete-runtime-mode" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Kill switch</th>
-                                    <td id="delete-runtime-kill-switch" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Cap delete</th>
-                                    <td id="delete-runtime-cap" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Contatori delete</th>
-                                    <td id="delete-state-counters" class="text-muted">-</td>
-                                </tr>
-                                <tr>
-                                    <th scope="row">Totale elementi</th>
+                                    <th scope="row">Totale annunci feed sessione</th>
                                     <td id="import-total-items" class="text-muted">-</td>
                                 </tr>
                                 <tr>

@@ -1559,10 +1559,15 @@ class RealEstate_Sync_Admin {
                 ? 'Cleanup in esecuzione con item in processing.'
                 : 'Lock attivo: il worker sta probabilmente lavorando.';
             $status_variant = 'running';
-        } elseif ($counts['error'] > 0 && $counts['pending'] === 0 && $counts['processing'] === 0) {
+        } elseif ($counts['error'] > 0 && $remaining === 0) {
+            $status_key = 'completed_with_errors';
+            $status_label = 'Completato con errori';
+            $status_note = 'Cleanup completato, ma con errori registrati.';
+            $status_variant = 'idle';
+        } elseif ($counts['error'] > 0 && ($counts['pending'] > 0 || $counts['processing'] > 0)) {
             $status_key = 'error';
             $status_label = 'Errore';
-            $status_note = 'La queue contiene errori ma nessun item attivo.';
+            $status_note = 'La queue contiene errori ma restano item attivi o stato anomalo.';
             $status_variant = 'error';
         } elseif ($enabled && $counts['pending'] > 0 && $counts['processing'] === 0 && !$lock_active && $inside_window && !$import_active) {
             $status_key = 'ready';
