@@ -51,6 +51,7 @@ define('WP_USE_THEMES', false);
 require_once(dirname(__FILE__) . '/../../../wp-load.php');
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-delete-queue-manager.php');
 require_once(dirname(__FILE__) . '/includes/class-realestate-sync-delete-batch-processor.php');
+require_once(dirname(__FILE__) . '/includes/class-realestate-sync-gallery-rebuild-worker.php');
 
 $update_delete_phase_progress = static function (array $progress, array $delete_queue_stats, $status, $worker_enabled = false) {
     $delete_runtime = isset($progress['delete_runtime']) && is_array($progress['delete_runtime']) ? $progress['delete_runtime'] : array();
@@ -75,6 +76,64 @@ $run_media_cleanup_tick_if_ready = static function () {
     if (function_exists('run_media_cleanup_tick')) {
         run_media_cleanup_tick();
     }
+};
+
+$run_gallery_rebuild_tick_if_ready = static function () {
+    global $wpdb;
+
+    $lock_key = 'realestate_sync_gallery_rebuild_lock';
+    if (get_transient($lock_key)) {
+        return false;
+    }
+
+    $pending_row = $wpdb->get_row("
+        SELECT
+            p.ID AS post_id,
+            COALESCE(pm_import.meta_value, '') AS property_import_id
+        FROM {$wpdb->posts} p
+        INNER JOIN {$wpdb->postmeta} pm_changed
+            ON pm_changed.post_id = p.ID
+           AND pm_changed.meta_key = 'property_gallery_changed_pending'
+           AND pm_changed.meta_value = '1'
+        INNER JOIN {$wpdb->postmeta} pm_signature_pending
+            ON pm_signature_pending.post_id = p.ID
+           AND pm_signature_pending.meta_key = 'property_gallery_signature_pending'
+           AND pm_signature_pending.meta_value <> ''
+        INNER JOIN {$wpdb->postmeta} pm_payload
+            ON pm_payload.post_id = p.ID
+           AND pm_payload.meta_key = 'property_gallery_payload_pending_json'
+           AND pm_payload.meta_value <> ''
+        LEFT JOIN {$wpdb->postmeta} pm_import
+            ON pm_import.post_id = p.ID
+           AND pm_import.meta_key = 'property_import_id'
+        WHERE p.post_type = 'estate_property'
+          AND p.post_status NOT IN ('trash', 'auto-draft', 'inherit')
+        ORDER BY p.post_modified DESC, p.ID DESC
+        LIMIT 1
+    ");
+
+    if (!$pending_row || empty($pending_row->post_id)) {
+        return false;
+    }
+
+    set_transient($lock_key, (string) $pending_row->post_id, 120);
+
+    try {
+        $worker = new RealEstate_Sync_Gallery_Rebuild_Worker();
+        $result = $worker->rebuild(array(
+            'post-id' => (int) $pending_row->post_id,
+            'execute' => true,
+        ));
+
+        if (!is_array($result) || empty($result['api_success']) || empty($result['scanner_success']) || empty($result['pending_cleared'])) {
+            error_log('[BATCH-CONTINUATION] Gallery rebuild retryable for post_id=' . (int) $pending_row->post_id . ' status=' . (string) ($result['status'] ?? 'unknown'));
+        }
+    } catch (Exception $e) {
+        error_log('[BATCH-CONTINUATION] Gallery rebuild error for post_id=' . (int) $pending_row->post_id . ': ' . $e->getMessage());
+    }
+
+    delete_transient($lock_key);
+    return true;
 };
 
 // ========================================================================
@@ -329,6 +388,7 @@ try {
             error_log('[EMAIL-REPORT] ERROR: ' . $e->getMessage());
         }
 
+        $run_gallery_rebuild_tick_if_ready();
         delete_transient('realestate_sync_processing_lock');
         $run_media_cleanup_tick_if_ready();
         echo "OK - All batches complete!\n";
@@ -538,6 +598,7 @@ try {
             error_log('[EMAIL-REPORT] ERROR: ' . $e->getMessage());
         }
 
+        $run_gallery_rebuild_tick_if_ready();
         $run_media_cleanup_tick_if_ready();
         echo "OK - All batches complete!\n";
     }
