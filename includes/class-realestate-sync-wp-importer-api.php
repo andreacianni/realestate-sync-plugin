@@ -207,12 +207,15 @@ class RealEstate_Sync_WP_Importer_API {
 					$comparison_result = 'changed';
 				}
 
+				$gallery_changed_pending = ($comparison_result === 'changed') ? 1 : 0;
+
 				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'GALLERY-SIGNATURE-COMPARE', array(
-					'import_id' => $import_id,
+					'property_import_id' => $import_id,
 					'post_id' => $existing_post_id,
 					'old_signature' => $old_gallery_signature,
 					'new_signature' => $new_gallery_signature,
 					'comparison_result' => $comparison_result,
+					'gallery_changed_pending' => $gallery_changed_pending,
 				));
 
 				if ($comparison_result === 'changed') {
@@ -390,19 +393,31 @@ class RealEstate_Sync_WP_Importer_API {
 			)
 		);
 
-		if ($existing_post_id) {
-			$this->tracker->log_event('WARNING', 'WP_IMPORTER_API', 'CREATE failure -> switching to UPDATE', array(
-				'import_id' => $import_id,
-				'wp_post_id' => $existing_post_id,
-				'error' => $error_msg,
-				'session_id' => $this->session_id,
-			));
+			if ($existing_post_id) {
+				$this->tracker->log_event('WARNING', 'WP_IMPORTER_API', 'CREATE failure -> switching to UPDATE', array(
+					'import_id' => $import_id,
+					'wp_post_id' => $existing_post_id,
+					'error' => $error_msg,
+					'session_id' => $this->session_id,
+				));
 
-			$update_result = $this->api_writer->update_property($existing_post_id, $api_body);
+				$recovery_body = $api_body;
+				$images_removed = !empty($recovery_body['images']);
+				if ($images_removed) {
+					unset($recovery_body['images']);
+				}
 
-			if ($update_result['success']) {
-				$update_result['action'] = 'updated';
-			}
+				$this->tracker->log_event('DEBUG', 'WP_IMPORTER_API', 'CREATE recovery payload sanitized', array(
+					'import_id' => $import_id,
+					'wp_post_id' => $existing_post_id,
+					'images_removed' => $images_removed ? 1 : 0,
+				));
+
+				$update_result = $this->api_writer->update_property($existing_post_id, $recovery_body);
+
+				if ($update_result['success']) {
+					$update_result['action'] = 'updated';
+				}
 
 			return $update_result;
 		}
